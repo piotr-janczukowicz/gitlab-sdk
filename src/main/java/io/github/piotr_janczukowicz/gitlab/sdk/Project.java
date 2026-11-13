@@ -123,6 +123,19 @@ public final class Project {
     }
 
     /**
+     * Returns the complete response of a loaded project.
+     *
+     * @return the response record
+     * @throws IllegalStateException if this is a handle that was not loaded with {@link #fetch()}
+     */
+    public GitLabProjectWithAccessAndCatalog response() {
+        if (response == null) {
+            throw new IllegalStateException("Project " + id + " is not loaded; call fetch()");
+        }
+        return response;
+    }
+
+    /**
      * Starts a change of the name, path, description, visibility or default branch. Nothing is sent until
      * {@link ProjectUpdate#send()}.
      *
@@ -230,6 +243,26 @@ public final class Project {
     }
 
     /**
+     * Shares the project with a group ({@code POST /projects/{id}/share}).
+     *
+     * @param groupId the id of the group to share with
+     * @param level the access level the group's members get in the project; {@link AccessLevel#MINIMAL_ACCESS} is not
+     *     accepted, because it exists for groups only and the core's project-share request has no such level
+     * @return the sharing as GitLab answers it
+     * @throws NullPointerException if {@code level} is {@code null}
+     * @throws IllegalArgumentException if {@code level} is {@link AccessLevel#MINIMAL_ACCESS}; no request is made
+     * @throws IOException if the transport fails
+     */
+    public ProjectGroupLink share(final long groupId, final AccessLevel level) throws IOException {
+        if (requireNonNull(level, "level") == AccessLevel.MINIMAL_ACCESS) {
+            throw new IllegalArgumentException("A project cannot be shared with access level " + level);
+        }
+        final GitLabProjectProjectsSharePayload payload = new GitLabProjectProjectsSharePayload(
+                groupId, GitLabProjectProjectsShareGroupAccess.fromWire(level.value()), null, null);
+        return new ProjectGroupLink(this, sdk.gitLab().projects().project().share(id, payload));
+    }
+
+    /**
      * Stops sharing the project with a group ({@code DELETE /projects/{id}/share/{group_id}}).
      *
      * @param groupId the id of the group the sharing is removed for
@@ -249,26 +282,6 @@ public final class Project {
      */
     public Stream<GitLabPublicGroupDetails> sharedGroups() throws IOException {
         return sdk.gitLab().projects().project().listGroups(id).stream();
-    }
-
-    /**
-     * Shares the project with a group ({@code POST /projects/{id}/share}).
-     *
-     * @param groupId the id of the group to share with
-     * @param level the access level the group's members get in the project; {@link AccessLevel#MINIMAL_ACCESS} is not
-     *     accepted, because it exists for groups only and the core's project-share request has no such level
-     * @return the sharing as GitLab answers it
-     * @throws NullPointerException if {@code level} is {@code null}
-     * @throws IllegalArgumentException if {@code level} is {@link AccessLevel#MINIMAL_ACCESS}; no request is made
-     * @throws IOException if the transport fails
-     */
-    public ProjectGroupLink share(final long groupId, final AccessLevel level) throws IOException {
-        if (requireNonNull(level, "level") == AccessLevel.MINIMAL_ACCESS) {
-            throw new IllegalArgumentException("A project cannot be shared with access level " + level);
-        }
-        final GitLabProjectProjectsSharePayload payload = new GitLabProjectProjectsSharePayload(
-                groupId, GitLabProjectProjectsShareGroupAccess.fromWire(level.value()), null, null);
-        return new ProjectGroupLink(this, sdk.gitLab().projects().project().share(id, payload));
     }
 
     /**
@@ -418,6 +431,35 @@ public final class Project {
      */
     public Issue createIssue(final GitLabProjectIssuesCreatePayload payload) throws IOException {
         return new Issue(this, sdk.gitLab().issues().project().create(id, payload));
+    }
+
+    /**
+     * Lists the labels of the project ({@code GET /projects/{id}/labels}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the labels
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Label> labels() throws IOException {
+        return sdk.gitLab().labels().list(id).stream().map(listed -> new Label(this, listed));
+    }
+
+    /**
+     * Creates a label ({@code POST /projects/{id}/labels}).
+     *
+     * @param name the label name
+     * @param color the color, as a hexadecimal value with a leading {@code #} or a CSS color name
+     * @return the created label
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Label createLabel(final String name, final String color) throws IOException {
+        final GitLabProjectLabelsCreatePayload payload = GitLabProjectLabelsCreatePayloadBuilder.builder()
+                .name(requireNotBlank(name, NAME))
+                .color(requireNotBlank(color, "color"))
+                .build();
+        return new Label(this, sdk.gitLab().labels().create(id, payload));
     }
 
     /**
@@ -579,35 +621,6 @@ public final class Project {
     }
 
     /**
-     * Lists the labels of the project ({@code GET /projects/{id}/labels}). Pages are fetched only as the stream is
-     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
-     *
-     * @return the labels
-     * @throws IOException if the first page cannot be loaded
-     */
-    public Stream<Label> labels() throws IOException {
-        return sdk.gitLab().labels().list(id).stream().map(listed -> new Label(this, listed));
-    }
-
-    /**
-     * Creates a label ({@code POST /projects/{id}/labels}).
-     *
-     * @param name the label name
-     * @param color the color, as a hexadecimal value with a leading {@code #} or a CSS color name
-     * @return the created label
-     * @throws NullPointerException if an argument is {@code null}
-     * @throws IllegalArgumentException if an argument is blank
-     * @throws IOException if the transport fails
-     */
-    public Label createLabel(final String name, final String color) throws IOException {
-        final GitLabProjectLabelsCreatePayload payload = GitLabProjectLabelsCreatePayloadBuilder.builder()
-                .name(requireNotBlank(name, NAME))
-                .color(requireNotBlank(color, "color"))
-                .build();
-        return new Label(this, sdk.gitLab().labels().create(id, payload));
-    }
-
-    /**
      * Loads a file of the repository at a ref ({@code GET /projects/{id}/repository/files/{file_path}?ref=...}). The
      * path is passed to the core as it is; the core encodes it.
      *
@@ -733,19 +746,6 @@ public final class Project {
      */
     public Optional<Commit> commit(final String sha) throws IOException {
         return sdk.gitLab().commits().get(id, sha).map(loaded -> new Commit(this, loaded));
-    }
-
-    /**
-     * Returns the complete response of a loaded project.
-     *
-     * @return the response record
-     * @throws IllegalStateException if this is a handle that was not loaded with {@link #fetch()}
-     */
-    public GitLabProjectWithAccessAndCatalog response() {
-        if (response == null) {
-            throw new IllegalStateException("Project " + id + " is not loaded; call fetch()");
-        }
-        return response;
     }
 
     /**

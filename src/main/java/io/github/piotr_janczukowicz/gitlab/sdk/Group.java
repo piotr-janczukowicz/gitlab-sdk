@@ -90,6 +90,19 @@ public final class Group {
     }
 
     /**
+     * Returns the complete response of a loaded group.
+     *
+     * @return the response record
+     * @throws IllegalStateException if this is a handle that was not loaded with {@link #fetch()}
+     */
+    public GitLabGroupDetail response() {
+        if (response == null) {
+            throw new IllegalStateException("Group " + id + " is not loaded; call fetch()");
+        }
+        return response;
+    }
+
+    /**
      * Starts a change of the name, path, description or visibility. Nothing is sent until {@link GroupUpdate#send()}.
      *
      * @return the update builder
@@ -155,16 +168,6 @@ public final class Group {
     }
 
     /**
-     * Stops sharing the group with another group ({@code DELETE /groups/{id}/share/{group_id}}).
-     *
-     * @param groupId the id of the group the sharing is removed for
-     * @throws IOException if the transport fails
-     */
-    public void unshare(final long groupId) throws IOException {
-        sdk.gitLab().groups().deleteShare(id, groupId);
-    }
-
-    /**
      * Shares the group with another group ({@code POST /groups/{id}/share}). GitLab answers with this group, so the
      * returned group is built from the answer without another request.
      *
@@ -182,6 +185,16 @@ public final class Group {
                 null,
                 null);
         return new Group(sdk, id, sdk.gitLab().groups().share(id, payload));
+    }
+
+    /**
+     * Stops sharing the group with another group ({@code DELETE /groups/{id}/share/{group_id}}).
+     *
+     * @param groupId the id of the group the sharing is removed for
+     * @throws IOException if the transport fails
+     */
+    public void unshare(final long groupId) throws IOException {
+        sdk.gitLab().groups().deleteShare(id, groupId);
     }
 
     /**
@@ -301,19 +314,6 @@ public final class Group {
         return sdk.gitLab().groups().listGroup(id, GitLabPageRequest.byPage()).stream()
                 .map(listed -> String.valueOf(requireNonNull(listed.id(), "id")))
                 .flatMap(groupId -> Lookups.find(() -> sdk.group(groupId).fetch()).stream());
-    }
-
-    /**
-     * Returns the complete response of a loaded group.
-     *
-     * @return the response record
-     * @throws IllegalStateException if this is a handle that was not loaded with {@link #fetch()}
-     */
-    public GitLabGroupDetail response() {
-        if (response == null) {
-            throw new IllegalStateException("Group " + id + " is not loaded; call fetch()");
-        }
-        return response;
     }
 
     /**
