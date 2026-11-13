@@ -15,9 +15,9 @@ import java.util.List;
  * A protected branch of a {@link Project}, as GitLab returned it. The object is immutable: it keeps the data of the
  * moment it was loaded, and {@link #response()} gives the complete response for every field the accessors here do not
  * cover. The branch is addressed by its name, which may be a wildcard and may contain slashes; the name reaches the
- * core client unchanged and the core encodes it. User- and group-based push and merge rules are not wrapped; use the
- * core client for them. The v1 {@code Branch.protect()} stays the quick way to protect an existing branch with the
- * default rules.
+ * core client unchanged and the core encodes it. User-, group-, deploy-key- and member-role-based rules are not
+ * wrapped: they are left out of the access lists and stay available from {@link #response()}. The v1
+ * {@code Branch.protect()} stays the quick way to protect an existing branch with the default rules.
  */
 public final class ProtectedBranch {
 

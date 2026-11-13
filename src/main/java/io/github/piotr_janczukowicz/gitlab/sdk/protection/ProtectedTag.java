@@ -13,8 +13,9 @@ import java.util.List;
  * A protected tag of a {@link Project}, as GitLab returned it. The object is immutable: it keeps the data of the moment
  * it was loaded, and {@link #response()} gives the complete response for every field the accessors here do not cover.
  * The tag is addressed by its name, which may be a wildcard; the name reaches the core client unchanged and the core
- * encodes it. GitLab cannot change a protected tag in place: remove the protection and protect the tag again. User- and
- * group-based create rules are not wrapped; use the core client for them.
+ * encodes it. GitLab cannot change a protected tag in place: remove the protection and protect the tag again. User-,
+ * group-, deploy-key- and member-role-based rules are not wrapped: they are left out of the access lists and stay
+ * available from {@link #response()}.
  */
 public final class ProtectedTag {
 
