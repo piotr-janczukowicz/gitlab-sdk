@@ -6,6 +6,11 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
+import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabProjectDeployTokensCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabProjectDeployTokensCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabProjectDeployTokensCreateScopes;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFilter;
@@ -33,6 +38,10 @@ import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.RepositoryFile;
+import io.github.piotr_janczukowicz.gitlab.sdk.deploy.CreatedDeployToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployKey;
+import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployTokenScope;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
@@ -773,6 +782,132 @@ public final class Project {
      */
     public Webhook createWebhook(final GitLabProjectProjectWebhooksCreatePayload payload) throws IOException {
         return new Webhook(this, sdk.gitLab().projectwebhooks().create(id, requireNonNull(payload, "payload")));
+    }
+
+    /**
+     * Lists the deploy keys of the project ({@code GET /projects/{id}/deploy_keys}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the deploy keys
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<DeployKey> deployKeys() throws IOException {
+        return sdk.gitLab().deploykeys().project().list(id).stream().map(listed -> new DeployKey(this, listed));
+    }
+
+    /**
+     * Loads a deploy key ({@code GET /projects/{id}/deploy_keys/{key_id}}).
+     *
+     * @param keyId the id of the key
+     * @return the key, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<DeployKey> deployKey(final long keyId) throws IOException {
+        return sdk.gitLab().deploykeys().project().get(id, keyId).map(loaded -> new DeployKey(this, loaded));
+    }
+
+    /**
+     * Adds a deploy key that cannot push ({@code POST /projects/{id}/deploy_keys}).
+     *
+     * @param title the title of the key
+     * @param key the public key
+     * @return the new deploy key
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public DeployKey addDeployKey(final String title, final String key) throws IOException {
+        return createDeployKey(GitLabProjectDeployKeysCreatePayloadBuilder.builder(), title, key);
+    }
+
+    /**
+     * Adds a deploy key ({@code POST /projects/{id}/deploy_keys}).
+     *
+     * @param title the title of the key
+     * @param key the public key
+     * @param canPush {@code true} to let the key push to the repository
+     * @return the new deploy key
+     * @throws NullPointerException if {@code title} or {@code key} is {@code null}
+     * @throws IllegalArgumentException if {@code title} or {@code key} is blank
+     * @throws IOException if the transport fails
+     */
+    public DeployKey addDeployKey(final String title, final String key, final boolean canPush) throws IOException {
+        return createDeployKey(
+                GitLabProjectDeployKeysCreatePayloadBuilder.builder().canPush(canPush), title, key);
+    }
+
+    /**
+     * Enables a deploy key of another project for this project ({@code POST
+     * /projects/{id}/deploy_keys/{key_id}/enable}) and loads it again, because the core answers with a different
+     * record.
+     *
+     * @param keyId the id of the key
+     * @return the key as GitLab holds it for this project
+     * @throws IllegalStateException if the key is gone after it was enabled
+     * @throws IOException if the transport fails
+     */
+    public DeployKey enableDeployKey(final long keyId) throws IOException {
+        sdk.gitLab().deploykeys().project().enable(id, keyId);
+        return deployKey(keyId).orElseThrow(() -> new IllegalStateException("Deploy key " + keyId + IS_GONE));
+    }
+
+    /**
+     * Lists the deploy tokens of the project ({@code GET /projects/{id}/deploy_tokens}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the deploy tokens
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<DeployToken> deployTokens() throws IOException {
+        return sdk.gitLab().deploytokens().project().list(id).stream().map(listed -> new DeployToken(this, listed));
+    }
+
+    /**
+     * Loads a deploy token ({@code GET /projects/{id}/deploy_tokens/{token_id}}).
+     *
+     * @param tokenId the id of the token
+     * @return the token, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<DeployToken> deployToken(final long tokenId) throws IOException {
+        return sdk.gitLab().deploytokens().project().get(id, tokenId).map(loaded -> new DeployToken(this, loaded));
+    }
+
+    /**
+     * Creates a deploy token ({@code POST /projects/{id}/deploy_tokens}). The secret of the token is in the answer
+     * only; GitLab never returns it again.
+     *
+     * @param name the name of the token
+     * @param scopes what the token may be used for
+     * @return the new token with its secret
+     * @throws NullPointerException if {@code name} or a scope is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank, or no scope is given
+     * @throws IOException if the transport fails
+     */
+    public CreatedDeployToken createDeployToken(final String name, final DeployTokenScope @Nullable ... scopes)
+            throws IOException {
+        requireNotBlank(name, "name");
+        if (scopes == null || scopes.length == 0) {
+            throw new IllegalArgumentException("At least one scope is required");
+        }
+        final GitLabProjectDeployTokensCreatePayload payload = GitLabProjectDeployTokensCreatePayloadBuilder.builder()
+                .name(name)
+                .scopes(Stream.of(scopes)
+                        .map(scope -> GitLabProjectDeployTokensCreateScopes.fromWire(
+                                requireNonNull(scope, "scope").wireValue()))
+                        .toList())
+                .build();
+        return new CreatedDeployToken(
+                this, sdk.gitLab().deploytokens().project().create(id, payload));
+    }
+
+    private DeployKey createDeployKey(
+            final GitLabProjectDeployKeysCreatePayloadBuilder builder, final String title, final String key)
+            throws IOException {
+        final GitLabProjectDeployKeysCreatePayload payload = builder.title(requireNotBlank(title, "title"))
+                .key(requireNotBlank(key, "key"))
+                .build();
+        return new DeployKey(this, sdk.gitLab().deploykeys().project().create(id, payload));
     }
 
     private Project loadById(final @Nullable Long newId) throws IOException {

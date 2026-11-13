@@ -3,6 +3,9 @@ package io.github.piotr_janczukowicz.gitlab.sdk;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
+import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreateScopes;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsSharePayload;
@@ -12,6 +15,9 @@ import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWeb
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployTokenScope;
+import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupCreatedDeployToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
@@ -348,6 +354,56 @@ public final class Group {
      */
     public GroupWebhook createWebhook(final GitLabGroupGroupWebhooksCreatePayload payload) throws IOException {
         return new GroupWebhook(this, sdk.gitLab().groupwebhooks().create(id, requireNonNull(payload, "payload")));
+    }
+
+    /**
+     * Lists the deploy tokens of the group ({@code GET /groups/{id}/deploy_tokens}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the deploy tokens
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupDeployToken> deployTokens() throws IOException {
+        return sdk.gitLab().deploytokens().group().list(id).stream().map(listed -> new GroupDeployToken(this, listed));
+    }
+
+    /**
+     * Loads a deploy token ({@code GET /groups/{id}/deploy_tokens/{token_id}}).
+     *
+     * @param tokenId the id of the token
+     * @return the token, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupDeployToken> deployToken(final long tokenId) throws IOException {
+        return sdk.gitLab().deploytokens().group().get(id, tokenId).map(loaded -> new GroupDeployToken(this, loaded));
+    }
+
+    /**
+     * Creates a deploy token ({@code POST /groups/{id}/deploy_tokens}). The secret of the token is in the answer only;
+     * GitLab never returns it again. GitLab has no group-level deploy keys.
+     *
+     * @param name the name of the token
+     * @param scopes what the token may be used for
+     * @return the new token with its secret
+     * @throws NullPointerException if {@code name} or a scope is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank, or no scope is given
+     * @throws IOException if the transport fails
+     */
+    public GroupCreatedDeployToken createDeployToken(final String name, final DeployTokenScope @Nullable ... scopes)
+            throws IOException {
+        requireNotBlank(name, "name");
+        if (scopes == null || scopes.length == 0) {
+            throw new IllegalArgumentException("At least one scope is required");
+        }
+        final GitLabGroupDeployTokensCreatePayload payload = GitLabGroupDeployTokensCreatePayloadBuilder.builder()
+                .name(name)
+                .scopes(Stream.of(scopes)
+                        .map(scope -> GitLabGroupDeployTokensCreateScopes.fromWire(
+                                requireNonNull(scope, "scope").wireValue()))
+                        .toList())
+                .build();
+        return new GroupCreatedDeployToken(
+                this, sdk.gitLab().deploytokens().group().create(id, payload));
     }
 
     private GroupMember createMember(

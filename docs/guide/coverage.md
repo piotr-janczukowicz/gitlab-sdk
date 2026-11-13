@@ -72,6 +72,21 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 | `Webhook`, `GroupWebhook` | `project()` or `group()`, `id()`, `url()`, `name()` (`Optional`), `isEnabledFor(event)` (a missing flag is `false`), `update()`, `test(event)`, `delete()`, `refresh()`, `response()`. Every group webhook call is Premium; the core's tier guard decides. The token and signing token are write-only and never exposed |
 | `WebhookUpdate`, `GroupWebhookUpdate` | `url(...)`, `name(...)`, `description(...)`, `token(...)`, `enableSslVerification(...)`, `events(...)` (switches the named events on and leaves the others as they are), `send()`; `send()` with nothing set throws `IllegalStateException`. The answer of the update is the new object, no extra request |
 
+## `deploy`
+
+| Object | Methods |
+|---|---|
+| `DeployTokenScope` | `READ_REPOSITORY`, `READ_REGISTRY`, `WRITE_REGISTRY`, `READ_PACKAGE_REGISTRY`, `WRITE_PACKAGE_REGISTRY`, `READ_VIRTUAL_REGISTRY`, `WRITE_VIRTUAL_REGISTRY`; `wireValue()`, `fromWire(String)` (an unknown name throws `IllegalArgumentException`) |
+| `DeployKey` | `project()`, `id()`, `title()`, `canPush()` (a missing flag is `false`), `expiresAt()` (`Optional<Instant>`), `update()`, `delete()`, `refresh()`, `response()` (the public key is only there). GitLab has no group-level deploy keys |
+| `DeployKeyUpdate` | `title(...)`, `canPush(boolean)`, `send()`; `send()` with nothing set throws `IllegalStateException`. The key is loaded again after the update, because the core answers the update with a different record |
+| `DeployToken`, `GroupDeployToken` | `project()` or `group()`, `id()`, `name()`, `username()` (`Optional`), `scopes()` (an unknown scope in the response throws `IllegalArgumentException`), `scopeNames()` (the raw names, never fails), `isRevoked()`, `isExpired()`, `expiresAt()` (`Optional<Instant>`), `delete()`, `response()` |
+| `CreatedDeployToken`, `GroupCreatedDeployToken` | `deployToken()`, `token()`: the secret, returned by GitLab only when the token is created, and never part of `toString()` |
+
+`Project` adds `deployKeys()`, `deployKey(keyId)`, `addDeployKey(title, key)`, `addDeployKey(title, key, canPush)`,
+`enableDeployKey(keyId)` (loaded again after enabling), `deployTokens()`, `deployToken(tokenId)` and
+`createDeployToken(name, scopes...)`; `Group` adds `deployTokens()`, `deployToken(tokenId)` and
+`createDeployToken(name, scopes...)`. Creating a token with no scope throws `IllegalArgumentException` and sends nothing.
+
 ## What is not covered
 
 - **Fields of a project or group outside the typed set.** `ProjectDraft`, `ProjectUpdate`, `GroupDraft` and
@@ -81,7 +96,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 - **Filter on the jobs of one pipeline.** `pipeline.jobs()` lists without a filter. Pipeline and job logs, artifacts and
   variables are not covered.
 - **Everything outside the areas above**, such as releases, tags, milestones, snippets, protected branches in detail, member roles
-  (Ultimate), the premium-only member endpoints (approving pending members, billable members), access tokens, the container registry and packages, deploy keys and tokens, environments, discussions and
+  (Ultimate), the premium-only member endpoints (approving pending members, billable members), access tokens, the container registry and packages, instance-level deploy keys and tokens, environments, discussions and
   threads, labels of a group, the descendant groups of a group at every level, and the administration of an instance. Use `gitlab-rest-client` for them; see
   [When the SDK does not cover a call](../../README.md#when-the-sdk-does-not-cover-a-call).
 - **Webhook extras.** URL variables, custom headers, delivery logs and resending an event are not covered, nor are

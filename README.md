@@ -71,6 +71,7 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Projects and groups** | load a project or a group by id or path, create, update, archive, unarchive, delete, transfer, share and unshare; fork a project and list its forks; the projects and the direct subgroups of a group |
 | **Members and access** | list, load, add (by id or username), update and remove the members of a project or group, with a typed `AccessLevel`; request, list, approve and deny access requests; share a project or group with a group |
 | **Webhooks** | list, load, create (by URL or a core payload), update (URL, name, description, token, SSL verification, events), test, delete the webhooks of a project; the same for a group (Premium) |
+| **Deploy keys and tokens** | list, load, add, update, enable and delete the deploy keys of a project (GitLab has no group-level deploy keys in its API); list, load, create and delete the deploy tokens of a project or group, with a typed `DeployTokenScope` |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
@@ -104,6 +105,19 @@ hook = hook.update().name("ci").token("s3cret").events(WebhookEvent.PUSH, Webhoo
 hook.test(WebhookEvent.PUSH);
 boolean onPush = hook.isEnabledFor(WebhookEvent.PUSH);
 group.createWebhook("https://ci.example/group-hook");                   // Premium
+```
+
+### Deploy keys and tokens
+
+A project has deploy keys and deploy tokens; a group has deploy tokens only, because GitLab's API has no group-level
+deploy keys. The secret of a token is returned once, by the call that creates it, and `toString()` never prints it.
+
+```java
+DeployKey key = project.addDeployKey("ci", "ssh-ed25519 AAAA... ci", true);
+key = key.update().title("ci-runner").canPush(false).send();
+CreatedDeployToken created = project.createDeployToken("registry", DeployTokenScope.READ_REGISTRY);
+String secret = created.token();                                        // the only time it is available
+group.createDeployToken("packages", DeployTokenScope.READ_PACKAGE_REGISTRY);
 ```
 
 ## When the SDK does not cover a call
