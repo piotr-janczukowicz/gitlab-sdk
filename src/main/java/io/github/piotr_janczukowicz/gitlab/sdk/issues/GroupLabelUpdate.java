@@ -9,8 +9,8 @@ import java.io.IOException;
 
 /**
  * Collects changes to a {@link GroupLabel} and sends them in one request. Only the fields that were set are sent, and
- * nothing is sent until {@link #send()}. The description cannot be cleared: the core's payload field is a plain
- * optional value and GitLab's documentation does not say that an empty value clears it.
+ * nothing is sent until {@link #send()}. {@code null} cannot be sent; an empty description is sent as given, and
+ * whether GitLab then clears it is not verified against a live instance.
  */
 public final class GroupLabelUpdate {
 

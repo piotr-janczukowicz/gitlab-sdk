@@ -16,7 +16,7 @@ request is a `long`.
 | `ProjectGroupLink` | The sharing of a project with a group, returned by `Project.share(groupId, level)`: `project()`, `groupId()`, `expiresAt()`, `response()`. It has no `refresh()` |
 | `Visibility` | `PRIVATE`, `INTERNAL`, `PUBLIC` |
 | `ProjectDraft` | From `sdk.createProject(name)`: `path(...)`, `namespaceId(...)`, `description(...)`, `visibility(...)`, `defaultBranch(...)`, `initializeWithReadme(...)`, `send()` (creates, then loads the project again) |
-| `ProjectUpdate` | `name(...)`, `path(...)`, `description(...)`, `clearDescription()`, `visibility(...)`, `defaultBranch(...)`, `send()`; `send()` with nothing set throws `IllegalStateException`. Archiving stays with `archive()` |
+| `ProjectUpdate` | `name(...)`, `path(...)`, `description(...)`, `clearDescription()` (sends an empty description), `visibility(...)`, `defaultBranch(...)`, `send()`; `send()` with nothing set throws `IllegalStateException`. Archiving stays with `archive()` |
 | `GroupDraft` | From `sdk.createGroup(name, path)`: `description(...)`, `visibility(...)`, `parentId(...)`, `send()` |
 | `GroupUpdate` | `name(...)`, `path(...)`, `description(...)`, `visibility(...)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `User` | Loaded. `id()`, `username()`, `refresh()`, `response()` |
@@ -27,7 +27,7 @@ request is a `long`.
 | Object | Methods |
 |---|---|
 | `Issue` | `project()`, `iid()`, `title()`, `description()`, `state()` (`IssueState`: `OPENED`, `CLOSED`), `labels()`, `update()`, `close()`, `reopen()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
-| `IssueUpdate` | `title(...)`, `description(...)`, `clearDescription()`, `labels(names)`, `assignees(userIds)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
+| `IssueUpdate` | `title(...)`, `description(...)`, `clearDescription()` (sends an empty description), `labels(names)`, `assignees(userIds)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `Note` | `issue()`, `id()`, `body()`, `update(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
 | `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends `GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a failed GET promotes nothing; a project in a user namespace is not rejected by the SDK: GitLab's rejection passes through as the core's exception), `delete()`, `refresh()`, `response()` |
 | `LabelUpdate` | `name(...)`, `color(...)`, `description(...)`, `send()` |
@@ -68,10 +68,10 @@ request is a `long`.
 | `Release` | `project()`, `tagName()` (may contain slashes, sent unchanged), `name()`, `description()`, `releasedAt()`, `isUpcoming()` (a missing flag is `false`), `update()` (`ReleaseUpdate`: `name`, `description`, `releasedAt(Instant)`, `milestones(List<String>)`, `send()`), `collectEvidence()` (returns the release GitLab answers with), `links()`, `link(id)`, `addLink(name, url)`, `addLink(payload)` (the core's payload, for the type and the asset paths), `delete()` (the tag stays), `refresh()` (`IllegalStateException` when gone), `response()` (milestones, assets and evidences are read from it). Listed, loaded, created and updated releases share one record, so none of them needs an extra request |
 | `ReleaseLink` | `release()`, `id()`, `name()`, `url()`, `directAssetUrl()`, `type()` (`ReleaseLinkType`: `OTHER`, `RUNBOOK`, `PACKAGE`, `IMAGE`; an `Optional`, empty when the response has none; an unknown value throws `IllegalArgumentException`), `typeName()` (the raw value), `update()` (`ReleaseLinkUpdate`: `name`, `url`, `type(ReleaseLinkType)`, `send()`), `delete()`, `refresh()` (`IllegalStateException` when gone), `response()` |
 
-An empty `update().send()` of a release or a link throws `IllegalStateException` and makes no request. Fields cannot be
-cleared through `ReleaseUpdate`: `null` is rejected, a blank `name` is rejected, and an empty `description` is sent as given (where an empty string is
-accepted), but that GitLab then clears the field is not confirmed by the core's documentation; `milestones(List.of())` is sent as an empty list, and that
-GitLab then removes the milestones is not confirmed either.
+An empty `update().send()` of a release or a link throws `IllegalStateException` and makes no request. `ReleaseUpdate`
+rejects `null` and a blank `name`; an empty `description` is sent as given, and whether GitLab then clears it is not
+verified against a live instance. `milestones(List.of())` is sent as an empty list, and whether GitLab then removes the
+milestones is not verified either.
 
 ## `discussions`
 
@@ -103,9 +103,9 @@ request; reacting twice with the same emoji passes GitLab's error through.
 The issues and merge requests of a milestone are listed as summaries, so each one is loaded as the stream reaches it,
 through the project named in the summary (`Milestone`: the owning project when the summary names none; `GroupMilestone`:
 the items belong to different projects, and one that names none is skipped). An item that is gone by then is skipped. An
-empty `update().send()` throws `IllegalStateException` and makes no request. Fields cannot be cleared, the dates
-included (a date takes a `LocalDate`, never `null`): the core's payload fields are plain optional values and GitLab's
-documentation does not say that a missing or empty value clears them. Dates are sent as `yyyy-MM-dd`.
+empty `update().send()` throws `IllegalStateException` and makes no request. A date takes a `LocalDate`, never
+`null`, so it cannot be cleared; an empty `description` is sent as given, and whether GitLab then clears it is not
+verified against a live instance. Dates are sent as `yyyy-MM-dd`.
 
 ## `members`
 
@@ -170,8 +170,7 @@ defaults of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()
   administration of an instance. Use `gitlab-rest-client` for them; see [When the SDK does not cover a
   call](../../README.md#when-the-sdk-does-not-cover-a-call).
 - **Releases.** Group releases, the typed latest-release getter (the core only has `void` permalink calls), release
-  asset sources and downloads, evidence beyond `collectEvidence()`, clearing the description of a release, and the
-  `milestoneIds` and `assets` of a release (they stay reachable through `createRelease(payload)`) are not covered.
+  asset sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release (they stay reachable through `createRelease(payload)`) are not covered.
 - **Draft notes.** Building a draft-note `position` (the core's payload record) and clearing a position are not covered.
   `createDraftNote(null)` and `publishDraftNotes(null)` need a cast, because each has an overload for the core's
   payload.
@@ -179,9 +178,9 @@ defaults of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()
 - **Discussions.** Commit, snippet and epic discussions, editing or deleting a reply through the discussion-note
   endpoints (use the `Note` objects of `notes()`), and building a diff `position` (the core's payload record) are not
   covered. `mergeRequest.startDiscussion(null)` needs a cast, because it overloads the payload variant.
-- **Milestones.** Burndown events (the core's calls return nothing), clearing the dates or the description, and the
+- **Milestones.** Burndown events (the core's calls return nothing), clearing the dates (`null` cannot be sent), and the
   milestone filters of issues and merge requests are not covered. Group milestones have no `promote()`.
-- **Labels.** Setting or clearing the `priority` of a label, clearing the `description` of a label with `null`, a group
+- **Labels.** The `priority` of a label (it cannot be set), a group
   label priority (GitLab has none), and the label counts beyond what the group filter asks for (`withCounts` is a filter
   option; the counts stay in `response()`) are not covered.
 - **Members.** Member roles (Ultimate) are not covered (see above).

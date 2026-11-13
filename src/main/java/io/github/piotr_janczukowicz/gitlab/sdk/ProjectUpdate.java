@@ -58,7 +58,8 @@ public final class ProjectUpdate {
     }
 
     /**
-     * Removes the description. GitLab clears a description that is set to an empty string.
+     * Sends an empty string as the description, the same as {@code description("")}. Whether GitLab then clears the
+     * description is not verified against a live instance.
      *
      * @return this update
      */

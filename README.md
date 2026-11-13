@@ -64,7 +64,7 @@ and close it once, when the application stops (see [Good practices](#good-practi
 
 ## What you can do
 
-Each area below is an object you reach from `sdk` or from a `Project`. The
+Each area below is an object you reach from `sdk`, from a `Project` or from a `Group`. The
 [full list of objects and methods](docs/guide/coverage.md) names every call.
 
 | Area | What it covers |
@@ -88,8 +88,8 @@ for another user (`createUser`); member roles; webhook URL variables, custom hea
 event; group-level deploy keys (GitLab has none); protected-branch rules of a user, a group, a deploy key or a member
 role (they stay in `response()`); group releases, the typed latest-release getter and release asset sources; milestone
 burndown events; snippet, commit and epic discussions and the snippet and epic-note reactions; editing or deleting a
-reply through the discussion endpoints (use the `Note` objects); building a diff `position`; and clearing a milestone
-date, a release description, a label priority or a draft-note position (the core's payload fields cannot express it).
+reply through the discussion endpoints (use the `Note` objects); building a diff `position`; clearing a milestone date
+or a draft-note position (the SDK cannot send `null` for them); and the priority of a label.
 The same goes for every area outside the table, such as snippets, packages, the container registry and the
 administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance
 yet; see [Live smoke tests](docs/guide/smoke-tests.md).
@@ -188,7 +188,8 @@ release for an existing tag, `createRelease(tag, ref)` lets GitLab create the ta
 `delete()` removes the release, not the tag. Group releases, release asset sources and the typed latest-release getter
 are not covered; the `milestoneIds` and `assets` of a release stay reachable through the payload overload.
 `createRelease` has two single-argument overloads (a tag name and the core's payload), so a literal `null` needs a cast.
-A release description cannot be cleared: the update builder takes a value, never `null`. `ReleaseLink.type()` is an
+The update builder takes a value, never `null`; an empty description is sent as given (see
+[Conventions](#conventions)). `ReleaseLink.type()` is an
 `Optional`, empty when GitLab sends no type; `typeName()` returns the raw value.
 
 ```java
@@ -205,8 +206,8 @@ A milestone is addressed by its id (not its `iid`). Dates are `LocalDate`s: `due
 GitLab sends none, and the update builder takes `LocalDate`s, sent as `yyyy-MM-dd`. `close()` and `reopen()` change the
 state. `issues()` and `mergeRequests()` load each item with one more request as the stream reaches it, through the
 project the item belongs to, so the items listed from a group milestone are loaded through their own projects. Burndown
-events and clearing a date or the description are not covered: the core's payload fields are plain optional values, so
-the SDK offers no way to clear them. `promote()` exists on project milestones only and returns nothing.
+events and clearing a date are not covered: the update builder takes a `LocalDate`, never `null`. An empty description
+is sent as given (see [Conventions](#conventions)). `promote()` exists on project milestones only and returns nothing.
 
 ```java
 Milestone milestone = project.createMilestone("v1.0");
@@ -350,8 +351,10 @@ All objects behave the same way, so you learn them once:
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
 - Where the core's payloads distinguish an omitted field from a cleared one, the update builders use its tri-state
-  `OptionalNull` to clear it (`clearExpiresAt()` on member updates, alongside `clearDescription()`). Where they do not
-  (milestone dates and description, release description, draft-note position), a field cannot be cleared.
+  `OptionalNull` to send `null` (`clearExpiresAt()` on member updates). Elsewhere `null` cannot be sent, so a milestone
+  date or a draft-note position cannot be cleared.
+- **An empty string is sent as given** (`description("")` on an update builder, and `clearDescription()` on issue and
+  project updates, which sends one); whether GitLab then clears the value is not verified against a live instance.
 - `IOException` and the client's `GitLabApiException` pass through unchanged.
 - A call that needs a tier your instance lacks fails in the core's tier guard when you configured the tier on the
   client; the SDK adds no tier logic of its own.

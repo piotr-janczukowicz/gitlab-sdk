@@ -10,9 +10,9 @@ import java.time.LocalDate;
 
 /**
  * Collects changes to a {@link Milestone} and sends them in one request. Only the fields that were set are sent, and
- * nothing is sent until {@link #send()}. A field cannot be cleared, the dates included: the core's payload fields are
- * plain optional values and GitLab's documentation does not say that a missing or empty value clears them. To close or
- * reopen the milestone use {@link Milestone#close()} and {@link Milestone#reopen()}.
+ * nothing is sent until {@link #send()}. {@code null} cannot be sent, so a date cannot be cleared; an empty description
+ * is sent as given, and whether GitLab then clears it is not verified against a live instance. To close or reopen the
+ * milestone use {@link Milestone#close()} and {@link Milestone#reopen()}.
  */
 public final class MilestoneUpdate {
 

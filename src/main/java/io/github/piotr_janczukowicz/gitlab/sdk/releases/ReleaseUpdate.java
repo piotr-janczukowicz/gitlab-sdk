@@ -11,9 +11,8 @@ import java.util.List;
 
 /**
  * Collects changes to a {@link Release} and sends them in one request. Only the fields that were set are sent, and
- * nothing is sent until {@link #send()}. A field cannot be cleared: {@code null} cannot be sent, and an empty string,
- * where one is accepted, is sent as given; GitLab's documentation does not say that a missing or empty value clears the
- * field.
+ * nothing is sent until {@link #send()}. {@code null} cannot be sent; an empty string, where one is accepted, is sent
+ * as given, and whether GitLab then clears the field is not verified against a live instance.
  */
 public final class ReleaseUpdate {
 
