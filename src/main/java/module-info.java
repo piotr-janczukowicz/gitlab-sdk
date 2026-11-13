@@ -4,4 +4,5 @@ module io.github.piotr_janczukowicz.gitlabsdk {
     requires org.jspecify;
 
     exports io.github.piotr_janczukowicz.gitlab.sdk;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.issues;
 }
