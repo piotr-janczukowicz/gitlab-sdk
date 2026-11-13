@@ -14,7 +14,7 @@ public final class ProjectUpdate {
 
     private final GitLabSdk sdk;
     private final String id;
-    private final ProjectForms form = new ProjectForms();
+    private final ManagementForms form = new ManagementForms();
     private final UpdateState state = new UpdateState();
 
     ProjectUpdate(final GitLabSdk sdk, final String id) {

@@ -106,8 +106,7 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
 - **Fields of a project or group outside the typed set.** `ProjectDraft`, `ProjectUpdate`, `GroupDraft` and
   `GroupUpdate` take the common fields only (see above); anything else needs the core's `MultipartFormData` API.
 - **Options of `Branch.protect()`.** It uses GitLab's default rules; use `project.protectBranch(name, push, merge)` or the core
-  for the options. (`merge(options)`,
-  `approve(options)`, `pipelines(filter)` and `jobs(filter)` take the core's own payload and filter records.)
+  for the options.
 - **Filter on the jobs of one pipeline.** `pipeline.jobs()` lists without a filter. Pipeline and job logs, artifacts and
   variables are not covered.
 - **User-, group-, deploy-key- and member-role-based protection rules.** They are skipped in the access lists and stay

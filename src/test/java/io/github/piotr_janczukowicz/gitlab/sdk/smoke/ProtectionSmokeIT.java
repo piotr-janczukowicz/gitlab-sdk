@@ -2,6 +2,7 @@ package io.github.piotr_janczukowicz.gitlab.sdk.smoke;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
@@ -33,6 +34,7 @@ class ProtectionSmokeIT {
         final Project project = ENV.sandbox();
         final String name = "smoke-" + ENV.runId() + "/protected";
         final String defaultBranch = project.fetch().orElseThrow().response().defaultBranch();
+        assumeTrue(defaultBranch != null, "the sandbox has no default branch (empty repository)");
         project.createBranch(name, defaultBranch);
         SmokeCleanup.run(
                 () -> {

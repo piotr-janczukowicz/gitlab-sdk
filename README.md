@@ -194,8 +194,10 @@ back to it as well: every object has `response()`, the complete client record, w
 All objects behave the same way, so you learn them once:
 
 - Objects are **immutable**. An operation returns a new object; the old one keeps its old state.
-- A **project or group** is a `String`: its numeric id or its path, as in the core (`my-group/my-project`). A transferred project or
-  group is addressed by its numeric id afterwards. Issues and merge requests are addressed by their `iid`, the number within
+- A **project or group** is a `String`: its numeric id or its path, as in the core (`my-group/my-project`). Every object
+  returned by create, update or transfer of a project or group (`ProjectDraft.send()`, `GroupDraft.send()`,
+  `ProjectUpdate.send()`, `GroupUpdate.send()`, `transfer(...)`, and also `fork(...)`) is addressed by its numeric id
+  afterwards. Issues and merge requests are addressed by their `iid`, the number within
   the project.
 - A **lookup** (`project.issue(42)`, `sdk.user(7)`, `project.file("README.md", "main")`) returns an `Optional`, empty when
   GitLab answers 404.
@@ -215,6 +217,10 @@ All objects behave the same way, so you learn them once:
 - A **state or status** is an enum (`issue.state()`, `pipeline.status()`, `job.status()`) and throws
   `IllegalArgumentException` for a value this SDK does not know yet. `pipeline.statusName()` and `job.statusName()` return
   the raw value GitLab sent, for that case.
+- **Raw escape hatches** stand next to the typed accessors and never fail on a value the SDK does not know:
+  `statusName()` (pipelines, jobs), `accessLevelValue()` (members), `scopeNames()` (deploy tokens) and the
+  `*AccessValues()` methods (`pushAccessValues()`, `mergeAccessValues()`, `createAccessValues()` of protected branches
+  and tags).
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
 - `IOException` and the client's `GitLabApiException` pass through unchanged.
@@ -243,7 +249,9 @@ All objects behave the same way, so you learn them once:
 - **Give the token what the call needs.** A personal access token with the `api` scope covers everything the SDK does;
   `read_api` covers the reads. A project or group access token covers that project or group only.
 - **Keep secrets out of logs.** `response()` of a job, of a pipeline and of a project can carry URLs and variables of your
-  instance; log what you need, not the whole record.
+  instance; log what you need, not the whole record. The secret of a new deploy token (`token()`, and the `token()` of
+  its `response()`) and the token you set on a webhook (`update().token(...)`) are credentials: store them in a secret
+  store and never log them.
 - **Try an integration on a throwaway project first.** The [live smoke tests](docs/guide/smoke-tests.md) show how.
 
 ## Configure the client

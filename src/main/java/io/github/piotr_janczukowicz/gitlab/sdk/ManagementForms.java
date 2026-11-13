@@ -8,12 +8,12 @@ import java.util.Map;
  * Collects the text fields of a project or group form in insertion order and turns them into the core's multipart form.
  * A field that was never put is never sent.
  */
-final class ProjectForms {
+final class ManagementForms {
 
     private final Map<String, String> fields;
 
     /** Creates a form with no field. */
-    ProjectForms() {
+    ManagementForms() {
         this.fields = new LinkedHashMap<>();
     }
 

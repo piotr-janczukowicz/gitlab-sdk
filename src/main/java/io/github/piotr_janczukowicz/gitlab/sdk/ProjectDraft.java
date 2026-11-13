@@ -9,7 +9,7 @@ import java.io.IOException;
 public final class ProjectDraft {
 
     private final GitLabSdk sdk;
-    private final ProjectForms form = new ProjectForms();
+    private final ManagementForms form = new ManagementForms();
 
     ProjectDraft(final GitLabSdk sdk, final String name) {
         this.sdk = requireNonNull(sdk, "sdk");

@@ -1,5 +1,6 @@
 package io.github.piotr_janczukowicz.gitlab.sdk;
 
+import static io.github.piotr_janczukowicz.gitlab.sdk.ManagementFormsTest.fieldOf;
 import static io.github.piotr_janczukowicz.gitlab.sdk.ProjectsFixtures.loadedProject;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -35,7 +36,7 @@ class ProjectDraftTest {
     private String sentBody() throws IOException {
         final ArgumentCaptor<MultipartFormData> form = ArgumentCaptor.forClass(MultipartFormData.class);
         verify(gitLab.projects().project()).create(form.capture());
-        return ProjectFormsTest.textOf(form.getValue());
+        return ManagementFormsTest.textOf(form.getValue());
     }
 
     @Test
@@ -65,18 +66,16 @@ class ProjectDraftTest {
                 .initializeWithReadme(true)
                 .send();
 
-        assertThat(sentBody())
-                .contains("name=\"name\"")
-                .contains("zażółć")
-                .contains("name=\"path\"")
-                .contains("name=\"namespace_id\"")
-                .contains("name=\"description\"")
-                .contains("name=\"visibility\"")
-                .contains("internal")
-                .contains("name=\"default_branch\"")
-                .contains("trunk")
-                .contains("name=\"initialize_with_readme\"")
-                .contains("true");
+        final String body = sentBody();
+        assertSoftly(softly -> {
+            softly.assertThat(fieldOf(body, "name")).contains("zażółć");
+            softly.assertThat(fieldOf(body, "path")).contains("demo");
+            softly.assertThat(fieldOf(body, "namespace_id")).contains("7");
+            softly.assertThat(fieldOf(body, "description")).contains("opis");
+            softly.assertThat(fieldOf(body, "visibility")).contains("internal");
+            softly.assertThat(fieldOf(body, "default_branch")).contains("trunk");
+            softly.assertThat(fieldOf(body, "initialize_with_readme")).contains("true");
+        });
     }
 
     @Test

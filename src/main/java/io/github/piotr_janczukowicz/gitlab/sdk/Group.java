@@ -262,6 +262,7 @@ public final class Group {
     public GroupMember addMember(final String username, final AccessLevel level) throws IOException {
         return createMember(null, requireNotBlank(username, "username"), level);
     }
+
     /**
      * Requests access to the group for the user of the client ({@code POST /groups/{id}/access_requests}).
      *
@@ -419,11 +420,11 @@ public final class Group {
 
     /**
      * Lists the protected branches of the group ({@code GET /groups/{id}/protected_branches}). Premium. Pages are
-     * fetched only as the stream is consumed; transport failures during consumption surface as
+     * fetched only as the stream is consumed; transport failures during iteration are
      * {@link java.io.UncheckedIOException}.
      *
      * @return the protected branches
-     * @throws IOException if the transport fails
+     * @throws IOException if the first page cannot be loaded
      */
     public Stream<GroupProtectedBranch> protectedBranches() throws IOException {
         return sdk.gitLab().grouplevelprotectedbranches().list(id).stream()

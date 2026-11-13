@@ -918,11 +918,10 @@ public final class Project {
 
     /**
      * Lists the protected branches of the project ({@code GET /projects/{id}/protected_branches}). Pages are fetched
-     * only as the stream is consumed; transport failures during consumption surface as
-     * {@link java.io.UncheckedIOException}.
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
      *
      * @return the protected branches
-     * @throws IOException if the transport fails
+     * @throws IOException if the first page cannot be loaded
      */
     public Stream<ProtectedBranch> protectedBranches() throws IOException {
         return sdk.gitLab().protectedbranches().list(id).stream().map(listed -> new ProtectedBranch(this, listed));
@@ -986,10 +985,10 @@ public final class Project {
 
     /**
      * Lists the protected tags of the project ({@code GET /projects/{id}/protected_tags}). Pages are fetched only as
-     * the stream is consumed; transport failures during consumption surface as {@link java.io.UncheckedIOException}.
+     * the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
      *
      * @return the protected tags
-     * @throws IOException if the transport fails
+     * @throws IOException if the first page cannot be loaded
      */
     public Stream<ProtectedTag> protectedTags() throws IOException {
         return sdk.gitLab().protectedtags().list(id).stream().map(listed -> new ProtectedTag(this, listed));

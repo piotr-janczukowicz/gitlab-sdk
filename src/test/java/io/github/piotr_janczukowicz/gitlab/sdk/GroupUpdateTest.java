@@ -1,5 +1,6 @@
 package io.github.piotr_janczukowicz.gitlab.sdk;
 
+import static io.github.piotr_janczukowicz.gitlab.sdk.ManagementFormsTest.fieldOf;
 import static io.github.piotr_janczukowicz.gitlab.sdk.ProjectsFixtures.loadedGroup;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -37,7 +38,7 @@ class GroupUpdateTest {
     private String sentBody() throws IOException {
         final ArgumentCaptor<MultipartFormData> form = ArgumentCaptor.forClass(MultipartFormData.class);
         verify(gitLab.groups()).update(eq(ID), form.capture());
-        return ProjectFormsTest.textOf(form.getValue());
+        return ManagementFormsTest.textOf(form.getValue());
     }
 
     @Test
@@ -58,13 +59,12 @@ class GroupUpdateTest {
 
         sut.update().name("Zespół").visibility(Visibility.INTERNAL).send();
 
-        assertThat(sentBody())
-                .contains("name=\"name\"")
-                .contains("Zespół")
-                .contains("name=\"visibility\"")
-                .contains("internal")
-                .doesNotContain("name=\"path\"")
-                .doesNotContain("name=\"description\"");
+        final String body = sentBody();
+        assertSoftly(softly -> {
+            softly.assertThat(fieldOf(body, "name")).contains("Zespół");
+            softly.assertThat(fieldOf(body, "visibility")).contains("internal");
+        });
+        assertThat(body).doesNotContain("name=\"path\"").doesNotContain("name=\"description\"");
     }
 
     @Test

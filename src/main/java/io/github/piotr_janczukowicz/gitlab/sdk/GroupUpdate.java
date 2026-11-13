@@ -14,7 +14,7 @@ public final class GroupUpdate {
 
     private final GitLabSdk sdk;
     private final String id;
-    private final ProjectForms form = new ProjectForms();
+    private final ManagementForms form = new ManagementForms();
     private final UpdateState state = new UpdateState();
 
     GroupUpdate(final GitLabSdk sdk, final String id) {

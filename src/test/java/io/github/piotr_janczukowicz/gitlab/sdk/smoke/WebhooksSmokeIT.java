@@ -14,7 +14,8 @@ import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
 /**
- * Webhooks of the sandbox, pointed at an {@code .invalid} host that never resolves. {@code Webhook.test(...)} is not
+ * Webhooks of the sandbox, pointed at a path under {@code example.com}: GitLab validates hook URLs and may refuse a
+ * host that does not resolve, such as an {@code .invalid} one (not yet verified live). {@code Webhook.test(...)} is not
  * run live, because it makes GitLab send a real HTTP request to the hook URL.
  */
 @Tag("smoke")
@@ -30,7 +31,7 @@ class WebhooksSmokeIT {
     @Test
     void webhook_shouldRoundTrip_whenCreatedUpdatedListedAndDeleted() throws IOException {
         final Project project = ENV.sandbox();
-        final String url = "https://example.invalid/smoke-" + ENV.runId();
+        final String url = "https://example.com/smoke-" + ENV.runId();
         final Webhook created = project.createWebhook(url);
         SmokeCleanup.run(
                 () -> {

@@ -4,7 +4,7 @@ import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabDeployToken;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabDeployTokenWithToken;
 import java.util.List;
 
-/** Conversions shared by the project and group deploy token classes. */
+/** Values and conversions shared by the classes of the deploy package. */
 final class DeployValues {
 
     /** The end of the message of a {@code refresh()} that finds the object gone. */

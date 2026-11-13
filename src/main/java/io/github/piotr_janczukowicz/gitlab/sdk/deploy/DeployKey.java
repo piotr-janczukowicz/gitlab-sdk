@@ -105,7 +105,8 @@ public final class DeployKey {
      * @throws IOException if the transport fails
      */
     public DeployKey refresh() throws IOException {
-        return project.deployKey(id()).orElseThrow(() -> new IllegalStateException("Deploy key " + id() + " is gone"));
+        return project.deployKey(id())
+                .orElseThrow(() -> new IllegalStateException("Deploy key " + id() + DeployValues.IS_GONE));
     }
 
     /**
