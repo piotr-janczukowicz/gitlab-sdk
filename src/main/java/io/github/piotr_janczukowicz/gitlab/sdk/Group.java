@@ -4,10 +4,17 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsShareGroupAccess;
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsSharePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsTransferPayload;
+import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -142,6 +149,109 @@ public final class Group {
     }
 
     /**
+     * Shares the group with another group ({@code POST /groups/{id}/share}). GitLab answers with this group, so the
+     * returned group is built from the answer without another request.
+     *
+     * @param groupId the id of the group to share with
+     * @param level the access level the other group's members get
+     * @return this group as GitLab answers the sharing
+     * @throws NullPointerException if {@code level} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Group share(final long groupId, final AccessLevel level) throws IOException {
+        final GitLabGroupGroupsSharePayload payload = new GitLabGroupGroupsSharePayload(
+                groupId,
+                GitLabGroupGroupsShareGroupAccess.fromWire(
+                        requireNonNull(level, "level").value()),
+                null,
+                null);
+        return new Group(sdk, id, sdk.gitLab().groups().share(id, payload));
+    }
+
+    /**
+     * Lists the direct members of the group ({@code GET /groups/{id}/members}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the members
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupMember> members() throws IOException {
+        return sdk.gitLab().members().group().list(id).stream().map(listed -> new GroupMember(this, listed));
+    }
+
+    /**
+     * Lists the members of the group including those inherited from its parent groups ({@code GET
+     * /groups/{id}/members/all}). Pages are fetched only as the stream is consumed; transport failures during iteration
+     * are {@link java.io.UncheckedIOException}.
+     *
+     * @return the members
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupMember> allMembers() throws IOException {
+        return sdk.gitLab().members().group().listAll(id).stream().map(listed -> new GroupMember(this, listed));
+    }
+
+    /**
+     * Loads a direct member ({@code GET /groups/{id}/members/{user_id}}).
+     *
+     * @param userId the numeric user id
+     * @return the member, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupMember> member(final long userId) throws IOException {
+        return sdk.gitLab().members().group().get(id, userId).map(loaded -> new GroupMember(this, loaded));
+    }
+
+    /**
+     * Adds a user as a member ({@code POST /groups/{id}/members}).
+     *
+     * @param userId the numeric user id
+     * @param level the access level to grant
+     * @return the new member
+     * @throws NullPointerException if {@code level} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupMember addMember(final long userId, final AccessLevel level) throws IOException {
+        return createMember(String.valueOf(userId), null, level);
+    }
+
+    /**
+     * Adds a user as a member by username ({@code POST /groups/{id}/members}).
+     *
+     * @param username the username
+     * @param level the access level to grant
+     * @return the new member
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code username} is blank
+     * @throws IOException if the transport fails
+     */
+    public GroupMember addMember(final String username, final AccessLevel level) throws IOException {
+        return createMember(null, requireNotBlank(username, "username"), level);
+    }
+    /**
+     * Requests access to the group for the user of the client ({@code POST /groups/{id}/access_requests}).
+     *
+     * @return the request
+     * @throws IOException if the transport fails
+     */
+    public GroupAccessRequest requestAccess() throws IOException {
+        return new GroupAccessRequest(
+                this, sdk.gitLab().accessrequests().group().create(id));
+    }
+
+    /**
+     * Lists the pending access requests of the group ({@code GET /groups/{id}/access_requests}). Pages are fetched only
+     * as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the requests
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupAccessRequest> accessRequests() throws IOException {
+        return sdk.gitLab().accessrequests().group().list(id).stream()
+                .map(listed -> new GroupAccessRequest(this, listed));
+    }
+
+    /**
      * Lists the projects of the group ({@code GET /groups/{id}/projects}). The list holds only summaries, so each
      * project is loaded as the stream reaches it ({@code GET /projects/{id}}) and one that was deleted in the meantime
      * is skipped. Pages are fetched only as the stream is consumed; transport failures during iteration are
@@ -183,5 +293,16 @@ public final class Group {
             throw new IllegalStateException("Group " + id + " is not loaded; call fetch()");
         }
         return response;
+    }
+
+    private GroupMember createMember(
+            final @Nullable String userId, final @Nullable String username, final AccessLevel level)
+            throws IOException {
+        final GitLabGroupMembersCreatePayload payload = GitLabGroupMembersCreatePayloadBuilder.builder()
+                .userId(userId)
+                .username(username)
+                .accessLevel(requireNonNull(level, "level").value())
+                .build();
+        return new GroupMember(this, sdk.gitLab().members().group().create(id, payload));
     }
 }

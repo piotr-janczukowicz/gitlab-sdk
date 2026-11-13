@@ -68,7 +68,8 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 
 | Area | What it covers |
 |---|---|
-| **Projects and groups** | load a project or a group by id or path, create, update, archive, unarchive, delete, transfer and unshare; fork a project and list its forks; the projects and the direct subgroups of a group |
+| **Projects and groups** | load a project or a group by id or path, create, update, archive, unarchive, delete, transfer, share and unshare; fork a project and list its forks; the projects and the direct subgroups of a group |
+| **Members and access** | list, load, add (by id or username), update and remove the members of a project or group, with a typed `AccessLevel`; request, list, approve and deny access requests; share a project or group with a group |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
@@ -79,6 +80,17 @@ Not covered: project and group fields beyond the common typed ones. The same goe
 outside the table, such as releases, milestones, snippets, packages, the container registry, webhooks and the
 administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet;
 see [Live smoke tests](docs/guide/smoke-tests.md).
+
+### Members
+
+A member carries a typed `AccessLevel`; `accessLevelValue()` returns the raw number for a level the SDK does not know.
+
+```java
+Member member = project.addMember("ann", AccessLevel.DEVELOPER);
+member = member.update().accessLevel(AccessLevel.MAINTAINER).expiresAt(LocalDate.of(2027, 3, 1)).send();
+project.members().forEach(m -> System.out.println(m.username() + " " + m.accessLevel()));
+project.share(9L, AccessLevel.REPORTER);                                // share with a group
+```
 
 ## When the SDK does not cover a call
 

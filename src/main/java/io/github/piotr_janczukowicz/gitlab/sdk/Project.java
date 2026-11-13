@@ -12,6 +12,8 @@ import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFil
 import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsListJobsFilter;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
@@ -19,6 +21,8 @@ import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesC
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsShareGroupAccess;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsSharePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsTransferPayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabPublicGroupDetails;
@@ -32,6 +36,9 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Label;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.Member;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import java.io.IOException;
 import java.util.Optional;
@@ -220,6 +227,107 @@ public final class Project {
      */
     public Stream<GitLabPublicGroupDetails> sharedGroups() throws IOException {
         return sdk.gitLab().projects().project().listGroups(id).stream();
+    }
+
+    /**
+     * Shares the project with a group ({@code POST /projects/{id}/share}).
+     *
+     * @param groupId the id of the group to share with
+     * @param level the access level the group's members get in the project
+     * @return the sharing as GitLab answers it
+     * @throws NullPointerException if {@code level} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public ProjectGroupLink share(final long groupId, final AccessLevel level) throws IOException {
+        final GitLabProjectProjectsSharePayload payload = new GitLabProjectProjectsSharePayload(
+                groupId,
+                GitLabProjectProjectsShareGroupAccess.fromWire(
+                        requireNonNull(level, "level").value()),
+                null,
+                null);
+        return new ProjectGroupLink(sdk.gitLab().projects().project().share(id, payload));
+    }
+
+    /**
+     * Lists the direct members of the project ({@code GET /projects/{id}/members}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the members
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Member> members() throws IOException {
+        return sdk.gitLab().members().project().list(id).stream().map(listed -> new Member(this, listed));
+    }
+
+    /**
+     * Lists the members of the project including those inherited from its groups ({@code GET
+     * /projects/{id}/members/all}). Pages are fetched only as the stream is consumed; transport failures during
+     * iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the members
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Member> allMembers() throws IOException {
+        return sdk.gitLab().members().project().listAll(id).stream().map(listed -> new Member(this, listed));
+    }
+
+    /**
+     * Loads a direct member ({@code GET /projects/{id}/members/{user_id}}).
+     *
+     * @param userId the numeric user id
+     * @return the member, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Member> member(final long userId) throws IOException {
+        return sdk.gitLab().members().project().get(id, userId).map(loaded -> new Member(this, loaded));
+    }
+
+    /**
+     * Adds a user as a member ({@code POST /projects/{id}/members}).
+     *
+     * @param userId the numeric user id
+     * @param level the access level to grant
+     * @return the new member
+     * @throws NullPointerException if {@code level} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Member addMember(final long userId, final AccessLevel level) throws IOException {
+        return createMember(String.valueOf(userId), null, level);
+    }
+
+    /**
+     * Adds a user as a member by username ({@code POST /projects/{id}/members}).
+     *
+     * @param username the username
+     * @param level the access level to grant
+     * @return the new member
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code username} is blank
+     * @throws IOException if the transport fails
+     */
+    public Member addMember(final String username, final AccessLevel level) throws IOException {
+        return createMember(null, requireNotBlank(username, "username"), level);
+    }
+
+    /**
+     * Requests access to the project for the user of the client ({@code POST /projects/{id}/access_requests}).
+     *
+     * @return the request
+     * @throws IOException if the transport fails
+     */
+    public AccessRequest requestAccess() throws IOException {
+        return new AccessRequest(this, sdk.gitLab().accessrequests().project().create(id));
+    }
+
+    /**
+     * Lists the pending access requests of the project ({@code GET /projects/{id}/access_requests}). Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the requests
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<AccessRequest> accessRequests() throws IOException {
+        return sdk.gitLab().accessrequests().project().list(id).stream().map(listed -> new AccessRequest(this, listed));
     }
 
     /**
@@ -620,5 +728,15 @@ public final class Project {
     private Stream<Pipeline> loaded(final Stream<GitLabCiPipelineBasic> listed) {
         return listed.map(item -> Lookups.find(() -> pipeline(requireNonNull(item.id(), "id"))))
                 .flatMap(Optional::stream);
+    }
+
+    private Member createMember(final @Nullable String userId, final @Nullable String username, final AccessLevel level)
+            throws IOException {
+        final GitLabProjectMembersCreatePayload payload = GitLabProjectMembersCreatePayloadBuilder.builder()
+                .userId(userId)
+                .username(username)
+                .accessLevel(requireNonNull(level, "level").value())
+                .build();
+        return new Member(this, sdk.gitLab().members().project().create(id, payload));
     }
 }
