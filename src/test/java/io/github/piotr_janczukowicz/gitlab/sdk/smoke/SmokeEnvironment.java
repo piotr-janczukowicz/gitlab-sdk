@@ -7,6 +7,7 @@ import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClientConfiguration;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClients;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
+import io.github.piotr_janczukowicz.gitlab.sdk.Group;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -22,6 +23,7 @@ final class SmokeEnvironment {
     static final String PROJECT_VARIABLE = "SMOKE_GITLAB_PROJECT";
     static final String URL_VARIABLE = "SMOKE_GITLAB_URL";
     static final String USER_ID_VARIABLE = "SMOKE_GITLAB_USER_ID";
+    static final String GROUP_VARIABLE = "SMOKE_GITLAB_GROUP";
 
     private static final String DEFAULT_URL = "https://gitlab.com";
     private static final String USER_AGENT = "gitlab-sdk-smoke/1.0";
@@ -32,14 +34,17 @@ final class SmokeEnvironment {
     private final String project;
     private final String url;
     private final String userId;
+    private final String group;
     private GitLabClient client;
     private GitLabSdk sdk;
 
-    private SmokeEnvironment(final String token, final String project, final String url, final String userId) {
+    private SmokeEnvironment(
+            final String token, final String project, final String url, final String userId, final String group) {
         this.token = token;
         this.project = project;
         this.url = url;
         this.userId = userId;
+        this.group = group;
     }
 
     static SmokeEnvironment fromEnv() {
@@ -51,7 +56,8 @@ final class SmokeEnvironment {
         final String project = env.getOrDefault(PROJECT_VARIABLE, "").strip();
         final String url = env.getOrDefault(URL_VARIABLE, DEFAULT_URL).strip();
         final String userId = env.getOrDefault(USER_ID_VARIABLE, "").strip();
-        return new SmokeEnvironment(env.getOrDefault(TOKEN_VARIABLE, "").strip(), project, url, userId);
+        final String group = env.getOrDefault(GROUP_VARIABLE, "").strip();
+        return new SmokeEnvironment(env.getOrDefault(TOKEN_VARIABLE, "").strip(), project, url, userId, group);
     }
 
     boolean configured() {
@@ -94,6 +100,15 @@ final class SmokeEnvironment {
         throw new IllegalStateException(USER_ID_VARIABLE + " must be the numeric id of a user, but was: " + userId);
     }
 
+    /**
+     * The path of the sandbox group, from the optional {@value #GROUP_VARIABLE}.
+     *
+     * @return the group path, or empty when the variable is not set
+     */
+    Optional<String> sandboxGroupPath() {
+        return group.isEmpty() ? Optional.empty() : Optional.of(group);
+    }
+
     String runId() {
         return RUN_ID;
     }
@@ -134,6 +149,23 @@ final class SmokeEnvironment {
         return parsed;
     }
 
+    /**
+     * Skips the calling test class when {@value #GROUP_VARIABLE} is not set; otherwise requires a configured sandbox
+     * project too, and refuses a group whose path does not contain {@code smoke}.
+     */
+    void requireGroupConfigured() {
+        requireConfigured();
+        Assumptions.assumeTrue(!group.isEmpty(), GROUP_VARIABLE + " is not set");
+        requireSandboxGroup(group);
+    }
+
+    static void requireSandboxGroup(final String group) {
+        if (group.isBlank() || !group.toLowerCase(Locale.ROOT).contains("smoke")) {
+            throw new IllegalStateException(GROUP_VARIABLE
+                    + " must be the path of a sandbox group whose path contains \"smoke\", but was: " + group);
+        }
+    }
+
     static void requireSandbox(final String project) {
         if (!project.contains("/") || !project.toLowerCase(Locale.ROOT).contains("smoke")) {
             throw new IllegalStateException(PROJECT_VARIABLE
@@ -160,6 +192,15 @@ final class SmokeEnvironment {
      */
     Project sandbox() {
         return sdk().project(project);
+    }
+
+    /**
+     * The sandbox group as an SDK handle; call {@link #requireGroupConfigured()} first.
+     *
+     * @return the handle
+     */
+    Group sandboxGroup() {
+        return sdk().group(sandboxGroupPath().orElseThrow());
     }
 
     @Override

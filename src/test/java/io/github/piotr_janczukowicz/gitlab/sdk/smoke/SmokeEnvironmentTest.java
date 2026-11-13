@@ -7,6 +7,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.opentest4j.TestAbortedException;
 
 @UnitTest
 class SmokeEnvironmentTest {
@@ -51,6 +52,59 @@ class SmokeEnvironmentTest {
         final Throwable thrown = catchThrowable(sut::secondUserId);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("SMOKE_GITLAB_USER_ID");
+    }
+
+    @Test
+    void sandboxGroupPath_shouldBeEmpty_whenVariableIsNotSet() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of());
+
+        assertThat(sut.sandboxGroupPath()).isEmpty();
+    }
+
+    @Test
+    void sandboxGroupPath_shouldReturnTheStrippedPath_whenVariableIsSet() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of(SmokeEnvironment.GROUP_VARIABLE, " me/gitlab-smoke "));
+
+        assertThat(sut.sandboxGroupPath()).contains("me/gitlab-smoke");
+    }
+
+    @Test
+    void requireSandboxGroup_shouldThrowIllegalStateException_whenPathDoesNotContainSmoke() {
+        final Throwable thrown = catchThrowable(() -> SmokeEnvironment.requireSandboxGroup("me/production"));
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("SMOKE_GITLAB_GROUP");
+    }
+
+    @Test
+    void requireSandboxGroup_shouldAccept_whenPathContainsSmoke() {
+        final Throwable thrown = catchThrowable(() -> SmokeEnvironment.requireSandboxGroup("Smoke-Group"));
+
+        assertThat(thrown).isNull();
+    }
+
+    @Test
+    void requireGroupConfigured_shouldSkip_whenGroupIsNotSet() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(
+                Map.of(SmokeEnvironment.TOKEN_VARIABLE, "token", SmokeEnvironment.PROJECT_VARIABLE, "me/gitlab-smoke"));
+
+        final Throwable thrown = catchThrowable(sut::requireGroupConfigured);
+
+        assertThat(thrown).isInstanceOf(TestAbortedException.class);
+    }
+
+    @Test
+    void requireGroupConfigured_shouldThrowIllegalStateException_whenGroupIsNotASandbox() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of(
+                SmokeEnvironment.TOKEN_VARIABLE,
+                "token",
+                SmokeEnvironment.PROJECT_VARIABLE,
+                "me/gitlab-smoke",
+                SmokeEnvironment.GROUP_VARIABLE,
+                "me/production"));
+
+        final Throwable thrown = catchThrowable(sut::requireGroupConfigured);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("SMOKE_GITLAB_GROUP");
     }
 
     @Test

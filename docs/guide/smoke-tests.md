@@ -3,8 +3,8 @@
 Opt-in tests that call a real GitLab instance through the SDK. `mvn verify` never runs them.
 
 **Status: no area has been run live yet.** The tests compile and are skipped without a token, but no token for a GitLab
-instance was available when they were written, so none of them has ever run. Every area below is covered by unit tests only
-until someone runs `mvn -Psmoke verify` and records the result here.
+instance was available when they were written, so none of them has ever run. Every area below is covered by unit tests
+only until someone runs `mvn -Psmoke verify` and records the result here.
 
 ## Setup
 
@@ -18,12 +18,14 @@ project that holds nothing else, whose path contains `smoke`. The tests refuse a
 | `SMOKE_GITLAB_PROJECT` | The path of the sandbox project, `group/name`; the path must contain `smoke` |
 | `SMOKE_GITLAB_URL` | The instance root; default `https://gitlab.com` |
 | `SMOKE_GITLAB_USER_ID` | Optional. The numeric id of a second user who may be added to and removed from the sandbox; without it the add, change and remove of a member is skipped |
+| `SMOKE_GITLAB_GROUP` | Optional. The path of a sandbox group, which must contain `smoke` like the project path; without it `GroupLabelsSmokeIT` is skipped. The token's user must be allowed to create labels in it |
 
 ```bash
 export SMOKE_GITLAB_TOKEN=glpat-...
 export SMOKE_GITLAB_PROJECT=my-group/my-project-smoke
 export SMOKE_GITLAB_URL=https://gitlab.example.com   # optional, https://gitlab.com is the default
 export SMOKE_GITLAB_USER_ID=1234                     # optional, a second user for the member test
+export SMOKE_GITLAB_GROUP=my-group-smoke             # optional, a sandbox group for the group label test
 ```
 
 ## Run
@@ -33,7 +35,8 @@ mvn -Psmoke verify
 mvn -Psmoke verify -Dit.test=CodeSmokeIT
 ```
 
-Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is skipped, not failed.
+Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is skipped, not failed. Without
+`SMOKE_GITLAB_GROUP`, only `GroupLabelsSmokeIT` is skipped.
 
 ## What is covered
 
@@ -41,7 +44,12 @@ Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is sk
 |---|---|
 | `ProjectsSmokeIT` | load and refresh the sandbox, 404 on a missing project; the group of the sandbox, its projects and subgroups (skipped when the sandbox lives in a user namespace); the signed-in user, a user by id, 404 on a missing user. Archive, unarchive and delete of a project are not run live, because they would change the sandbox |
 | `IssuesSmokeIT` | create, comment, edit a note, list notes, update, close, reopen, reload and delete an issue; create, update and delete a label and apply it to an issue; 404 on a missing issue |
-| `MergeRequestsSmokeIT` | on a throwaway branch with one new file: create, comment, edit a note, list notes, update, close, reopen, reload and delete a merge request, list its commits; 404 on a missing merge request. Merging and approving are not run live, because the sandbox settings may forbid them and a merge cannot be undone |
+| `MergeRequestsSmokeIT` | on a throwaway branch with one new file: create, comment, edit a note, list notes, update, close, reopen, reload and delete a merge request, list its commits; create a draft note on it, update it, list the draft notes, delete it; 404 on a missing merge request. Merging and approving are not run live, because the sandbox settings may forbid them and a merge cannot be undone. Publishing a draft note is not run live either, because it would leave a real note |
+| `TagsAndReleasesSmokeIT` | create the tag `smoke-<runId>-tag` from the default branch (skipped when the sandbox has none), load it and read `isProtected()`; create a release on it, update the release name, add a link, list the links, load the release through the tag, delete the link, the release and the tag. Needs a role that may create tags and releases (see below). `collectEvidence()` is not run live |
+| `MilestonesSmokeIT` | create a project milestone `smoke-<runId>-milestone`, update its description, start date and due date and check that the dates come back as the same `LocalDate`s, close, reopen, reload, read its issues and merge requests (none are assigned, so both are empty), delete it. Promoting a milestone and group milestones are not run live |
+| `DiscussionsSmokeIT` | on a throwaway issue: start a discussion, reply, list, refresh; resolve and unresolve only when GitLab reports the thread as resolvable, otherwise assert that it is not. Merge request discussions are not run live |
+| `ReactionsSmokeIT` | on a throwaway issue: react with `thumbsup`, list the reactions, delete the reaction. Reactions on notes and merge requests are not run live |
+| `GroupLabelsSmokeIT` | needs `SMOKE_GITLAB_GROUP`: create a group label `smoke-<runId>-group-label`, update its description and color, subscribe, unsubscribe, list, reload, delete it. A second test promotes a throwaway project label with `Label.promote()` and checks the group label; it runs only when the sandbox project lives directly in the sandbox group, and is skipped otherwise |
 | `PipelinesSmokeIT` | list, load and refresh pipelines and list their jobs, list and load jobs, 404 on a missing pipeline. Reads only, and skipped when the sandbox has no pipelines or jobs: creating, retrying, cancelling and deleting pipelines and retrying, cancelling, playing and erasing jobs need a CI configuration and runners, so they are not run live |
 | `CodeSmokeIT` | a file with non-ASCII text (`zażółć gęślą jaźń ✓`) on a throwaway branch: create, read back with `text()` and `bytes()`, update, read, delete, 404 on a missing file; create, protect, unprotect and delete a branch; list and load commits; 404 on a missing branch |
 | `ManagementSmokeIT` | create a project named `smoke-<runId>-project` in the namespace of the sandbox (the namespace id is read from the sandbox, so the token's user must be allowed to create projects there), update its description, reload it, list its forks and shared groups, delete it; list the forks and shared groups of the sandbox. Creating and deleting a **group** is not run, because it needs the right to create groups, which a sandbox token may not have; updating the sandbox itself is not run either. Transfer, fork, share, unshare and deleting the sandbox are not run live, because they would change or lose the sandbox. GitLab.com may keep a deleted project for a while before it disappears |
@@ -51,9 +59,9 @@ Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is sk
 | `ProtectionSmokeIT` | create the branch `smoke-<runId>/protected` from the default branch (skipped when the sandbox has none), protect it for Maintainers, allow force pushes, reload, list, unprotect, delete the branch; protect the tag pattern `smoke-<runId>-*` for Maintainers, reload, list, unprotect; 404 on a branch and a tag that are not protected. Needs the Maintainer role. Group protected branches (Premium) are not run live |
 
 Every resource a test creates is named `smoke-<runId>-...` and is removed in a `finally` block, so a failed run leaves
-nothing behind. Issues are deleted outright. Cleanup relies on the same SDK calls that the tests exercise, so a failure in
-`delete()` can leave a `smoke-` resource in the sandbox; remove it by hand. GitLab may keep a deleted resource for a short
-time before it disappears.
+nothing behind. Issues are deleted outright. Cleanup relies on the same SDK calls that the tests exercise, so a failure
+in `delete()` can leave a `smoke-` resource in the sandbox; remove it by hand. GitLab may keep a deleted resource for a
+short time before it disappears.
 
 ## Not yet verified live
 
@@ -71,9 +79,16 @@ questions are open until a run:
 | The deploy token secret is shown once | The SDK relies on the secret being in the create answer only; `DeploySmokeIT` checks the create answer but not that a later load omits it |
 | Hook URL validation by GitLab | GitLab validates the URL of a webhook (for example that its host resolves and is not a local address); `WebhooksSmokeIT` uses `https://example.com/smoke-<runId>` and never calls `test()`, so whether GitLab accepts that URL is checked only on the first live run |
 | Calls that need permissions beyond `api` on a project | Protecting a branch needs the Maintainer role; a token of a lower role fails with 403 |
+| Release evidence collection | `Release.collectEvidence()` is not run live: whether GitLab accepts the request for a release without a pipeline, and what it answers, is unchecked |
+| Milestone date serialization | The SDK sends `yyyy-MM-dd` and reads an ISO date back; `MilestonesSmokeIT` is the first check that GitLab accepts it and returns the same date, including for a start date |
+| Reaction names GitLab accepts | `ReactionsSmokeIT` reacts with `thumbsup` only; which other names GitLab accepts, and how it answers an unknown name or a second identical reaction, is unchecked |
+| Discussion resolvability on issues | Whether a plain issue thread is resolvable depends on GitLab; `DiscussionsSmokeIT` resolves only when the flag says so and otherwise asserts that it is `false` |
+| Draft-note publish effects and the 404 after a publish | Publishing a draft note, or all of them, is not run live. That GitLab then answers 404 for the draft note (the SDK's `refresh()` throws `IllegalStateException` on it) is an assumption, as are the notes the publish creates |
+| Tag and release creation permissions | Creating a tag or a release needs a role that may do so (Developer or Maintainer, depending on the protected-tag rules of the project); a token of a lower role fails with 403 in `TagsAndReleasesSmokeIT` |
+| Group label promotion from a project in a user namespace | `Label.promote()` finds the group from the project's namespace; for a project in a user namespace the SDK sends the promotion and GitLab's rejection passes through. Only a project directly in the sandbox group is run live, and even that has not run yet |
 
 ## Reading a failure
 
-A failing smoke test means the SDK and the live API disagree. A 401 means the token is wrong or expired, a 403 that the token
-lacks the `api` scope or the user lacks the role the call needs (protecting a branch needs Maintainer), and a 404 on the
-sandbox that `SMOKE_GITLAB_PROJECT` or `SMOKE_GITLAB_URL` is wrong.
+A failing smoke test means the SDK and the live API disagree. A 401 means the token is wrong or expired, a 403 that the
+token lacks the `api` scope or the user lacks the role the call needs (protecting a branch needs Maintainer), and a 404
+on the sandbox that `SMOKE_GITLAB_PROJECT` or `SMOKE_GITLAB_URL` is wrong.

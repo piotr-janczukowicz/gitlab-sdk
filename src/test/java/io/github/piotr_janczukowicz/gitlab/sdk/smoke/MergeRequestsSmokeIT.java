@@ -6,6 +6,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.DraftNote;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequestNote;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequestState;
@@ -16,7 +17,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
 import org.junit.jupiter.api.Test;
 
-/** Merging and approving are not run live: the sandbox settings may forbid them, and a merge cannot be undone. */
+/**
+ * Merging and approving are not run live: the sandbox settings may forbid them, and a merge cannot be undone. A draft
+ * note is created, edited, listed and deleted but never published, because publishing would leave a real note; the
+ * throwaway merge request is deleted at the end, which removes a draft note left by a failure.
+ */
 @Tag("smoke")
 class MergeRequestsSmokeIT {
 
@@ -56,6 +61,13 @@ class MergeRequestsSmokeIT {
                                 final MergeRequest reopened = closed.reopen();
                                 final Optional<MergeRequest> reloaded = project.mergeRequest(merge.iid());
                                 final long commits = reopened.commits().limit(5).count();
+                                final DraftNote draft = reopened.createDraftNote("smoke draft");
+                                final DraftNote draftEdited = draft.update()
+                                        .note("smoke draft, edited")
+                                        .send();
+                                final List<DraftNote> drafts =
+                                        reopened.draftNotes().limit(20).toList();
+                                draftEdited.delete();
 
                                 assertSoftly(softly -> {
                                     softly.assertThat(merge.sourceBranch()).contains(source);
@@ -71,6 +83,10 @@ class MergeRequestsSmokeIT {
                                             .map(MergeRequest::iid)
                                             .contains(merge.iid());
                                     softly.assertThat(commits).isGreaterThanOrEqualTo(1);
+                                    softly.assertThat(draftEdited.note()).contains("smoke draft, edited");
+                                    softly.assertThat(drafts)
+                                            .extracting(DraftNote::id)
+                                            .contains(draft.id());
                                 });
                             },
                             merge::delete);

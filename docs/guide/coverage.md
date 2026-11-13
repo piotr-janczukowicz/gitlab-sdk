@@ -1,16 +1,17 @@
 # What is covered
 
 Every object of the SDK, with the methods it has, by package. The [README](../../README.md) gives the short overview.
-Every object also has `response()`, which returns the complete `gitlab-rest-client` record it is built from, and navigates
-to its parent (`issue.project()`, `note.issue()`, `job.project()` and so on). A lookup returns an `Optional`, a list is a
-lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `long`.
+Every object also has `response()`, which returns the complete `gitlab-rest-client` record it is built from, and
+navigates to its parent (`issue.project()`, `note.issue()`, `job.project()` and so on), except a `Reaction`, which has
+none. A lookup returns an `Optional`, a list is a lazy, single-use `Stream`, and the `iid` of an issue or a merge
+request is a `long`.
 
 ## Root package: `io.github.piotr_janczukowicz.gitlab.sdk`
 
 | Entry point | Objects and what they do |
 |---|---|
 | `GitLabSdk.of(...)` | Wraps a `GitLab`, a `GitLabCaller` or a `GitLabClient`. `project(id)` and `group(id)` give handles, `createProject(name)` and `createGroup(name, path)` start a `ProjectDraft` and a `GroupDraft`, `user(id)` loads a user, `me()` gives the signed-in account |
-| `Project` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `update()`, `archive()`, `unarchive()`, `delete()`, `response()`. Transfer, sharing and forks: `transfer(namespace)` (the project is addressed by its numeric id afterwards), `fork(namespacePath)` (GitLab creates the fork asynchronously, so it may still be importing), `forks()` (each fork is loaded as the stream reaches it), `removeForkRelationship()`, `share(groupId, level)`, `unshare(groupId)`, `sharedGroups()` (the core's `GitLabPublicGroupDetails` records). Members: `members()`, `allMembers()` (inherited too), `member(userId)`, `addMember(userId, level)`, `addMember(username, level)`, `requestAccess()`, `accessRequests()`. Webhooks: `webhooks()`, `webhook(hookId)`, `createWebhook(url)`, `createWebhook(payload)` (two overloads: a literal `null` needs a cast). Protection: `protectedBranches()`, `protectedBranch(name)`, `protectBranch(name)`, `protectBranch(name, push, merge)`, `protectedTags()`, `protectedTag(name)`, `protectTag(name, create)`. Issues: `issues()`, `issues(filter)`, `issue(iid)`, `createIssue(title)`, `createIssue(payload)`. Labels: `labels()`, `createLabel(name, color)`. Merge requests: `mergeRequests()`, `mergeRequests(filter)`, `mergeRequest(iid)`, `createMergeRequest(payload)`. Pipelines and jobs: `pipelines()`, `pipelines(filter)`, `pipeline(id)`, `createPipeline(ref)`, `createPipeline(payload)`, `jobs()`, `jobs(filter)`, `job(id)`. Code: `file(path, ref)`, `createFile(path, branch, content, message)` (content as text or `byte[]`), `branches()`, `branch(name)`, `createBranch(name, ref)`, `commits()`, `commit(sha)`, `tags()`, `tags(filter)`, `tag(name)`, `createTag(name, ref)`, `createTag(name, ref, message)`. Releases: `releases()`, `releases(filter)`, `release(tagName)`, `createRelease(tagName)` (existing tag), `createRelease(tagName, ref)` (GitLab creates the tag from the ref), `createRelease(payload)` (overloaded, so a literal `null` needs a cast). Milestones: `milestones()`, `milestones(filter)` (the core's `GitLabProjectProjectMilestonesListFilter`), `milestone(id)`, `createMilestone(title)`, `createMilestone(payload)` (overloaded, so a literal `null` needs a cast) |
+| `Project` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `update()`, `archive()`, `unarchive()`, `delete()`, `response()`. Transfer, sharing and forks: `transfer(namespace)` (the project is addressed by its numeric id afterwards), `fork(namespacePath)` (GitLab creates the fork asynchronously, so it may still be importing), `forks()` (each fork is loaded as the stream reaches it), `removeForkRelationship()`, `share(groupId, level)`, `unshare(groupId)`, `sharedGroups()` (the core's `GitLabPublicGroupDetails` records). Members: `members()`, `allMembers()` (inherited too), `member(userId)`, `addMember(userId, level)`, `addMember(username, level)`, `requestAccess()`, `accessRequests()`. Webhooks: `webhooks()`, `webhook(hookId)`, `createWebhook(url)`, `createWebhook(payload)` (two overloads: a literal `null` needs a cast). Protection: `protectedBranches()`, `protectedBranch(name)`, `protectBranch(name)`, `protectBranch(name, push, merge)`, `protectedTags()`, `protectedTag(name)`, `protectTag(name, create)`. Issues: `issues()`, `issues(filter)`, `issue(iid)`, `createIssue(title)`, `createIssue(payload)`. Labels: `labels()`, `createLabel(name, color)`. Merge requests: `mergeRequests()`, `mergeRequests(filter)`, `mergeRequest(iid)`, `createMergeRequest(payload)`. Pipelines and jobs: `pipelines()`, `pipelines(filter)`, `pipeline(id)`, `createPipeline(ref)`, `createPipeline(payload)`, `jobs()`, `jobs(filter)`, `job(id)`. Code: `file(path, ref)`, `createFile(path, branch, content, message)` (content as text or `byte[]`), `branches()`, `branch(name)`, `createBranch(name, ref)`, `commits()`, `commit(sha)`, `tags()`, `tags(filter)`, `tag(name)`, `createTag(name, ref)` (lightweight), `createTag(name, ref, message)` (annotated; a `null` message makes it lightweight). Releases: `releases()`, `releases(filter)`, `release(tagName)`, `createRelease(tagName)` (existing tag), `createRelease(tagName, ref)` (GitLab creates the tag from the ref), `createRelease(payload)` (overloaded, so a literal `null` needs a cast). Milestones: `milestones()`, `milestones(filter)` (the core's `GitLabProjectProjectMilestonesListFilter`), `milestone(id)`, `createMilestone(title)`, `createMilestone(payload)` (overloaded, so a literal `null` needs a cast) |
 | `Group` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `update()`, `archive()`, `unarchive()`, `delete()`, `transfer(newParentGroupId)` (the group is addressed by its numeric id afterwards), `share(groupId, level)` (returns this group as GitLab answers), `unshare(groupId)`, members as on `Project` (`members()`, `allMembers()`, `member(userId)`, `addMember(...)`, `requestAccess()`, `accessRequests()`), webhooks (Premium): `webhooks()`, `webhook(hookId)`, `createWebhook(url)`, `createWebhook(payload)`, protected branches (Premium): `protectedBranches()`, `protectedBranch(name)`, `protectBranch(name)`, `protectBranch(name, push, merge)`, milestones: `milestones()`, `milestones(filter)` (the core's `GitLabGroupGroupMilestonesListFilter`, which adds `includeDescendants`), `milestone(id)`, `createMilestone(title)`, group labels: `labels()`, `labels(filter)` (the core's `GitLabGroupGroupLabelsListFilter`), `label(name)`, `createLabel(name, color)`, `projects()` (each project is loaded as the stream reaches it), `subgroups()` (the direct subgroups, one level down; each group is loaded as the stream reaches it), `response()` |
 | `ProjectGroupLink` | The sharing of a project with a group, returned by `Project.share(groupId, level)`: `project()`, `groupId()`, `expiresAt()`, `response()`. It has no `refresh()` |
 | `Visibility` | `PRIVATE`, `INTERNAL`, `PUBLIC` |
@@ -28,7 +29,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 | `Issue` | `project()`, `iid()`, `title()`, `description()`, `state()` (`IssueState`: `OPENED`, `CLOSED`), `labels()`, `update()`, `close()`, `reopen()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
 | `IssueUpdate` | `title(...)`, `description(...)`, `clearDescription()`, `labels(names)`, `assignees(userIds)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `Note` | `issue()`, `id()`, `body()`, `update(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
-| `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends `GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a failed GET promotes nothing; a project in a user namespace fails with the core's exception), `delete()`, `refresh()`, `response()` |
+| `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends `GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a failed GET promotes nothing; a project in a user namespace is not rejected by the SDK: GitLab's rejection passes through as the core's exception), `delete()`, `refresh()`, `response()` |
 | `LabelUpdate` | `name(...)`, `color(...)`, `description(...)`, `send()` |
 | `GroupLabel` | `group()`, `name()`, `color()`, `description()`, `isSubscribed()`, `update()`, `subscribe()`, `unsubscribe()`, `delete()`, `refresh()`, `response()`; addressed by name (a slash or space reaches the core unchanged) |
 | `GroupLabelUpdate` | `name(...)` (the new name), `color(...)`, `description(...)`, `archived(boolean)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
@@ -68,8 +69,9 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 | `ReleaseLink` | `release()`, `id()`, `name()`, `url()`, `directAssetUrl()`, `type()` (`ReleaseLinkType`: `OTHER`, `RUNBOOK`, `PACKAGE`, `IMAGE`; an `Optional`, empty when the response has none; an unknown value throws `IllegalArgumentException`), `typeName()` (the raw value), `update()` (`ReleaseLinkUpdate`: `name`, `url`, `type(ReleaseLinkType)`, `send()`), `delete()`, `refresh()` (`IllegalStateException` when gone), `response()` |
 
 An empty `update().send()` of a release or a link throws `IllegalStateException` and makes no request. Fields cannot be
-cleared through `ReleaseUpdate`; `milestones(List.of())` is sent as an empty list, and that GitLab then removes the
-milestones is not confirmed by the core's documentation.
+cleared through `ReleaseUpdate`: `null` is rejected and an empty string is sent as given, and that GitLab then clears
+the field is not confirmed by the core's documentation; `milestones(List.of())` is sent as an empty list, and that
+GitLab then removes the milestones is not confirmed either.
 
 ## `discussions`
 
@@ -77,10 +79,10 @@ milestones is not confirmed by the core's documentation.
 |---|---|
 | `IssueDiscussion`, `MergeRequestDiscussion` | `issue()` or `mergeRequest()`, `id()`, `isIndividualNote()`, `isResolvable()`, `isResolved()` (a missing flag is `false`), `notes()` (an unmodifiable list of `Note` or `MergeRequestNote`, taken from the response with no request), `reply(body)` (returns the new note), `resolve()`, `unresolve()` (each returns the discussion GitLab answers with, no extra request), `refresh()` (`IllegalStateException` when gone), `response()` |
 
-Listed, loaded and updated discussions share one record, so none of them needs an extra request. Replying to a discussion
-that is gone, and resolving one that cannot be resolved (an individual note), pass the core's exception through. A blank
-body makes no request. GitLab can resolve merge request threads and resolvable issue threads only, and has no request to
-delete a discussion.
+Listed, loaded and updated discussions share one record, so none of them needs an extra request. Replying to a
+discussion that is gone, and resolving one that cannot be resolved (an individual note), pass the core's exception
+through. A blank body makes no request. GitLab can resolve merge request threads and resolvable issue threads only, and
+has no request to delete a discussion.
 
 ## `reactions`
 
@@ -88,9 +90,9 @@ delete a discussion.
 |---|---|
 | `Reaction` | `id()`, `name()`, `user()` (the core's `GitLabUserBasic`), `createdAt()` (each empty when GitLab leaves it out), `refresh()` (`IllegalStateException` when gone), `delete()`, `response()`. Owners: `Issue`, `Note`, `MergeRequest` and `MergeRequestNote` each have `reactions()` (a lazy stream) and `react(name)` |
 
-`Reaction` is the one object without parent navigation: a single class serves the four kinds of owner, so it has no `issue()` or
-`mergeRequest()`. `refresh()` and `delete()` use the owner the reaction was made on. A blank name makes no request; reacting twice
-with the same emoji passes GitLab's error through.
+`Reaction` is the one object without parent navigation: a single class serves the four kinds of owner, so it has no
+`issue()` or `mergeRequest()`. `refresh()` and `delete()` use the owner the reaction was made on. A blank name makes no
+request; reacting twice with the same emoji passes GitLab's error through.
 
 ## `milestones`
 
@@ -98,7 +100,12 @@ with the same emoji passes GitLab's error through.
 |---|---|
 | `Milestone`, `GroupMilestone` | `project()` or `group()`, `id()`, `iid()`, `title()`, `description()`, `state()` (`MilestoneState`: `ACTIVE`, `CLOSED`; an unknown value throws `IllegalArgumentException`), `stateName()` (the raw value), `dueDate()` and `startDate()` (`Optional<LocalDate>`, empty when absent or blank; a value that is not an ISO date throws `IllegalStateException` naming it), `isExpired()` (a missing flag is `false`), `update()` (`MilestoneUpdate` or `GroupMilestoneUpdate`: `title`, `description`, `dueDate(LocalDate)`, `startDate(LocalDate)`, `send()`), `close()`, `reopen()` (state events `close` and `activate`), `delete()`, `issues()`, `mergeRequests()`, `refresh()` (`IllegalStateException` when gone), `response()`; `Milestone` also has `promote()` (to a group milestone, returns nothing). Listed, loaded, created and updated milestones share one record, so none of them needs an extra request |
 
-The issues and merge requests of a milestone are listed as summaries, so each one is loaded as the stream reaches it, through the project named in the summary (`Milestone`: the owning project when the summary names none; `GroupMilestone`: the items belong to different projects, and one that names none is skipped). An item that is gone by then is skipped. An empty `update().send()` throws `IllegalStateException` and makes no request. Fields cannot be cleared, the dates included: the core's payload fields are plain optional values and GitLab's documentation does not say that a missing or empty value clears them.
+The issues and merge requests of a milestone are listed as summaries, so each one is loaded as the stream reaches it,
+through the project named in the summary (`Milestone`: the owning project when the summary names none; `GroupMilestone`:
+the items belong to different projects, and one that names none is skipped). An item that is gone by then is skipped. An
+empty `update().send()` throws `IllegalStateException` and makes no request. Fields cannot be cleared, the dates
+included (a date takes a `LocalDate`, never `null`): the core's payload fields are plain optional values and GitLab's
+documentation does not say that a missing or empty value clears them. Dates are sent as `yyyy-MM-dd`.
 
 ## `members`
 
@@ -129,8 +136,8 @@ The issues and merge requests of a milestone are listed as summaries, so each on
 
 `Project` adds `deployKeys()`, `deployKey(keyId)`, `addDeployKey(title, key)`, `addDeployKey(title, key, canPush)`,
 `enableDeployKey(keyId)` (loaded again after enabling), `deployTokens()`, `deployToken(tokenId)` and
-`createDeployToken(name, scopes...)`; `Group` adds `deployTokens()`, `deployToken(tokenId)` and
-`createDeployToken(name, scopes...)`. Creating a token with no scope throws `IllegalArgumentException` and sends nothing.
+`createDeployToken(name, scopes...)`; `Group` adds `deployTokens()`, `deployToken(tokenId)` and `createDeployToken(name,
+scopes...)`. Creating a token with no scope throws `IllegalArgumentException` and sends nothing.
 
 ## `protection`
 
@@ -140,8 +147,8 @@ The issues and merge requests of a milestone are listed as summaries, so each on
 | `ProtectedBranch`, `GroupProtectedBranch` | `project()` or `group()`, `name()`, `allowsForcePush()` and `requiresCodeOwnerApproval()` (a missing flag is `false`), `pushAccess()` and `mergeAccess()` (role-based rules only; an unknown level throws `IllegalArgumentException`), `pushAccessValues()` and `mergeAccessValues()` (the raw numbers of the same rules, never fail), `allowForcePush(boolean)` and `requireCodeOwnerApproval(boolean)` (each returns the new object from the answer of GitLab, no extra request), `unprotect()`, `refresh()` (`IllegalStateException` when gone), `response()`. Every group call is Premium; the core's tier guard decides |
 | `ProtectedTag` | `project()`, `name()`, `createAccess()` and `createAccessValues()` (role-based rules only, as above), `unprotect()`, `refresh()`, `response()`. GitLab cannot update a protected tag and has no group-level protected tags |
 
-`Project` adds `protectedBranches()`, `protectedBranch(name)`, `protectBranch(name)` (only the name is sent, the defaults
-of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `protectedTag(name)` and
+`Project` adds `protectedBranches()`, `protectedBranch(name)`, `protectBranch(name)` (only the name is sent, the
+defaults of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `protectedTag(name)` and
 `protectTag(name, create)`; `Group` adds `protectedBranches()`, `protectedBranch(name)`, `protectBranch(name)` and
 `protectBranch(name, push, merge)` (Premium). Names with a slash (`release/1.x`) reach the core unchanged. The v1
 `Branch.protect()` and `Branch.unprotect()` stay as they are.
@@ -150,24 +157,33 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
 
 - **Fields of a project or group outside the typed set.** `ProjectDraft`, `ProjectUpdate`, `GroupDraft` and
   `GroupUpdate` take the common fields only (see above); anything else needs the core's `MultipartFormData` API.
-- **Options of `Branch.protect()`.** It uses GitLab's default rules; use `project.protectBranch(name, push, merge)` or the core
-  for the options.
+- **Options of `Branch.protect()`.** It uses GitLab's default rules; use `project.protectBranch(name, push, merge)` or
+  the core for the options.
 - **Filter on the jobs of one pipeline.** `pipeline.jobs()` lists without a filter. Pipeline and job logs, artifacts and
   variables are not covered.
 - **User-, group-, deploy-key- and member-role-based protection rules.** They are skipped in the access lists and stay
   available from `response()`; the `allowed_to_push`, `allowed_to_merge`, `allowed_to_unprotect` and `allowed_to_create`
   rules and the unprotect level cannot be set; use the core.
-- **Everything outside the areas above**, such as group releases, snippets, member roles
-  (Ultimate), the premium-only member endpoints (approving pending members, billable members), access tokens, the container registry and packages, instance-level deploy keys and tokens, environments, the descendant groups of a group at every level, and the administration of an instance. Use `gitlab-rest-client` for them; see
-  [When the SDK does not cover a call](../../README.md#when-the-sdk-does-not-cover-a-call).
-- **Releases.** Group releases, the typed latest-release getter (the core only has `void` permalink calls), release asset
-  sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release (they stay
-  reachable through `createRelease(payload)`) are not covered.
+- **Everything outside the areas above**, such as group releases, snippets, member roles (Ultimate), the premium-only
+  member endpoints (approving pending members, billable members), access tokens, the container registry and packages,
+  instance-level deploy keys and tokens, environments, the descendant groups of a group at every level, and the
+  administration of an instance. Use `gitlab-rest-client` for them; see [When the SDK does not cover a
+  call](../../README.md#when-the-sdk-does-not-cover-a-call).
+- **Releases.** Group releases, the typed latest-release getter (the core only has `void` permalink calls), release
+  asset sources and downloads, evidence beyond `collectEvidence()`, clearing the description of a release, and the
+  `milestoneIds` and `assets` of a release (they stay reachable through `createRelease(payload)`) are not covered.
 - **Draft notes.** Building a draft-note `position` (the core's payload record) and clearing a position are not covered.
-- **Reactions.** Snippet and epic-note reactions, and group-level reactions, are not covered.
-- **Discussions.** Commit, snippet and epic discussions, editing or deleting a reply through the discussion-note endpoints (use the `Note` objects of `notes()`), and building a diff `position` (the core's payload record) are not covered.
-- **Milestones.** Burndown events (the core's calls return nothing), clearing the dates or the description, and the milestone filters of issues and merge requests are not covered. Group milestones have no `promote()`.
-- **Labels.** Clearing the `description` or `priority` of a label with `null`, a group label priority (GitLab has none), and the label counts beyond what the group filter asks for (`withCounts` is a filter option; the counts stay in `response()`) are not covered.
+  `createDraftNote(null)` and `publishDraftNotes(null)` need a cast, because each has an overload for the core's
+  payload.
+- **Reactions.** Snippet and epic-note reactions are not covered.
+- **Discussions.** Commit, snippet and epic discussions, editing or deleting a reply through the discussion-note
+  endpoints (use the `Note` objects of `notes()`), and building a diff `position` (the core's payload record) are not
+  covered. `mergeRequest.startDiscussion(null)` needs a cast, because it overloads the payload variant.
+- **Milestones.** Burndown events (the core's calls return nothing), clearing the dates or the description, and the
+  milestone filters of issues and merge requests are not covered. Group milestones have no `promote()`.
+- **Labels.** Setting or clearing the `priority` of a label, clearing the `description` of a label with `null`, a group
+  label priority (GitLab has none), and the label counts beyond what the group filter asks for (`withCounts` is a filter
+  option; the counts stay in `response()`) are not covered.
 - **Members.** Member roles (Ultimate) are not covered (see above).
 - **Project import and export, and user-scoped project creation.** `sdk.createProject(name)` creates a project for the
   signed-in user or in a namespace (`namespaceId(...)`); creating one for another user (the core's `createUser`) is not

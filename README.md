@@ -10,13 +10,13 @@ carry methods which call the GitLab REST API, such as `project.createIssue(...)`
 
 ## Why this library
 
-- **Objects instead of coordinates.** An issue knows its project, so `issue.comment("Thanks")` needs no project id and no
-  issue number.
+- **Objects instead of coordinates.** An issue knows its project, so `issue.comment("Thanks")` needs no project id and
+  no issue number.
 - **What GitLab holds, not a copy.** Every operation returns a new object built from GitLab's answer. Objects are
   immutable, and `refresh()` reloads one.
-- **No hidden requests.** A `Project` from `sdk.project("my-group/my-project")` and a `Group` from `sdk.group("my-group")`
-  are handles and make no request until you call `fetch()`; `Me` from `sdk.me()` is a handle too, loaded by `profile()`.
-  Every other object is loaded, and every network call is a visible method call.
+- **No hidden requests.** A `Project` from `sdk.project("my-group/my-project")` and a `Group` from
+  `sdk.group("my-group")` are handles and make no request until you call `fetch()`; `Me` from `sdk.me()` is a handle
+  too, loaded by `profile()`. Every other object is loaded, and every network call is a visible method call.
 - **The client stays within reach.** Every object has `response()`, the complete `gitlab-rest-client` response, and you
   keep the `GitLab` client you passed in for everything the objects do not cover.
 - **Small on purpose.** Synchronous REST only: no async API and no GraphQL.
@@ -34,15 +34,16 @@ class path. It depends on `gitlab-rest-client`, which Maven brings in.
 </dependency>
 ```
 
-The versions follow the core: SDK `19.6.N` pairs with `gitlab-rest-client` `19.6.N`. Until the core `19.6.0` is released,
-the SDK is `19.6.0-SNAPSHOT` and builds against the core `19.6.0-SNAPSHOT`. The newest release is on the
+The versions follow the core: SDK `19.6.N` pairs with `gitlab-rest-client` `19.6.N`. Until the core `19.6.0` is
+released, the SDK is `19.6.0-SNAPSHOT` and builds against the core `19.6.0-SNAPSHOT`. The newest release is on the
 [releases page](https://github.com/piotr-janczukowicz/gitlab-sdk/releases). The library is new and not yet proven in
 production; see the [Disclaimer](#disclaimer).
 
 ## Quick start
 
-`GitLabSdk` wraps a `GitLab` client from `gitlab-rest-client`, so authentication, the instance (gitlab.com, GitLab Dedicated
-or self-managed), the tier and limits are configured on the client as usual. The SDK has no configuration of its own.
+`GitLabSdk` wraps a `GitLab` client from `gitlab-rest-client`, so authentication, the instance (gitlab.com, GitLab
+Dedicated or self-managed), the tier and limits are configured on the client as usual. The SDK has no configuration of
+its own.
 
 ```java
 try (GitLabClient client = GitLabClients.create(
@@ -80,14 +81,18 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, discussions (threads, diff comments with the core's position) and emoji reactions, draft notes (create, list, load, update, publish one or all, delete), the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
-| **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create, delete, signature, the tagged commit), commits (list, load, diff, cherry-pick, revert) |
+| **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create lightweight or annotated, delete, signature, the tagged commit, the release of a tag), commits (list, load, diff, cherry-pick, revert) |
 
 Not covered: project and group fields beyond the common typed ones, project import and export, and creating a project
-for another user (`createUser`); milestone burndown events and clearing a milestone date or description; member roles; webhook URL variables, custom headers, delivery logs and resending an
-event; group-level deploy keys (GitLab has none); protected-branch rules of a user, a group, a deploy key or a member role
-(they stay in `response()`). The same goes for every area outside the table, such as group releases, snippets, packages, the container registry and the administration of an instance. Use
-`gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
-[Live smoke tests](docs/guide/smoke-tests.md).
+for another user (`createUser`); member roles; webhook URL variables, custom headers, delivery logs and resending an
+event; group-level deploy keys (GitLab has none); protected-branch rules of a user, a group, a deploy key or a member
+role (they stay in `response()`); group releases, the typed latest-release getter and release asset sources; milestone
+burndown events; snippet, commit and epic discussions and the snippet and epic-note reactions; editing or deleting a
+reply through the discussion endpoints (use the `Note` objects); building a diff `position`; and clearing a milestone
+date, a release description, a label priority or a draft-note position (the core's payload fields cannot express it).
+The same goes for every area outside the table, such as snippets, packages, the container registry and the
+administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance
+yet; see [Live smoke tests](docs/guide/smoke-tests.md).
 
 Two things to know about the project and group calls: a project or group you transfer is addressed by its numeric id
 afterwards, because its path changed, and `project.fork(...)` returns at once while GitLab creates the fork
@@ -105,8 +110,8 @@ project.share(9L, AccessLevel.REPORTER);                                // share
 group.share(9L, AccessLevel.REPORTER);                                  // the same for a group
 ```
 
-An expiry is set with `expiresAt(...)` and removed with `clearExpiresAt()`; the last call wins. Member roles (Ultimate) are
-not covered.
+An expiry is set with `expiresAt(...)` and removed with `clearExpiresAt()`; the last call wins. Member roles (Ultimate)
+are not covered.
 
 `allMembers()` also lists the members inherited from parent groups. Such a member's `refresh()` loads it from that
 list; its `update()` and `remove()` act on direct memberships only, so for a member who belongs only through a parent
@@ -130,8 +135,8 @@ boolean onPush = hook.isEnabledFor(WebhookEvent.PUSH);
 group.createWebhook("https://ci.example/group-hook");                   // Premium
 ```
 
-`createWebhook` has two overloads, one for a URL and one for the core's payload, so a literal `null` needs a cast to pick
-one; either overload rejects `null` with a `NullPointerException`.
+`createWebhook` has two overloads, one for a URL and one for the core's payload, so a literal `null` needs a cast to
+pick one; either overload rejects `null` with a `NullPointerException`.
 
 ### Deploy keys and tokens
 
@@ -152,14 +157,27 @@ group.createDeployToken("packages", DeployTokenScope.READ_PACKAGE_REGISTRY);
 lists show the role-based rules only. Rules of a user, a group, a deploy key or a member role are not wrapped: they are
 skipped in the lists (GitLab sends a level with them, which would look like a role rule) and stay available from
 `response()`. `pushAccessValues()`, `mergeAccessValues()` and `createAccessValues()` return the raw level numbers of the
-same role-based rules without failing on a level the enum does not know. The v1 `Branch.protect()` stays the quick way to
-protect an existing branch with the default rules.
+same role-based rules without failing on a level the enum does not know. The v1 `Branch.protect()` stays the quick way
+to protect an existing branch with the default rules.
 
 ```java
 ProtectedBranch main = project.protectBranch("main", ProtectedAccess.MAINTAINER, ProtectedAccess.DEVELOPER);
 main = main.allowForcePush(true);                                       // the answer of GitLab is the new object
 project.protectTag("v*", ProtectedAccess.MAINTAINER);
 group.protectBranch("release/*");                                       // Premium
+```
+
+### Tags
+
+`project.tags()`, `project.tag(name)`, `project.createTag(name, ref)` (lightweight) and
+`project.createTag(name, ref, message)` (annotated) work on the tags of a project; a tag name may contain slashes. A
+listed tag is the same record as a loaded one, so it costs no extra request, but `tag.commit()` and `tag.release()` each
+cost one more `GET`. `tag.signature()` returns the core's record, and `tag.delete()` removes the tag.
+
+```java
+Tag tag = project.createTag("v1.0", "main");
+Optional<Commit> commit = tag.commit();                                 // one extra GET
+Optional<Release> release = tag.release();                              // one extra GET, empty on 404
 ```
 
 ### Releases
@@ -169,6 +187,9 @@ release for an existing tag, `createRelease(tag, ref)` lets GitLab create the ta
 `createRelease(payload)` takes the core's payload for the name, description, milestones, assets and release time.
 `delete()` removes the release, not the tag. Group releases, release asset sources and the typed latest-release getter
 are not covered; the `milestoneIds` and `assets` of a release stay reachable through the payload overload.
+`createRelease` has two single-argument overloads (a tag name and the core's payload), so a literal `null` needs a cast.
+A release description cannot be cleared: the update builder takes a value, never `null`. `ReleaseLink.type()` is an
+`Optional`, empty when GitLab sends no type; `typeName()` returns the raw value.
 
 ```java
 Release release = project.createRelease("v1.0", "main");
@@ -180,7 +201,12 @@ Optional<Release> tagged = project.tag("v1.0").orElseThrow().release();
 
 ### Milestones
 
-A milestone is addressed by its id (not its `iid`). Dates are `LocalDate`s: `dueDate()` and `startDate()` are empty when GitLab sends none, and the update builder takes `LocalDate`s. `close()` and `reopen()` change the state. `issues()` and `mergeRequests()` load each item as the stream reaches it, through the project the item belongs to (the items of a group milestone come from different projects). Burndown events and clearing a date or the description are not covered: the core's payload fields are plain optional values, so the SDK offers no way to clear them.
+A milestone is addressed by its id (not its `iid`). Dates are `LocalDate`s: `dueDate()` and `startDate()` are empty when
+GitLab sends none, and the update builder takes `LocalDate`s, sent as `yyyy-MM-dd`. `close()` and `reopen()` change the
+state. `issues()` and `mergeRequests()` load each item with one more request as the stream reaches it, through the
+project the item belongs to, so the items listed from a group milestone are loaded through their own projects. Burndown
+events and clearing a date or the description are not covered: the core's payload fields are plain optional values, so
+the SDK offers no way to clear them. `promote()` exists on project milestones only and returns nothing.
 
 ```java
 Milestone milestone = project.createMilestone("v1.0");
@@ -190,9 +216,30 @@ milestone.promote();
 GroupMilestone shared = group.milestones().findFirst().orElseThrow().close();
 ```
 
+### Labels
+
+A project `Label` and a group `GroupLabel` are addressed by name; `project.createLabel(name, color)` and
+`group.createLabel(name, color)` create them, and a `GroupLabel` can also be subscribed to and unsubscribed from.
+`label.promote()` turns a project label into a group label and returns the `GroupLabel`. It first sends
+`GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a project that cannot be
+loaded promotes nothing; for a project in a user namespace the promotion is sent and GitLab's rejection passes through
+as the core's exception. Label priority is not covered, and a group label has none.
+
+```java
+GroupLabel shared = group.createLabel("bug", "#d9534f").update().description("Something broke").send();
+GroupLabel promoted = project.createLabel("ui", "#428bca").promote();
+```
+
 ### Discussions
 
-`issue.discussions()` and `mergeRequest.discussions()` list the threads lazily; `discussion(id)` loads one and `startDiscussion(body)` opens one. A discussion carries its notes (`Note` or `MergeRequestNote`, so editing or deleting a reply uses those objects), and `reply(body)`, `resolve()` and `unresolve()` change the thread. `resolve()` returns the discussion GitLab answers with; GitLab only resolves merge request threads and resolvable issue threads, and its refusal passes through. A diff comment is started with `mergeRequest.startDiscussion(payload)`, where the core's payload carries the `position`. Commit, snippet and epic discussions, and building the `position`, are not covered.
+`issue.discussions()` and `mergeRequest.discussions()` list the threads lazily; `discussion(id)` loads one and
+`startDiscussion(body)` opens one. A discussion carries its notes (`Note` or `MergeRequestNote`, so editing or deleting
+a reply uses those objects), and `reply(body)`, `resolve()` and `unresolve()` change the thread. `resolve()` returns the
+discussion GitLab answers with; GitLab only resolves merge request threads and resolvable issue threads, and its refusal
+passes through. A diff comment is started with `mergeRequest.startDiscussion(payload)`, where the core's payload carries
+the `position`; that method overloads `startDiscussion(body)`, so a literal `null` needs a cast. Commit, snippet and
+epic discussions, editing or deleting a reply through the discussion endpoints, and building the `position`, are not
+covered.
 
 ```java
 IssueDiscussion thread = issue.startDiscussion("Can we reproduce this?");
@@ -202,7 +249,13 @@ thread = thread.resolve();
 
 ### Draft notes
 
-A merge request has draft notes: `mergeRequest.draftNotes()` lists yours (one request), `draftNote(id)` loads one, and `createDraftNote(note)` adds one. A `DraftNote` is changed with `update().note(text).send()`, published with `publish()` or removed with `delete()`; `mergeRequest.publishDraftNotes()` publishes all of them. A published draft note is no longer a draft, so `refresh()` then throws `IllegalStateException`. `createDraftNote` and `publishDraftNotes` have an overload for the core's payload (a reply, a diff `position`, a reviewer state), so a literal `null` needs a cast. Building the `position` is not covered.
+A merge request has draft notes: `mergeRequest.draftNotes()` lists yours (one request), `draftNote(id)` loads one, and
+`createDraftNote(note)` adds one. A `DraftNote` is changed with `update().note(text).send()`, published with `publish()`
+or removed with `delete()`; `mergeRequest.publishDraftNotes()` publishes all of them. A published draft note is no
+longer a draft, so `refresh()` then throws `IllegalStateException` (this assumes that GitLab answers 404 for it, which
+has not been checked live). `createDraftNote` and `publishDraftNotes` have an overload for the core's payload (a reply,
+a diff `position`, a reviewer state), so a literal `null` needs a cast. Building the `position` and clearing a position
+are not covered.
 
 ```java
 DraftNote draft = mergeRequest.createDraftNote("This loop looks off");
@@ -212,7 +265,11 @@ mergeRequest.publishDraftNotes();
 
 ### Emoji reactions
 
-`issue.reactions()`, `note.reactions()`, `mergeRequest.reactions()` and `mergeRequestNote.reactions()` list the reactions lazily, and `react(name)` adds one with an emoji name such as `thumbsup`. A `Reaction` has `id()`, `name()`, `user()`, `createdAt()`, `refresh()` and `delete()`. Reacting twice with the same emoji is not checked first: GitLab's error passes through. Snippet and epic-note reactions, and group-level reactions, are not covered.
+`issue.reactions()`, `note.reactions()`, `mergeRequest.reactions()` and `mergeRequestNote.reactions()` list the
+reactions lazily, and `react(name)` adds one with an emoji name such as `thumbsup`. A `Reaction` has `id()`, `name()`,
+`user()`, `createdAt()`, `refresh()` and `delete()`; it has no `issue()` or `mergeRequest()` to navigate back (see
+[Conventions](#conventions)). Reacting twice with the same emoji is not checked first: GitLab's error passes through.
+Snippet and epic-note reactions are not covered.
 
 ```java
 Reaction reaction = issue.react("thumbsup");
@@ -222,9 +279,9 @@ reaction.delete();
 ## When the SDK does not cover a call
 
 The SDK covers the common work, not every endpoint. For the rest, use `gitlab-rest-client` directly: the `GitLab` client
-behind the SDK is yours, so there is no second client, no second credential and no second configuration. Create the `GitLab`
-object yourself, hand it to `GitLabSdk.of(...)`, and keep it for the calls that have no SDK object. Both use the same
-authentication, retries and rate-limit handling.
+behind the SDK is yours, so there is no second client, no second credential and no second configuration. Create the
+`GitLab` object yourself, hand it to `GitLabSdk.of(...)`, and keep it for the calls that have no SDK object. Both use
+the same authentication, retries and rate-limit handling.
 
 ```java
 try (GitLabClient client = GitLabClients.create(
@@ -258,69 +315,80 @@ All objects behave the same way, so you learn them once:
   `ProjectUpdate.send()`, `GroupUpdate.send()`, `transfer(...)`, and also `fork(...)`) is addressed by its numeric id
   afterwards. Issues and merge requests are addressed by their `iid`, the number within
   the project.
-- A **lookup** (`project.issue(42)`, `sdk.user(7)`, `project.file("README.md", "main")`) returns an `Optional`, empty when
-  GitLab answers 404.
-- A **list** is a lazy, single-use `Stream`. Pages are fetched as you consume it, so `limit(...)` stops further requests; a
-  transport failure during iteration is an `UncheckedIOException`.
-- **Several fields at once** go through `update()`:
-  `issue.update().title("New").labels(List.of("bug")).send()` sends one request with only the fields you set. `send()` with
-  nothing set throws `IllegalStateException`. Projects, groups, members, webhooks, deploy keys, issues, merge requests and labels have an `update()`.
+- A **lookup** (`project.issue(42)`, `sdk.user(7)`, `project.file("README.md", "main")`) returns an `Optional`, empty
+  when GitLab answers 404.
+- A **list** is a lazy, single-use `Stream`. Pages are fetched as you consume it, so `limit(...)` stops further
+  requests; a transport failure during iteration is an `UncheckedIOException`.
+- **Several fields at once** go through `update()`: `issue.update().title("New").labels(List.of("bug")).send()` sends
+  one request with only the fields you set. `send()` with nothing set throws `IllegalStateException`. Projects, groups,
+  members, webhooks, deploy keys, issues, merge requests, labels, group labels, milestones, releases, release links and
+  draft notes have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
-- A `Reaction` is the one object **without parent navigation**: one class serves issues, issue notes, merge requests and merge request notes, so it has no `issue()` or `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on.
+- A `Reaction` is the one object **without parent navigation**: one class serves issues, issue notes, merge requests and
+  merge request notes, so it has no `issue()` or `mergeRequest()`; `refresh()` and `delete()` use the owner it was made
+  on.
+- **Dates** are `LocalDate`s where GitLab means a date (milestone `dueDate()` and `startDate()`, member `expiresAt()`),
+  and a milestone date is sent as `yyyy-MM-dd`. A milestone date is empty when GitLab sends none or a blank one, and a
+  value that is not an ISO date throws `IllegalStateException`.
 - `refresh()` reloads an object and throws `IllegalStateException` when it is gone. Access requests (`AccessRequest`,
   `GroupAccessRequest`) and `ProjectGroupLink` have no `refresh()`: the API has no lookup of a single one.
-- Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, the forks of a project,
-  and the projects and subgroups of a group), the SDK loads each item with one more request as the stream reaches it. The Javadoc says so,
-  and `limit(...)` bounds the cost. An item that is gone before it is loaded is skipped.
-- A field that GitLab may leave out is an `Optional` (`issue.description()`, `mergeRequest.targetBranch()`).
+- Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, the forks of a
+  project, the projects and subgroups of a group, and the issues and merge requests of a milestone), the SDK loads each
+  item with one more request as the stream reaches it. The Javadoc says so, and `limit(...)` bounds the cost. An item
+  that is gone before it is loaded is skipped.
+- A field that GitLab may leave out is an `Optional` (`issue.description()`, `mergeRequest.targetBranch()`,
+  `releaseLink.type()`).
 - A **state or status** is an enum (`issue.state()`, `pipeline.status()`, `job.status()`) and throws
-  `IllegalArgumentException` for a value this SDK does not know yet. `pipeline.statusName()` and `job.statusName()` return
-  the raw value GitLab sent, for that case.
+  `IllegalArgumentException` for a value this SDK does not know yet. `pipeline.statusName()` and `job.statusName()`
+  return the raw value GitLab sent, for that case.
 - **Raw escape hatches** stand next to the typed accessors and never fail on a value the SDK does not know:
-  `statusName()` (pipelines, jobs), `accessLevelValue()` (members), `scopeNames()` (deploy tokens) and the
+  `statusName()` (pipelines, jobs), `stateName()` (milestones), `typeName()` (release links),
+  `accessLevelValue()` (members), `scopeNames()` (deploy tokens) and the
   `*AccessValues()` methods (`pushAccessValues()`, `mergeAccessValues()`, `createAccessValues()` of protected branches
   and tags).
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
-- Where the core's payloads distinguish an omitted field from a cleared one, the update builders use its tri-state `OptionalNull` to clear it (`clearExpiresAt()` on member updates, alongside `clearDescription()`).
+- Where the core's payloads distinguish an omitted field from a cleared one, the update builders use its tri-state
+  `OptionalNull` to clear it (`clearExpiresAt()` on member updates, alongside `clearDescription()`). Where they do not
+  (milestone dates and description, release description, draft-note position), a field cannot be cleared.
 - `IOException` and the client's `GitLabApiException` pass through unchanged.
-- A call that needs a tier your instance lacks fails in the core's tier guard when you configured the tier on the client;
-  the SDK adds no tier logic of its own.
+- A call that needs a tier your instance lacks fails in the core's tier guard when you configured the tier on the
+  client; the SDK adds no tier logic of its own.
 
 ## Good practices
 
 [Conventions](#conventions) says what the SDK does. This is what to do with it.
 
-- **Create the client once and close it once.** One client per credential, with one `GitLabSdk` on top: the client owns the
-  transport and the rate-limit state, so share it for the life of the application, and do not open a client per call. Close
-  it when the application stops. The SDK never closes a client you passed in.
+- **Create the client once and close it once.** One client per credential, with one `GitLabSdk` on top: the client owns
+  the transport and the rate-limit state, so share it for the life of the application, and do not open a client per
+  call. Close it when the application stops. The SDK never closes a client you passed in.
 - **Keep the object an operation returns.** The object you called it on is not updated; use the result, and call
   `refresh()` only when something else may have changed the object.
 - **Use handles, load when you need data.** `sdk.project("my-group/my-project")` costs nothing; call `fetch()` only for
   the fields the handle does not hold, and read them with `response()`.
-- **Always bound a list you read from a large project.** Add `limit(...)` or stop the stream early, and avoid `toList()` on
-  a list that can grow, especially one that loads an item per request.
-- **Prefer one request over many.** `update()` collects the fields you set and sends them together, instead of one call per
-  field.
+- **Always bound a list you read from a large project.** Add `limit(...)` or stop the stream early, and avoid `toList()`
+  on a list that can grow, especially one that loads an item per request.
+- **Prefer one request over many.** `update()` collects the fields you set and sends them together, instead of one call
+  per field.
 - **Decide what an empty lookup means.** Handle the `Optional` instead of calling `orElseThrow()` by habit, and catch
   `GitLabApiException` (not found, forbidden, rate limit) at the place where you can act on it.
 - **Configure the client, not the SDK.** Retry, backoff and page size are client settings; see
   [Configure the client](#configure-the-client).
 - **Give the token what the call needs.** A personal access token with the `api` scope covers everything the SDK does;
   `read_api` covers the reads. A project or group access token covers that project or group only.
-- **Keep secrets out of logs.** `response()` of a job, of a pipeline and of a project can carry URLs and variables of your
-  instance; log what you need, not the whole record. The secret of a new deploy token (`token()`, and the `token()` of
-  its `response()`) and the token you set on a webhook (`update().token(...)`) are credentials: store them in a secret
-  store and never log them.
+- **Keep secrets out of logs.** `response()` of a job, of a pipeline and of a project can carry URLs and variables of
+  your instance; log what you need, not the whole record. The secret of a new deploy token (`token()`, and the `token()`
+  of its `response()`) and the token you set on a webhook (`update().token(...)`) are credentials: store them in a
+  secret store and never log them.
 - **Try an integration on a throwaway project first.** The [live smoke tests](docs/guide/smoke-tests.md) show how.
 
 ## Configure the client
 
-Authentication, retries, page size, the instance and its tier are the client's job, not the SDK's: every object calls the
-client you pass to `GitLabSdk.of(...)` (a `GitLabClient`, a `GitLabCaller` or a `GitLab`), so one configuration covers all
-of them. The SDK has no configuration of its own, and a call made through an object behaves exactly like the same call on
-the client.
+Authentication, retries, page size, the instance and its tier are the client's job, not the SDK's: every object calls
+the client you pass to `GitLabSdk.of(...)` (a `GitLabClient`, a `GitLabCaller` or a `GitLab`), so one configuration
+covers all of them. The SDK has no configuration of its own, and a call made through an object behaves exactly like the
+same call on the client.
 
 ```java
 GitLabClientConfiguration configuration = GitLabClientConfiguration.builder()
@@ -337,10 +405,11 @@ try (GitLabClient client = GitLabClients.create(
 
 The options are described in the `gitlab-rest-client` documentation:
 
-- [Self-managed GitLab and tiers](https://github.com/piotr-janczukowicz/gitlab-rest-client#self-managed-gitlab-and-tiers):
-  the instance root, the flavor and the tier guard
-- [Pagination](https://github.com/piotr-janczukowicz/gitlab-rest-client/blob/main/docs/guide/pagination.md): page size and
-  the page limit; a list of the SDK is a lazy `Stream`, so `limit(...)` stops further page requests too
+- [Self-managed GitLab and
+  tiers](https://github.com/piotr-janczukowicz/gitlab-rest-client#self-managed-gitlab-and-tiers): the instance root, the
+  flavor and the tier guard
+- [Pagination](https://github.com/piotr-janczukowicz/gitlab-rest-client/blob/main/docs/guide/pagination.md): page size
+  and the page limit; a list of the SDK is a lazy `Stream`, so `limit(...)` stops further page requests too
 - [Good to know](https://github.com/piotr-janczukowicz/gitlab-rest-client/blob/main/docs/guide/good-to-know.md): names,
   newer GitLab data and the caveats of GitLab's description
 - [Transport guide](https://github.com/piotr-janczukowicz/gitlab-client/blob/main/docs/guide/README.md): configuration,
@@ -348,8 +417,9 @@ The options are described in the `gitlab-rest-client` documentation:
 
 ## Packages
 
-The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The other
-objects are grouped by area in the sub-packages `issues`, `mergerequests`, `ci`, `code`, `members`, `webhooks`, `deploy`, `protection`, `releases` and `milestones`.
+The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
+other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
+`code`, `members`, `webhooks`, `deploy`, `protection`, `releases` and `milestones`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.
@@ -360,8 +430,8 @@ The SDK is a thin layer over `gitlab-rest-client`, which is built on the OpenAPI
 caveats of that project apply here too.
 
 **No area of this SDK has been run on a live GitLab instance yet: the smoke tests exist but have not been run. Not every
-operation has been tested. This library is new and not yet proven in production. Verify the behavior of anything you depend
-on before using it in production.**
+operation has been tested. This library is new and not yet proven in production. Verify the behavior of anything you
+depend on before using it in production.**
 
 This is an independent project. It is not made, endorsed or sponsored by GitLab Inc.; "GitLab" is a trademark of GitLab
 Inc., used here only to say what the library talks to.
