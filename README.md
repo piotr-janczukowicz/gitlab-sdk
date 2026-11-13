@@ -72,6 +72,7 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Members and access** | list, load, add (by id or username), update and remove the members of a project or group, with a typed `AccessLevel`; request, list, approve and deny access requests; share a project or group with a group |
 | **Webhooks** | list, load, create (by URL or a core payload), update (URL, name, description, token, SSL verification, events), test, delete the webhooks of a project; the same for a group (Premium) |
 | **Deploy keys and tokens** | list, load, add, update, enable and delete the deploy keys of a project (GitLab has no group-level deploy keys in its API); list, load, create and delete the deploy tokens of a project or group, with a typed `DeployTokenScope` |
+| **Protected branches and tags** | list, load, protect (default rules, or who may push and merge or create), allow force pushes, require code owner approval and unprotect the protected branches and the protected tags of a project; the protected branches of a group (Premium); a typed `ProtectedAccess` with the raw level numbers as an escape hatch |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
@@ -118,6 +119,20 @@ key = key.update().title("ci-runner").canPush(false).send();
 CreatedDeployToken created = project.createDeployToken("registry", DeployTokenScope.READ_REGISTRY);
 String secret = created.token();                                        // the only time it is available
 group.createDeployToken("packages", DeployTokenScope.READ_PACKAGE_REGISTRY);
+```
+
+### Protected branches and tags
+
+`ProtectedAccess` names who may push, merge or create: nobody, developers, maintainers or administrators. GitLab also
+reports other level numbers for rules that name users or groups; those rules are not wrapped, and `pushAccessValues()`,
+`mergeAccessValues()` and `createAccessValues()` return the raw numbers without failing. The v1 `Branch.protect()` stays
+the quick way to protect an existing branch with the default rules.
+
+```java
+ProtectedBranch main = project.protectBranch("main", ProtectedAccess.MAINTAINER, ProtectedAccess.DEVELOPER);
+main = main.allowForcePush(true);                                       // the answer of GitLab is the new object
+project.protectTag("v*", ProtectedAccess.MAINTAINER);
+group.protectBranch("release/*");                                       // Premium
 ```
 
 ## When the SDK does not cover a call
@@ -238,7 +253,7 @@ The options are described in the `gitlab-rest-client` documentation:
 ## Packages
 
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The other
-objects are grouped by area in the sub-packages `issues`, `mergerequests`, `ci` and `code`.
+objects are grouped by area in the sub-packages `issues`, `mergerequests`, `ci`, `code`, `members`, `webhooks`, `deploy` and `protection`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

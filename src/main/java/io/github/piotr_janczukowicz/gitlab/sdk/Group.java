@@ -6,6 +6,9 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreateScopes;
+import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreateMergeAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePushAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsSharePayload;
@@ -23,6 +26,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
+import io.github.piotr_janczukowicz.gitlab.sdk.protection.GroupProtectedBranch;
+import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
@@ -38,6 +43,7 @@ import org.jspecify.annotations.Nullable;
 public final class Group {
 
     private static final String IS_GONE = " is gone";
+    private static final String NAME = "name";
 
     static {
         Internals.registerGroupAccess(group -> group.sdk.gitLab());
@@ -391,7 +397,7 @@ public final class Group {
      */
     public GroupCreatedDeployToken createDeployToken(final String name, final DeployTokenScope @Nullable ... scopes)
             throws IOException {
-        requireNotBlank(name, "name");
+        requireNotBlank(name, NAME);
         if (scopes == null || scopes.length == 0) {
             throw new IllegalArgumentException("At least one scope is required");
         }
@@ -404,6 +410,79 @@ public final class Group {
                 .build();
         return new GroupCreatedDeployToken(
                 this, sdk.gitLab().deploytokens().group().create(id, payload));
+    }
+
+    /**
+     * Lists the protected branches of the group ({@code GET /groups/{id}/protected_branches}). Premium. Pages are
+     * fetched only as the stream is consumed; transport failures during consumption surface as
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the protected branches
+     * @throws IOException if the transport fails
+     */
+    public Stream<GroupProtectedBranch> protectedBranches() throws IOException {
+        return sdk.gitLab().grouplevelprotectedbranches().list(id).stream()
+                .map(listed -> new GroupProtectedBranch(this, listed));
+    }
+
+    /**
+     * Loads a protected branch ({@code GET /groups/{id}/protected_branches/{name}}). Premium.
+     *
+     * @param name the branch name or wildcard, which may contain slashes; the core encodes it
+     * @return the protected branch, or empty when GitLab answers HTTP 404
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if the name is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupProtectedBranch> protectedBranch(final String name) throws IOException {
+        return sdk.gitLab()
+                .grouplevelprotectedbranches()
+                .get(id, requireNotBlank(name, NAME))
+                .map(loaded -> new GroupProtectedBranch(this, loaded));
+    }
+
+    /**
+     * Protects a branch or wildcard in every project of the group with the default rules of GitLab ({@code POST
+     * /groups/{id}/protected_branches}); only the name is sent. Premium.
+     *
+     * @param name the branch name or wildcard, which may contain slashes; the core encodes it
+     * @return the protected branch
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if the name is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupProtectedBranch protectBranch(final String name) throws IOException {
+        final GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder builder =
+                GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder.builder()
+                        .name(requireNotBlank(name, NAME));
+        return new GroupProtectedBranch(
+                this, sdk.gitLab().grouplevelprotectedbranches().create(id, builder.build()));
+    }
+
+    /**
+     * Protects a branch or wildcard in every project of the group and says who may push and merge ({@code POST
+     * /groups/{id}/protected_branches}). Premium.
+     *
+     * @param name the branch name or wildcard, which may contain slashes; the core encodes it
+     * @param push who may push
+     * @param merge who may merge
+     * @return the protected branch
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupProtectedBranch protectBranch(
+            final String name, final ProtectedAccess push, final ProtectedAccess merge) throws IOException {
+        requireNotBlank(name, NAME);
+        final GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder builder =
+                GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder.builder()
+                        .name(name)
+                        .pushAccessLevel(GitLabGroupGroupLevelProtectedBranchesCreatePushAccessLevel.fromWire(
+                                requireNonNull(push, "push").value()))
+                        .mergeAccessLevel(GitLabGroupGroupLevelProtectedBranchesCreateMergeAccessLevel.fromWire(
+                                requireNonNull(merge, "merge").value()));
+        return new GroupProtectedBranch(
+                this, sdk.gitLab().grouplevelprotectedbranches().create(id, builder.build()));
     }
 
     private GroupMember createMember(

@@ -33,6 +33,11 @@ import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessA
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabPublicGroupDetails;
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProjectWebhooksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProjectWebhooksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectProtectedBranchesCreateMergeAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectProtectedBranchesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectProtectedBranchesCreatePushAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreateAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
@@ -51,6 +56,9 @@ import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.Member;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
+import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
+import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
@@ -67,6 +75,7 @@ import org.jspecify.annotations.Nullable;
 public final class Project {
 
     private static final String IS_GONE = " is gone";
+    private static final String NAME = "name";
 
     static {
         Internals.registerProjectAccess(project -> project.sdk.gitLab());
@@ -586,7 +595,7 @@ public final class Project {
      */
     public Label createLabel(final String name, final String color) throws IOException {
         final GitLabProjectLabelsCreatePayload payload = GitLabProjectLabelsCreatePayloadBuilder.builder()
-                .name(requireNotBlank(name, "name"))
+                .name(requireNotBlank(name, NAME))
                 .color(requireNotBlank(color, "color"))
                 .build();
         return new Label(this, sdk.gitLab().labels().create(id, payload));
@@ -686,7 +695,7 @@ public final class Project {
      */
     public Branch createBranch(final String name, final String ref) throws IOException {
         final GitLabProjectBranchesCreatePayload payload = GitLabProjectBranchesCreatePayloadBuilder.builder()
-                .branch(requireNotBlank(name, "name"))
+                .branch(requireNotBlank(name, NAME))
                 .ref(requireNotBlank(ref, "ref"))
                 .build();
         return new Branch(this, sdk.gitLab().branches().create(id, payload));
@@ -886,7 +895,7 @@ public final class Project {
      */
     public CreatedDeployToken createDeployToken(final String name, final DeployTokenScope @Nullable ... scopes)
             throws IOException {
-        requireNotBlank(name, "name");
+        requireNotBlank(name, NAME);
         if (scopes == null || scopes.length == 0) {
             throw new IllegalArgumentException("At least one scope is required");
         }
@@ -899,6 +908,121 @@ public final class Project {
                 .build();
         return new CreatedDeployToken(
                 this, sdk.gitLab().deploytokens().project().create(id, payload));
+    }
+
+    /**
+     * Lists the protected branches of the project ({@code GET /projects/{id}/protected_branches}). Pages are fetched
+     * only as the stream is consumed; transport failures during consumption surface as
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the protected branches
+     * @throws IOException if the transport fails
+     */
+    public Stream<ProtectedBranch> protectedBranches() throws IOException {
+        return sdk.gitLab().protectedbranches().list(id).stream().map(listed -> new ProtectedBranch(this, listed));
+    }
+
+    /**
+     * Loads a protected branch ({@code GET /projects/{id}/protected_branches/{name}}).
+     *
+     * @param name the branch name or wildcard, which may contain slashes; the core encodes it
+     * @return the protected branch, or empty when GitLab answers HTTP 404
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if the name is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Optional<ProtectedBranch> protectedBranch(final String name) throws IOException {
+        return sdk.gitLab()
+                .protectedbranches()
+                .get(id, requireNotBlank(name, NAME))
+                .map(loaded -> new ProtectedBranch(this, loaded));
+    }
+
+    /**
+     * Protects a branch or wildcard with the default rules of GitLab ({@code POST /projects/{id}/protected_branches});
+     * only the name is sent. The v1 {@code Branch.protect()} stays the quick way for an existing branch.
+     *
+     * @param name the branch name or wildcard, which may contain slashes; the core encodes it
+     * @return the protected branch
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if the name is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public ProtectedBranch protectBranch(final String name) throws IOException {
+        final GitLabProjectProtectedBranchesCreatePayloadBuilder builder =
+                GitLabProjectProtectedBranchesCreatePayloadBuilder.builder().name(requireNotBlank(name, NAME));
+        return new ProtectedBranch(this, sdk.gitLab().protectedbranches().create(id, builder.build()));
+    }
+
+    /**
+     * Protects a branch or wildcard and says who may push and merge ({@code POST /projects/{id}/protected_branches}).
+     *
+     * @param name the branch name or wildcard, which may contain slashes; the core encodes it
+     * @param push who may push
+     * @param merge who may merge
+     * @return the protected branch
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public ProtectedBranch protectBranch(final String name, final ProtectedAccess push, final ProtectedAccess merge)
+            throws IOException {
+        requireNotBlank(name, NAME);
+        final GitLabProjectProtectedBranchesCreatePayloadBuilder builder =
+                GitLabProjectProtectedBranchesCreatePayloadBuilder.builder()
+                        .name(name)
+                        .pushAccessLevel(GitLabProjectProtectedBranchesCreatePushAccessLevel.fromWire(
+                                requireNonNull(push, "push").value()))
+                        .mergeAccessLevel(GitLabProjectProtectedBranchesCreateMergeAccessLevel.fromWire(
+                                requireNonNull(merge, "merge").value()));
+        return new ProtectedBranch(this, sdk.gitLab().protectedbranches().create(id, builder.build()));
+    }
+
+    /**
+     * Lists the protected tags of the project ({@code GET /projects/{id}/protected_tags}). Pages are fetched only as
+     * the stream is consumed; transport failures during consumption surface as {@link java.io.UncheckedIOException}.
+     *
+     * @return the protected tags
+     * @throws IOException if the transport fails
+     */
+    public Stream<ProtectedTag> protectedTags() throws IOException {
+        return sdk.gitLab().protectedtags().list(id).stream().map(listed -> new ProtectedTag(this, listed));
+    }
+
+    /**
+     * Loads a protected tag ({@code GET /projects/{id}/protected_tags/{name}}).
+     *
+     * @param name the tag name or wildcard; the core encodes it
+     * @return the protected tag, or empty when GitLab answers HTTP 404
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if the name is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Optional<ProtectedTag> protectedTag(final String name) throws IOException {
+        return sdk.gitLab()
+                .protectedtags()
+                .get(id, requireNotBlank(name, NAME))
+                .map(loaded -> new ProtectedTag(this, loaded));
+    }
+
+    /**
+     * Protects a tag or wildcard ({@code POST /projects/{id}/protected_tags}).
+     *
+     * @param name the tag name or wildcard; the core encodes it
+     * @param create who may create matching tags
+     * @return the protected tag
+     * @throws IllegalArgumentException if the name is blank
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public ProtectedTag protectTag(final String name, final ProtectedAccess create) throws IOException {
+        requireNotBlank(name, NAME);
+        final GitLabProjectProtectedTagsCreatePayloadBuilder builder =
+                GitLabProjectProtectedTagsCreatePayloadBuilder.builder()
+                        .name(name)
+                        .createAccessLevel(GitLabProjectProtectedTagsCreateAccessLevel.fromWire(
+                                requireNonNull(create, "create").value()));
+        return new ProtectedTag(this, sdk.gitLab().protectedtags().create(id, builder.build()));
     }
 
     private DeployKey createDeployKey(
