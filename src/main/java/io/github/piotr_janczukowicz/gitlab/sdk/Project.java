@@ -10,7 +10,11 @@ import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreateP
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
+import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
+import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
@@ -219,6 +223,86 @@ public final class Project {
      */
     public MergeRequest createMergeRequest(final GitLabProjectMergeRequestsCreatePayload payload) throws IOException {
         return new MergeRequest(this, sdk.gitLab().mergerequests().project().create(id, payload));
+    }
+
+    /**
+     * Lists the pipelines of the project ({@code GET /projects/{id}/pipelines}). GitLab lists a summary of each
+     * pipeline, so each one is loaded ({@code GET /projects/{id}/pipelines/{pipeline_id}}) as the stream reaches it,
+     * and one that is gone by then is skipped. Pages are fetched only as the stream is consumed; transport failures
+     * during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the pipelines
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Pipeline> pipelines() throws IOException {
+        return sdk.gitLab().pipelines().listProject(id).stream()
+                .map(listed -> Lookups.find(() -> pipeline(requireNonNull(listed.id(), "id"))))
+                .flatMap(Optional::stream);
+    }
+
+    /**
+     * Loads a pipeline ({@code GET /projects/{id}/pipelines/{pipeline_id}}).
+     *
+     * @param pipelineId the pipeline id
+     * @return the pipeline, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Pipeline> pipeline(final long pipelineId) throws IOException {
+        return sdk.gitLab().pipelines().get(id, pipelineId).map(loaded -> new Pipeline(this, loaded));
+    }
+
+    /**
+     * Creates a pipeline for a branch or tag ({@code POST /projects/{id}/pipeline}) and loads it.
+     *
+     * @param ref the branch or tag to run the pipeline for
+     * @return the created pipeline
+     * @throws NullPointerException if {@code ref} is {@code null}
+     * @throws IllegalArgumentException if {@code ref} is blank
+     * @throws IllegalStateException if GitLab no longer has the pipeline after creating it
+     * @throws IOException if the transport fails
+     */
+    public Pipeline createPipeline(final String ref) throws IOException {
+        return createPipeline(GitLabProjectPipelinesCreatePayloadBuilder.builder()
+                .ref(requireNotBlank(ref, "ref"))
+                .build());
+    }
+
+    /**
+     * Creates a pipeline from the payload of the core ({@code POST /projects/{id}/pipeline}) and loads it ({@code GET
+     * /projects/{id}/pipelines/{pipeline_id}}), because GitLab answers the creation with a smaller record.
+     *
+     * @param payload the payload
+     * @return the created pipeline
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IllegalStateException if GitLab no longer has the pipeline after creating it
+     * @throws IOException if the transport fails
+     */
+    public Pipeline createPipeline(final GitLabProjectPipelinesCreatePayload payload) throws IOException {
+        final long created =
+                requireNonNull(sdk.gitLab().pipelines().create(id, payload).id(), "id");
+        return pipeline(created).orElseThrow(() -> new IllegalStateException("Pipeline " + created + " is gone"));
+    }
+
+    /**
+     * Lists the jobs of the project ({@code GET /projects/{id}/jobs}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the jobs
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Job> jobs() throws IOException {
+        return sdk.gitLab().jobs().project().listJobs(id).stream().map(listed -> new Job(this, listed));
+    }
+
+    /**
+     * Loads a job ({@code GET /projects/{id}/jobs/{job_id}}).
+     *
+     * @param jobId the job id
+     * @return the job, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Job> job(final long jobId) throws IOException {
+        return sdk.gitLab().jobs().project().get(id, jobId).map(loaded -> new Job(this, loaded));
     }
 
     /**

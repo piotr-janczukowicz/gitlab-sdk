@@ -14,15 +14,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasicBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdateStateEvent;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateRequestsNotesPayload;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabCiPipelineWithMetadataBuilder;
 import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabApiException;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
+import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.util.List;
@@ -279,5 +282,38 @@ class MergeRequestTest {
         final Throwable thrown = catchThrowable(sut::refresh);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("Merge request 7 is gone");
+    }
+
+    @Test
+    void pipelines_shouldLoadEachPipeline_whenGitLabListsBasicRecords() throws IOException {
+        when(gitLab.mergerequests().project().listPipelines(ID, IID))
+                .thenReturn(List.of(
+                        GitLabCiPipelineBasicBuilder.builder().id(1L).build(),
+                        GitLabCiPipelineBasicBuilder.builder().id(2L).build(),
+                        GitLabCiPipelineBasicBuilder.builder().id(3L).build()));
+        when(gitLab.pipelines().get(ID, 1L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(1L)
+                        .status("success")
+                        .build()));
+        when(gitLab.pipelines().get(ID, 2L)).thenReturn(Optional.empty());
+        when(gitLab.pipelines().get(ID, 3L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(3L)
+                        .status("failed")
+                        .build()));
+
+        final List<Pipeline> result = sut.pipelines().toList();
+
+        assertThat(result).extracting(Pipeline::id).containsExactly(1L, 3L);
+    }
+
+    @Test
+    void pipelines_shouldReturnEmptyStream_whenMergeRequestHasNoPipelines() throws IOException {
+        when(gitLab.mergerequests().project().listPipelines(ID, IID)).thenReturn(List.of());
+
+        final List<Pipeline> result = sut.pipelines().toList();
+
+        assertThat(result).isEmpty();
     }
 }

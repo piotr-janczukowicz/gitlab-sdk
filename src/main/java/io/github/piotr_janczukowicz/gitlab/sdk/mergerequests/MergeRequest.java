@@ -13,7 +13,9 @@ import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeR
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateRequestsNotesPayload;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateRequestsNotesPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
+import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -239,6 +241,21 @@ public final class MergeRequest {
     public Stream<MergeRequestNote> notes() throws IOException {
         return gitLab().notes().project().listRequestsNotes(project.id(), iid()).stream()
                 .map(note -> new MergeRequestNote(this, note));
+    }
+
+    /**
+     * Lists the pipelines of the merge request ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}/pipelines}). GitLab lists a summary of each pipeline, so each
+     * one is loaded ({@code GET /projects/{id}/pipelines/{pipeline_id}}) as the stream reaches it, and one that is gone
+     * by then is skipped. Transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the pipelines
+     * @throws IOException if the list cannot be loaded
+     */
+    public Stream<Pipeline> pipelines() throws IOException {
+        return gitLab().mergerequests().project().listPipelines(project.id(), iid()).stream()
+                .map(listed -> Lookups.find(() -> project.pipeline(requireNonNull(listed.id(), "id"))))
+                .flatMap(Optional::stream);
     }
 
     /**
