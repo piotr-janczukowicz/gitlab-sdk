@@ -91,10 +91,7 @@ class GroupLabelsSmokeIT {
                     }
                 },
                 () -> {
-                    final Optional<Label> leftover = project.labels()
-                            .limit(100)
-                            .filter(each -> each.name().equals(name))
-                            .findFirst();
+                    final Optional<Label> leftover = project.label(name);
                     if (leftover.isPresent()) {
                         leftover.get().delete();
                     }

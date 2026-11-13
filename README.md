@@ -77,7 +77,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
 | **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
 | **Users** | load a user by id, the profile of the signed-in account |
-| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes, discussions (threads) and emoji reactions; labels, with promotion of a project label to a group label |
+| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes, discussions (threads) and emoji reactions; labels (list with the core's filter, load by name, create, update, delete), with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, discussions (threads, diff comments with the core's position) and emoji reactions, draft notes (create, list, load, update, publish one or all, delete), the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
@@ -204,7 +204,8 @@ Optional<Release> tagged = project.tag("v1.0").orElseThrow().release();
 
 A milestone is addressed by its id (not its `iid`). Dates are `LocalDate`s: `dueDate()` and `startDate()` are empty when
 GitLab sends none, and the update builder takes `LocalDate`s, sent as `yyyy-MM-dd`. `close()` and `reopen()` change the
-state. `issues()` and `mergeRequests()` load each item with one more request as the stream reaches it, through the
+state. `createMilestone(payload)` on a project or a group takes the core's payload for the description and the
+dates, so a literal `null` needs a cast. `issues()` and `mergeRequests()` load each item with one more request as the stream reaches it, through the
 project the item belongs to, so the items listed from a group milestone are loaded through their own projects. Burndown
 events and clearing a date are not covered: the update builder takes a `LocalDate`, never `null`. An empty description
 is sent as given (see [Conventions](#conventions)). `promote()` exists on project milestones only and returns nothing.

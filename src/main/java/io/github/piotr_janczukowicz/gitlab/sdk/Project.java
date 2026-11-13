@@ -17,6 +17,7 @@ import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFil
 import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsListJobsFilter;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
@@ -458,6 +459,34 @@ public final class Project {
      */
     public Stream<Label> labels() throws IOException {
         return sdk.gitLab().labels().list(id).stream().map(listed -> new Label(this, listed));
+    }
+
+    /**
+     * Lists the labels of the project that match a filter ({@code GET /projects/{id}/labels}). Pages are fetched only
+     * as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (counts, ancestor groups, search, archived)
+     * @return the labels
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Label> labels(final GitLabProjectLabelsListFilter filter) throws IOException {
+        return sdk.gitLab().labels().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new Label(this, listed));
+    }
+
+    /**
+     * Loads a label by its name ({@code GET /projects/{id}/labels/{name}}). A name with a slash or a space reaches the
+     * core unchanged.
+     *
+     * @param name the label name
+     * @return the label, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Label> label(final String name) throws IOException {
+        return sdk.gitLab().labels().get(id, requireNotBlank(name, NAME)).map(loaded -> new Label(this, loaded));
     }
 
     /**

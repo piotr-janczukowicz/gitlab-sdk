@@ -547,10 +547,22 @@ public final class Group {
      * @throws IOException if the transport fails
      */
     public GroupMilestone createMilestone(final String title) throws IOException {
-        final GitLabGroupGroupMilestonesCreatePayload payload = GitLabGroupGroupMilestonesCreatePayloadBuilder.builder()
+        return createMilestone(GitLabGroupGroupMilestonesCreatePayloadBuilder.builder()
                 .title(requireNotBlank(title, "title"))
-                .build();
-        return new GroupMilestone(this, sdk.gitLab().groupmilestones().create(id, payload));
+                .build());
+    }
+
+    /**
+     * Creates a milestone from the core's payload ({@code POST /groups/{id}/milestones}), for the fields the SDK does
+     * not wrap, such as the description and the dates.
+     *
+     * @param payload the request body
+     * @return the created milestone
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupMilestone createMilestone(final GitLabGroupGroupMilestonesCreatePayload payload) throws IOException {
+        return new GroupMilestone(this, sdk.gitLab().groupmilestones().create(id, requireNonNull(payload, "payload")));
     }
 
     /**

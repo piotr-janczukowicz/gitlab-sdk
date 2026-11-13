@@ -4,8 +4,12 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.milestones.MilestonesFixtu
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -118,15 +122,35 @@ class GroupMilestonesTest {
     }
 
     @Test
+    void createMilestone_shouldSendPayloadAsGiven_whenPayloadGiven() throws IOException {
+        final GitLabMilestone created = milestone(7, "v1");
+        final GitLabGroupGroupMilestonesCreatePayload payload = GitLabGroupGroupMilestonesCreatePayloadBuilder.builder()
+                .title("v1")
+                .dueDate("2026-12-31")
+                .build();
+        when(gitLab.groupmilestones().create(ID, payload)).thenReturn(created);
+
+        final GroupMilestone result = sut.createMilestone(payload);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.response()).isSameAs(created);
+            softly.assertThat(result.group()).isSameAs(sut);
+        });
+        verify(gitLab.groupmilestones(), never()).get(anyString(), anyLong());
+    }
+
+    @Test
     void createMilestone_shouldThrowIllegalArgumentException_whenTitleIsBlank() {
         assertThatThrownBy(() -> sut.createMilestone(" ")).isInstanceOf(IllegalArgumentException.class);
         verifyNoInteractions(gitLab.groupmilestones());
     }
 
     @Test
-    void createMilestone_shouldThrowNullPointerException_whenTitleIsNull() {
+    void createMilestone_shouldThrowNullPointerException_whenArgumentIsNull() {
         assertSoftly(softly -> {
             softly.assertThatThrownBy(() -> sut.createMilestone((String) null))
+                    .isInstanceOf(NullPointerException.class);
+            softly.assertThatThrownBy(() -> sut.createMilestone((GitLabGroupGroupMilestonesCreatePayload) null))
                     .isInstanceOf(NullPointerException.class);
         });
         verifyNoInteractions(gitLab.groupmilestones());
