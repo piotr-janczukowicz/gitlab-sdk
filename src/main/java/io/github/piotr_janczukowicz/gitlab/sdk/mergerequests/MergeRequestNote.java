@@ -5,11 +5,15 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabNote;
+import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateRequestsNotesAwardEmojiPayload;
+import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateRequestsNotesAwardEmojiPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesUpdateRequestsNotesPayload;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesUpdateRequestsNotesPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.reactions.Reaction;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * A note on a {@link MergeRequest}, as GitLab returned it. The object is immutable, and {@link #response()} gives the
@@ -80,6 +84,44 @@ public final class MergeRequestNote {
                 gitLab().notes()
                         .project()
                         .updateRequestsNotes(mergeRequest.project().id(), mergeRequest.iid(), id(), payload));
+    }
+
+    /**
+     * Lists the emoji reactions on the note ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}/notes/{note_id}/award_emoji}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the reactions
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Reaction> reactions() throws IOException {
+        return gitLab()
+                .emojireactions()
+                .listRequestsNotesAwardEmoji(mergeRequest.project().id(), mergeRequest.iid(), id())
+                .stream()
+                .map(reaction -> new Reaction(this, reaction));
+    }
+
+    /**
+     * Reacts to the note with an emoji ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/notes/{note_id}/award_emoji}). When you already reacted with
+     * the same emoji, GitLab's error passes through.
+     *
+     * @param name the emoji name without colons, for example {@code thumbsup}
+     * @return the created reaction
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Reaction react(final String name) throws IOException {
+        final GitLabProjectEmojiReactionsCreateRequestsNotesAwardEmojiPayload payload =
+                GitLabProjectEmojiReactionsCreateRequestsNotesAwardEmojiPayloadBuilder.builder()
+                        .name(requireNotBlank(name, "name"))
+                        .build();
+        return new Reaction(
+                this,
+                gitLab().emojireactions()
+                        .createRequestsNotesAwardEmoji(mergeRequest.project().id(), mergeRequest.iid(), id(), payload));
     }
 
     /**

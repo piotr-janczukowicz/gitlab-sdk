@@ -25,9 +25,9 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Object | Methods |
 |---|---|
-| `Issue` | `project()`, `iid()`, `title()`, `description()`, `state()` (`IssueState`: `OPENED`, `CLOSED`), `labels()`, `update()`, `close()`, `reopen()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `delete()`, `refresh()`, `response()` |
+| `Issue` | `project()`, `iid()`, `title()`, `description()`, `state()` (`IssueState`: `OPENED`, `CLOSED`), `labels()`, `update()`, `close()`, `reopen()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
 | `IssueUpdate` | `title(...)`, `description(...)`, `clearDescription()`, `labels(names)`, `assignees(userIds)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
-| `Note` | `issue()`, `id()`, `body()`, `update(body)`, `delete()`, `refresh()`, `response()` |
+| `Note` | `issue()`, `id()`, `body()`, `update(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
 | `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends `GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a failed GET promotes nothing; a project in a user namespace fails with the core's exception), `delete()`, `refresh()`, `response()` |
 | `LabelUpdate` | `name(...)`, `color(...)`, `description(...)`, `send()` |
 | `GroupLabel` | `group()`, `name()`, `color()`, `description()`, `isSubscribed()`, `update()`, `subscribe()`, `unsubscribe()`, `delete()`, `refresh()`, `response()`; addressed by name (a slash or space reaches the core unchanged) |
@@ -37,9 +37,9 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Object | Methods |
 |---|---|
-| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `startDiscussion(payload)` (a diff comment: the core's payload carries the `position`; overloaded, so a literal `null` needs a cast), `draftNotes()` (one request, a stream over the core's list), `draftNote(id)`, `createDraftNote(note)`, `createDraftNote(payload)`, `publishDraftNotes()` (an empty bulk-publish payload), `publishDraftNotes(payload)` (both pairs are overloaded, so a literal `null` needs a cast), `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
+| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `startDiscussion(payload)` (a diff comment: the core's payload carries the `position`; overloaded, so a literal `null` needs a cast), `draftNotes()` (one request, a stream over the core's list), `draftNote(id)`, `createDraftNote(note)`, `createDraftNote(payload)`, `publishDraftNotes()` (an empty bulk-publish payload), `publishDraftNotes(payload)` (both pairs are overloaded, so a literal `null` needs a cast), `reactions()`, `react(name)`, `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
 | `MergeRequestUpdate` | `title(...)`, `description(...)`, `targetBranch(...)`, `labels(names)`, `send()` |
-| `MergeRequestNote` | `mergeRequest()`, `id()`, `body()`, `update(body)`, `delete()`, `refresh()`, `response()` |
+| `MergeRequestNote` | `mergeRequest()`, `id()`, `body()`, `update(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
 | `DraftNote` | `mergeRequest()`, `id()`, `note()`, `isResolvingDiscussion()` (a missing flag is `false`), `update()`, `publish()`, `delete()`, `refresh()`, `response()`. After `publish()` it is no longer a draft: `refresh()` throws `IllegalStateException` |
 | `DraftNoteUpdate` | `note(text)`, `send()` |
 | `Approvals` | `mergeRequest()`, `approved()`, `approvalsLeft()`, `approvalsRequired()`, `userHasApproved()`, `response()` |
@@ -81,6 +81,16 @@ Listed, loaded and updated discussions share one record, so none of them needs a
 that is gone, and resolving one that cannot be resolved (an individual note), pass the core's exception through. A blank
 body makes no request. GitLab can resolve merge request threads and resolvable issue threads only, and has no request to
 delete a discussion.
+
+## `reactions`
+
+| Object | Methods |
+|---|---|
+| `Reaction` | `id()`, `name()`, `user()` (the core's `GitLabUserBasic`), `createdAt()` (each empty when GitLab leaves it out), `refresh()` (`IllegalStateException` when gone), `delete()`, `response()`. Owners: `Issue`, `Note`, `MergeRequest` and `MergeRequestNote` each have `reactions()` (a lazy stream) and `react(name)` |
+
+`Reaction` is the one object without parent navigation: a single class serves the four kinds of owner, so it has no `issue()` or
+`mergeRequest()`. `refresh()` and `delete()` use the owner the reaction was made on. A blank name makes no request; reacting twice
+with the same emoji passes GitLab's error through.
 
 ## `milestones`
 
@@ -154,6 +164,7 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
   sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release (they stay
   reachable through `createRelease(payload)`) are not covered.
 - **Draft notes.** Building a draft-note `position` (the core's payload record) and clearing a position are not covered.
+- **Reactions.** Snippet and epic-note reactions, and group-level reactions, are not covered.
 - **Discussions.** Commit, snippet and epic discussions, editing or deleting a reply through the discussion-note endpoints (use the `Note` objects of `notes()`), and building a diff `position` (the core's payload record) are not covered.
 - **Milestones.** Burndown events (the core's calls return nothing), clearing the dates or the description, and the milestone filters of issues and merge requests are not covered. Group milestones have no `promote()`.
 - **Labels.** Clearing the `description` or `priority` of a label with `null`, a group label priority (GitLab has none), and the label counts beyond what the group filter asks for (`withCounts` is a filter option; the counts stay in `response()`) are not covered.

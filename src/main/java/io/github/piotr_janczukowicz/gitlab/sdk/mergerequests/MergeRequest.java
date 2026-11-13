@@ -12,6 +12,8 @@ import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNote
 import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNotesBulkPublishPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNotesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNotesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateRequestsAwardEmojiPayload;
+import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateRequestsAwardEmojiPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
@@ -27,6 +29,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.gitlab.sdk.discussions.MergeRequestDiscussion;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
+import io.github.piotr_janczukowicz.gitlab.sdk.reactions.Reaction;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -417,6 +420,38 @@ public final class MergeRequest {
      */
     public void publishDraftNotes(final GitLabProjectDraftNotesBulkPublishPayload payload) throws IOException {
         gitLab().draftnotes().bulkPublish(project.id(), iid(), requireNonNull(payload, "payload"));
+    }
+
+    /**
+     * Lists the emoji reactions on the merge request ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}/award_emoji}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the reactions
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Reaction> reactions() throws IOException {
+        return gitLab().emojireactions().listRequestsAwardEmoji(project.id(), iid()).stream()
+                .map(reaction -> new Reaction(this, reaction));
+    }
+
+    /**
+     * Reacts to the merge request with an emoji ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/award_emoji}). When you already reacted with the same emoji,
+     * GitLab's error passes through.
+     *
+     * @param name the emoji name without colons, for example {@code thumbsup}
+     * @return the created reaction
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Reaction react(final String name) throws IOException {
+        final GitLabProjectEmojiReactionsCreateRequestsAwardEmojiPayload payload =
+                GitLabProjectEmojiReactionsCreateRequestsAwardEmojiPayloadBuilder.builder()
+                        .name(requireNotBlank(name, "name"))
+                        .build();
+        return new Reaction(this, gitLab().emojireactions().createRequestsAwardEmoji(project.id(), iid(), payload));
     }
 
     /**

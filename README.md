@@ -76,9 +76,9 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
 | **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
 | **Users** | load a user by id, the profile of the signed-in account |
-| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes and discussions (threads); labels, with promotion of a project label to a group label |
+| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes, discussions (threads) and emoji reactions; labels, with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
-| **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes and discussions (threads, diff comments with the core's position), draft notes (create, list, load, update, publish one or all, delete), the pipelines and the commits of a merge request |
+| **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, discussions (threads, diff comments with the core's position) and emoji reactions, draft notes (create, list, load, update, publish one or all, delete), the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create, delete, signature, the tagged commit), commits (list, load, diff, cherry-pick, revert) |
 
@@ -210,6 +210,15 @@ draft = draft.update().note("This loop is O(n^2)").send();
 mergeRequest.publishDraftNotes();
 ```
 
+### Emoji reactions
+
+`issue.reactions()`, `note.reactions()`, `mergeRequest.reactions()` and `mergeRequestNote.reactions()` list the reactions lazily, and `react(name)` adds one with an emoji name such as `thumbsup`. A `Reaction` has `id()`, `name()`, `user()`, `createdAt()`, `refresh()` and `delete()`. Reacting twice with the same emoji is not checked first: GitLab's error passes through. Snippet and epic-note reactions, and group-level reactions, are not covered.
+
+```java
+Reaction reaction = issue.react("thumbsup");
+reaction.delete();
+```
+
 ## When the SDK does not cover a call
 
 The SDK covers the common work, not every endpoint. For the rest, use `gitlab-rest-client` directly: the `GitLab` client
@@ -258,6 +267,7 @@ All objects behave the same way, so you learn them once:
   nothing set throws `IllegalStateException`. Projects, groups, members, webhooks, deploy keys, issues, merge requests and labels have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
+- A `Reaction` is the one object **without parent navigation**: one class serves issues, issue notes, merge requests and merge request notes, so it has no `issue()` or `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on.
 - `refresh()` reloads an object and throws `IllegalStateException` when it is gone. Access requests (`AccessRequest`,
   `GroupAccessRequest`) and `ProjectGroupLink` have no `refresh()`: the API has no lookup of a single one.
 - Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, the forks of a project,
