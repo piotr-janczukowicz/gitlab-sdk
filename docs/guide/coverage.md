@@ -61,7 +61,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 |---|---|
 | `AccessLevel` | `MINIMAL_ACCESS` (5, groups only: `Project.share` rejects it with `IllegalArgumentException` before any request), `GUEST` (10), `PLANNER` (15), `REPORTER` (20), `SECURITY_MANAGER` (25), `DEVELOPER` (30), `MAINTAINER` (40), `OWNER` (50); `value()`, `from(int)` (an unknown number throws `IllegalArgumentException`) |
 | `Member`, `GroupMember` | `project()` or `group()`, `userId()`, `username()`, `accessLevel()`, `accessLevelValue()` (the raw number, for a level `AccessLevel` does not know), `expiresAt()` (`Optional<LocalDate>`), `update()`, `remove()`, `refresh()`, `response()`. A member listed by `allMembers()` may be inherited from a parent group: its `refresh()` loads it from the list with inherited members (`GET .../members/all/{user_id}`), while `update()` and `remove()` act on direct memberships only and fail with the core's exception for GitLab's HTTP 404 for an inherited member |
-| `MemberUpdate`, `GroupMemberUpdate` | `accessLevel(...)`, `expiresAt(date)` (sent as the start of that day in UTC), `send()`; `send()` with nothing set throws `IllegalStateException`. There is no `clearExpiresAt()`: an expiry cannot be cleared, because the core's payload omits an absent value |
+| `MemberUpdate`, `GroupMemberUpdate` | `accessLevel(...)`, `expiresAt(date)` (sent as the start of that day in UTC), `clearExpiresAt()` (sends `"expires_at": null`; the last of the two calls wins), `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `AccessRequest`, `GroupAccessRequest` | `project()` or `group()`, `userId()`, `username()`, `approve(level)` (returns the new member), `deny()`, `response()`. It has no `refresh()` |
 
 ## `webhooks`
@@ -116,7 +116,7 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
   (Ultimate), the premium-only member endpoints (approving pending members, billable members), access tokens, the container registry and packages, instance-level deploy keys and tokens, environments, discussions and
   threads, labels of a group, the descendant groups of a group at every level, and the administration of an instance. Use `gitlab-rest-client` for them; see
   [When the SDK does not cover a call](../../README.md#when-the-sdk-does-not-cover-a-call).
-- **Members.** Member roles (Ultimate) and clearing an expiry are not covered (see above).
+- **Members.** Member roles (Ultimate) are not covered (see above).
 - **Project import and export, and user-scoped project creation.** `sdk.createProject(name)` creates a project for the
   signed-in user or in a namespace (`namespaceId(...)`); creating one for another user (the core's `createUser`) is not
   covered.

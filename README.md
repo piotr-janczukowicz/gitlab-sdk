@@ -103,8 +103,8 @@ project.share(9L, AccessLevel.REPORTER);                                // share
 group.share(9L, AccessLevel.REPORTER);                                  // the same for a group
 ```
 
-An expiry can be set (`expiresAt(...)`) but not cleared: the core's payloads cannot express "no expiry". Member roles
-(Ultimate) are not covered.
+An expiry is set with `expiresAt(...)` and removed with `clearExpiresAt()`; the last call wins. Member roles (Ultimate) are
+not covered.
 
 `allMembers()` also lists the members inherited from parent groups. Such a member's `refresh()` loads it from that
 list; its `update()` and `remove()` act on direct memberships only, so for a member who belongs only through a parent
@@ -223,6 +223,7 @@ All objects behave the same way, so you learn them once:
   and tags).
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
+- Where the core's payloads distinguish an omitted field from a cleared one, the update builders use its tri-state `OptionalNull` to clear it (`clearExpiresAt()` on member updates, alongside `clearDescription()`).
 - `IOException` and the client's `GitLabApiException` pass through unchanged.
 - A call that needs a tier your instance lacks fails in the core's tier guard when you configured the tier on the client;
   the SDK adds no tier logic of its own.

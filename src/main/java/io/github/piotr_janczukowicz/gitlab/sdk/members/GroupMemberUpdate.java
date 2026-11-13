@@ -4,6 +4,7 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersUpdatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.UpdateState;
+import io.github.piotr_janczukowicz.json.OptionalNull;
 import java.io.IOException;
 import java.time.LocalDate;
 
@@ -41,15 +42,27 @@ public final class GroupMemberUpdate {
     }
 
     /**
-     * Sets the date the membership expires, sent as the start of that day in UTC. The core's payload leaves out an
-     * absent value, so an expiry cannot be cleared through the SDK.
+     * Sets the date the membership expires, sent as the start of that day in UTC. The last call of this method or of
+     * {@link #clearExpiresAt()} wins.
      *
      * @param date the expiry date
      * @return this update
      * @throws NullPointerException if {@code date} is {@code null}
      */
     public GroupMemberUpdate expiresAt(final LocalDate date) {
-        payload.expiresAt(MemberValues.startOfDayUtc(date));
+        payload.expiresAt(OptionalNull.of(MemberValues.startOfDayUtc(date)));
+        return changed();
+    }
+
+    /**
+     * Removes the expiry, so the membership does not expire. The request is a {@code PUT} with {@code "expires_at":
+     * null}, which clears the expiry. GitLab's behavior for this on a real instance is not yet verified live. The last
+     * call of this method or of {@link #expiresAt(LocalDate)} wins.
+     *
+     * @return this update
+     */
+    public GroupMemberUpdate clearExpiresAt() {
+        payload.expiresAt(OptionalNull.ofNull());
         return changed();
     }
 

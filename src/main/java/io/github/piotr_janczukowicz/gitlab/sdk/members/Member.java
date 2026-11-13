@@ -106,9 +106,10 @@ public final class Member {
     }
 
     /**
-     * Starts a change of the access level or the expiry date. Nothing is sent until {@link MemberUpdate#send()}. The
-     * change acts on the direct membership only: for a user who is a member only through a parent group (listed by
-     * {@code allMembers()}), {@code send()} fails with the core's exception for GitLab's HTTP 404.
+     * Starts a change of the access level or the expiry date (set or cleared). Nothing is sent until
+     * {@link MemberUpdate#send()}. The change acts on the direct membership only: for a user who is a member only
+     * through a parent group (listed by {@code allMembers()}), {@code send()} fails with the core's exception for
+     * GitLab's HTTP 404.
      *
      * @return the update builder
      */
