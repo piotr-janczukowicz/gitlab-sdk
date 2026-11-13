@@ -20,6 +20,7 @@
   <properties>
     <gitlab-rest-client.version>19.6.0-SNAPSHOT</gitlab-rest-client.version>
     <common-core.version>6</common-core.version>
+    <skipITs>true</skipITs>
   </properties>
 
   <dependencies>
@@ -47,18 +48,6 @@
           <groups>unit</groups>
         </configuration>
       </plugin>
-      <plugin>
-        <groupId>org.apache.maven.plugins</groupId>
-        <artifactId>maven-failsafe-plugin</artifactId>
-        <configuration>
-          <groups>integration</groups>
-          <includes>
-            <include>**/*Test.java</include>
-            <include>**/*IT.java</include>
-            <include>**/*ITCase.java</include>
-          </includes>
-        </configuration>
-      </plugin>
     </plugins>
   </build>
 
@@ -67,6 +56,7 @@
       <id>smoke</id>
       <properties>
         <jacoco.skip>true</jacoco.skip>
+        <skipITs>false</skipITs>
       </properties>
       <build>
         <plugins>
