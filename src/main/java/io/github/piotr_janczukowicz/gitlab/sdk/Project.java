@@ -8,10 +8,14 @@ import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreateP
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Label;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -164,6 +168,57 @@ public final class Project {
      */
     public Issue createIssue(final GitLabProjectIssuesCreatePayload payload) throws IOException {
         return new Issue(this, sdk.gitLab().issues().project().create(id, payload));
+    }
+
+    /**
+     * Lists the merge requests of the project ({@code GET /projects/{id}/merge_requests}). GitLab lists a summary of
+     * each merge request, so each one is loaded ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}) as the
+     * stream reaches it, and one that is gone by then is skipped. Pages are fetched only as the stream is consumed;
+     * transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the merge requests
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<MergeRequest> mergeRequests() throws IOException {
+        return mergeRequests(GitLabProjectMergeRequestsListFilter.empty());
+    }
+
+    /**
+     * Lists the merge requests of the project that match a filter ({@code GET /projects/{id}/merge_requests}). Each one
+     * is loaded as the stream reaches it, and one that is gone by then is skipped, as for {@link #mergeRequests()}.
+     *
+     * @param filter the query parameters of the core
+     * @return the merge requests
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<MergeRequest> mergeRequests(final GitLabProjectMergeRequestsListFilter filter) throws IOException {
+        return sdk.gitLab().mergerequests().project().list(id, filter).stream()
+                .map(listed -> Lookups.find(() -> mergeRequest(requireNonNull(listed.iid(), "iid"))))
+                .flatMap(Optional::stream);
+    }
+
+    /**
+     * Loads a merge request ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}).
+     *
+     * @param iid the merge request number within the project
+     * @return the merge request, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<MergeRequest> mergeRequest(final long iid) throws IOException {
+        return sdk.gitLab().mergerequests().project().get(id, iid).map(loaded -> new MergeRequest(this, loaded));
+    }
+
+    /**
+     * Creates a merge request from the payload of the core ({@code POST /projects/{id}/merge_requests}).
+     *
+     * @param payload the payload
+     * @return the created merge request
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public MergeRequest createMergeRequest(final GitLabProjectMergeRequestsCreatePayload payload) throws IOException {
+        return new MergeRequest(this, sdk.gitLab().mergerequests().project().create(id, payload));
     }
 
     /**
