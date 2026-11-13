@@ -5,8 +5,11 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.members.MembersFixtures.me
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -17,6 +20,7 @@ import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.time.LocalDate;
 import java.util.Optional;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
@@ -90,6 +94,54 @@ class GroupMemberTest {
     void refresh_shouldThrowIllegalStateException_whenGone() throws IOException {
         when(gitLab.members().group().get(ID, 5L)).thenReturn(Optional.empty());
         final GroupMember sut = sut(member(5L, "ann", 30));
+
+        final Throwable thrown = catchThrowable(sut::refresh);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("5");
+    }
+
+    @Test
+    void refresh_shouldUseGetAll_whenMemberCameFromAllMembers() throws IOException {
+        when(gitLab.members().group().listAll(ID).stream()).thenReturn(Stream.of(member(5L, "ann", 30)));
+        when(gitLab.members().group().getAll(ID, 5L)).thenReturn(Optional.of(member(5L, "ann", 50)));
+        final GroupMember sut =
+                GitLabSdk.of(gitLab).group(ID).allMembers().findFirst().orElseThrow();
+
+        final GroupMember refreshed = sut.refresh();
+
+        assertThat(refreshed.accessLevel()).isEqualTo(AccessLevel.OWNER);
+        verify(gitLab.members().group(), never()).get(any(String.class), any(Long.class));
+    }
+
+    @Test
+    void refresh_shouldKeepUsingGetAll_whenRefreshedMemberCameFromAllMembers() throws IOException {
+        when(gitLab.members().group().listAll(ID).stream()).thenReturn(Stream.of(member(5L, "ann", 30)));
+        when(gitLab.members().group().getAll(ID, 5L)).thenReturn(Optional.of(member(5L, "ann", 50)));
+        final GroupMember sut =
+                GitLabSdk.of(gitLab).group(ID).allMembers().findFirst().orElseThrow();
+
+        sut.refresh().refresh();
+
+        verify(gitLab.members().group(), times(2)).getAll(ID, 5L);
+        verify(gitLab.members().group(), never()).get(any(String.class), any(Long.class));
+    }
+
+    @Test
+    void refresh_shouldUseGet_whenMemberIsDirect() throws IOException {
+        when(gitLab.members().group().get(ID, 5L)).thenReturn(Optional.of(member(5L, "ann", 50)));
+
+        sut(member(5L, "ann", 30)).refresh();
+
+        verify(gitLab.members().group()).get(ID, 5L);
+        verify(gitLab.members().group(), never()).getAll(any(String.class), any(Long.class));
+    }
+
+    @Test
+    void refresh_shouldThrowIllegalStateException_whenInheritedMemberIsGone() throws IOException {
+        when(gitLab.members().group().listAll(ID).stream()).thenReturn(Stream.of(member(5L, "ann", 30)));
+        when(gitLab.members().group().getAll(ID, 5L)).thenReturn(Optional.empty());
+        final GroupMember sut =
+                GitLabSdk.of(gitLab).group(ID).allMembers().findFirst().orElseThrow();
 
         final Throwable thrown = catchThrowable(sut::refresh);
 

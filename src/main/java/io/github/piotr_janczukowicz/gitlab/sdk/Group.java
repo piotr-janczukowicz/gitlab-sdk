@@ -200,11 +200,16 @@ public final class Group {
      * /groups/{id}/members/all}). Pages are fetched only as the stream is consumed; transport failures during iteration
      * are {@link java.io.UncheckedIOException}.
      *
+     * <p>A listed member may be a member only through a parent group. Its {@code refresh()} loads it from this list
+     * ({@code GET /groups/{id}/members/all/{user_id}}); its {@code update()} and {@code remove()} act on direct
+     * memberships only and fail with the core's exception for GitLab's HTTP 404 when the membership is inherited.
+     *
      * @return the members
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<GroupMember> allMembers() throws IOException {
-        return sdk.gitLab().members().group().listAll(id).stream().map(listed -> new GroupMember(this, listed));
+        return sdk.gitLab().members().group().listAll(id).stream()
+                .map(listed -> Internals.fromAllGroupMembers(new GroupMember(this, listed)));
     }
 
     /**

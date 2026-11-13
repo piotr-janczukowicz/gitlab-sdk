@@ -106,14 +106,23 @@ group.share(9L, AccessLevel.REPORTER);                                  // the s
 An expiry can be set (`expiresAt(...)`) but not cleared: the core's payloads cannot express "no expiry". Member roles
 (Ultimate) are not covered.
 
+`allMembers()` also lists the members inherited from parent groups. Such a member's `refresh()` loads it from that
+list; its `update()` and `remove()` act on direct memberships only, so for a member who belongs only through a parent
+group they fail with the core's exception for GitLab's HTTP 404.
+
 ### Webhooks
 
 `WebhookEvent` names the events a webhook can be switched on for and tested with. The token is write-only: GitLab never
 returns it. URL variables, custom headers and delivery logs are not covered.
 
+As in `github-sdk`, `events(collection)` replaces the subscription: it sends all nine `WebhookEvent` flags, `true` for
+the listed events and `false` for the others (an empty collection switches them all off, including the push events
+GitLab enables by default). `addEvents(...)` and `removeEvents(...)` send only the named flags, `true` or `false`.
+
 ```java
 Webhook hook = project.createWebhook("https://ci.example/hook");
-hook = hook.update().name("ci").token("s3cret").events(WebhookEvent.PUSH, WebhookEvent.PIPELINE).send();
+hook = hook.update().name("ci").token("s3cret").events(List.of(WebhookEvent.PIPELINE)).send(); // only pipelines
+hook = hook.update().addEvents(WebhookEvent.TAG_PUSH).removeEvents(WebhookEvent.PIPELINE).send();
 hook.test(WebhookEvent.PUSH);
 boolean onPush = hook.isEnabledFor(WebhookEvent.PUSH);
 group.createWebhook("https://ci.example/group-hook");                   // Premium

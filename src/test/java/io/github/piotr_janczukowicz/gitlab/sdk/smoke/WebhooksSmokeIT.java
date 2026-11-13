@@ -7,6 +7,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -35,7 +36,7 @@ class WebhooksSmokeIT {
                 () -> {
                     final Webhook updated = created.update()
                             .name(ENV.name("hook"))
-                            .events(WebhookEvent.PUSH)
+                            .events(List.of(WebhookEvent.PIPELINE))
                             .send();
                     final Optional<Webhook> reloaded = project.webhook(created.id());
                     final boolean listed = project.webhooks().limit(100).anyMatch(hook -> hook.id() == created.id());
@@ -45,8 +46,10 @@ class WebhooksSmokeIT {
                     assertSoftly(softly -> {
                         softly.assertThat(created.url()).isEqualTo(url);
                         softly.assertThat(updated.name()).contains(ENV.name("hook"));
-                        softly.assertThat(updated.isEnabledFor(WebhookEvent.PUSH))
+                        softly.assertThat(updated.isEnabledFor(WebhookEvent.PIPELINE))
                                 .isTrue();
+                        softly.assertThat(updated.isEnabledFor(WebhookEvent.PUSH))
+                                .isFalse();
                         softly.assertThat(reloaded).map(Webhook::url).contains(url);
                         softly.assertThat(listed).isTrue();
                         softly.assertThat(afterDelete).isEmpty();

@@ -6,7 +6,9 @@ import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupHookBuil
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectHook;
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectHookBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProjectWebhooksUpdatePayload;
+import java.util.EnumMap;
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 
 /** Builds the core records for the tests of the webhook objects. */
@@ -94,6 +96,51 @@ final class WebhooksFixtures {
         add(events, WebhookEvent.WIKI_PAGE, payload.wikiPageEvents());
         add(events, WebhookEvent.RELEASES, payload.releasesEvents());
         return events;
+    }
+
+    /** The event flags a project payload sends, {@code true} or {@code false}; a flag it leaves out has no entry. */
+    static Map<WebhookEvent, Boolean> flags(final GitLabProjectProjectWebhooksUpdatePayload payload) {
+        final Map<WebhookEvent, Boolean> flags = new EnumMap<>(WebhookEvent.class);
+        put(flags, WebhookEvent.PUSH, payload.pushEvents());
+        put(flags, WebhookEvent.TAG_PUSH, payload.tagPushEvents());
+        put(flags, WebhookEvent.ISSUES, payload.issuesEvents());
+        put(flags, WebhookEvent.NOTE, payload.noteEvents());
+        put(flags, WebhookEvent.MERGE_REQUESTS, payload.mergeRequestsEvents());
+        put(flags, WebhookEvent.JOB, payload.jobEvents());
+        put(flags, WebhookEvent.PIPELINE, payload.pipelineEvents());
+        put(flags, WebhookEvent.WIKI_PAGE, payload.wikiPageEvents());
+        put(flags, WebhookEvent.RELEASES, payload.releasesEvents());
+        return flags;
+    }
+
+    /** The event flags a group payload sends, {@code true} or {@code false}; a flag it leaves out has no entry. */
+    static Map<WebhookEvent, Boolean> flags(final GitLabGroupGroupWebhooksUpdatePayload payload) {
+        final Map<WebhookEvent, Boolean> flags = new EnumMap<>(WebhookEvent.class);
+        put(flags, WebhookEvent.PUSH, payload.pushEvents());
+        put(flags, WebhookEvent.TAG_PUSH, payload.tagPushEvents());
+        put(flags, WebhookEvent.ISSUES, payload.issuesEvents());
+        put(flags, WebhookEvent.NOTE, payload.noteEvents());
+        put(flags, WebhookEvent.MERGE_REQUESTS, payload.mergeRequestsEvents());
+        put(flags, WebhookEvent.JOB, payload.jobEvents());
+        put(flags, WebhookEvent.PIPELINE, payload.pipelineEvents());
+        put(flags, WebhookEvent.WIKI_PAGE, payload.wikiPageEvents());
+        put(flags, WebhookEvent.RELEASES, payload.releasesEvents());
+        return flags;
+    }
+
+    /** Every known event flag: {@code true} for the given events and {@code false} for the others. */
+    static Map<WebhookEvent, Boolean> allFlags(final Set<WebhookEvent> on) {
+        final Map<WebhookEvent, Boolean> flags = new EnumMap<>(WebhookEvent.class);
+        for (final WebhookEvent event : WebhookEvent.values()) {
+            flags.put(event, on.contains(event));
+        }
+        return flags;
+    }
+
+    private static void put(final Map<WebhookEvent, Boolean> flags, final WebhookEvent event, final Boolean flag) {
+        if (flag != null) {
+            flags.put(event, flag);
+        }
     }
 
     private static void add(final Set<WebhookEvent> events, final WebhookEvent event, final Boolean flag) {

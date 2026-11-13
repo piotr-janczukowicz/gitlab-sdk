@@ -14,12 +14,19 @@ import java.util.Optional;
 /**
  * A member of a {@link Project}, as GitLab returned it. The object is immutable: it keeps the data of the moment it was
  * loaded, and {@link #response()} gives the complete response for every field the accessors here do not cover. A member
- * is addressed by the numeric id of its user.
+ * is addressed by the numeric id of its user. A member listed by {@link Project#allMembers()} may hold its membership
+ * only through a parent group: {@link #refresh()} then loads it from the list with inherited members, while
+ * {@link #update()} and {@link #remove()} act on direct memberships only and fail for such a member.
  */
 public final class Member {
 
+    static {
+        Internals.registerAllMembersAccess(member -> new Member(member.project, member.response, true));
+    }
+
     private final Project project;
     private final GitLabMember response;
+    private final boolean listedWithInherited;
 
     /**
      * Wraps a response. Applications normally get this object from the object that owns it; call the constructor only
@@ -30,8 +37,13 @@ public final class Member {
      * @throws NullPointerException if an argument is {@code null}
      */
     public Member(final Project project, final GitLabMember response) {
+        this(project, response, false);
+    }
+
+    private Member(final Project project, final GitLabMember response, final boolean listedWithInherited) {
         this.project = requireNonNull(project, "project");
         this.response = requireNonNull(response, "response");
+        this.listedWithInherited = listedWithInherited;
     }
 
     /**
@@ -93,7 +105,9 @@ public final class Member {
     }
 
     /**
-     * Starts a change of the access level or the expiry date. Nothing is sent until {@link MemberUpdate#send()}.
+     * Starts a change of the access level or the expiry date. Nothing is sent until {@link MemberUpdate#send()}. The
+     * change acts on the direct membership only: for a user who is a member only through a parent group (listed by
+     * {@code allMembers()}), {@code send()} fails with the core's exception for GitLab's HTTP 404.
      *
      * @return the update builder
      */
@@ -102,7 +116,9 @@ public final class Member {
     }
 
     /**
-     * Removes the member from the project ({@code DELETE /projects/{id}/members/{user_id}}).
+     * Removes the member from the project ({@code DELETE /projects/{id}/members/{user_id}}). This acts on the direct
+     * membership only: for a user who is a member only through a parent group (listed by {@code allMembers()}), it
+     * fails with the core's exception for GitLab's HTTP 404.
      *
      * @throws IOException if the transport fails
      */
@@ -111,14 +127,24 @@ public final class Member {
     }
 
     /**
-     * Loads the member again ({@code GET /projects/{id}/members/{user_id}}). This object is not changed.
+     * Loads the member again. This object is not changed. A member built with the public constructor, or returned by
+     * {@code member(userId)}, {@code members()}, {@code addMember(...)} or {@code update().send()}, is loaded as a
+     * direct member ({@code GET /projects/{id}/members/{user_id}}). A member listed by {@code allMembers()} may be
+     * inherited from a parent group, so it is loaded from the list with inherited members ({@code GET
+     * /projects/{id}/members/all/{user_id}}), and the returned member is loaded that way again.
      *
      * @return the member as GitLab holds it now
      * @throws IllegalStateException if the user is no longer a member
      * @throws IOException if the transport fails
      */
     public Member refresh() throws IOException {
-        return project.member(userId()).orElseThrow(() -> new IllegalStateException("Member " + userId() + " is gone"));
+        final Optional<Member> loaded = listedWithInherited
+                ? gitLab().members()
+                        .project()
+                        .getAll(project.id(), userId())
+                        .map(found -> new Member(project, found, true))
+                : project.member(userId());
+        return loaded.orElseThrow(() -> new IllegalStateException("Member " + userId() + " is gone"));
     }
 
     /**

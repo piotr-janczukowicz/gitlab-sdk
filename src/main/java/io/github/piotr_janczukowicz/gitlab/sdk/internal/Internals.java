@@ -6,9 +6,12 @@ import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Group;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.Member;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -24,6 +27,9 @@ public final class Internals {
     private static final AtomicReference<@Nullable Function<Group, GitLab>> GROUP_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable Function<GitLabSdk, GitLab>> SDK_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable BiFunction<Project, String, Project>> SIBLING_ACCESS =
+            new AtomicReference<>();
+    private static final AtomicReference<@Nullable UnaryOperator<Member>> ALL_MEMBERS_ACCESS = new AtomicReference<>();
+    private static final AtomicReference<@Nullable UnaryOperator<GroupMember>> ALL_GROUP_MEMBERS_ACCESS =
             new AtomicReference<>();
 
     private Internals() {
@@ -114,5 +120,52 @@ public final class Internals {
      */
     public static GitLab gitLab(final Group group) {
         return requireNonNull(GROUP_ACCESS.get(), "groupAccess").apply(group);
+    }
+
+    /**
+     * Registers how to mark a project member as listed by {@code GET /projects/{id}/members/all}. Called by
+     * {@link Member} when it is initialized. Only the first registration counts.
+     *
+     * @param access the function that returns a copy of a member marked as listed with the inherited members
+     */
+    public static void registerAllMembersAccess(final UnaryOperator<Member> access) {
+        ALL_MEMBERS_ACCESS.compareAndSet(null, access);
+    }
+
+    /**
+     * Returns a copy of a project member marked as listed with the inherited members, so that its {@code refresh()}
+     * loads it through {@code GET /projects/{id}/members/all/{user_id}}. No request is made. Pass a member built with
+     * its public constructor, which initializes {@link Member} and so registers the access.
+     *
+     * @param member the member as listed
+     * @return the marked copy
+     * @throws NullPointerException if the access was never registered
+     */
+    public static Member fromAllMembers(final Member member) {
+        return requireNonNull(ALL_MEMBERS_ACCESS.get(), "allMembersAccess").apply(member);
+    }
+
+    /**
+     * Registers how to mark a group member as listed by {@code GET /groups/{id}/members/all}. Called by
+     * {@link GroupMember} when it is initialized. Only the first registration counts.
+     *
+     * @param access the function that returns a copy of a member marked as listed with the inherited members
+     */
+    public static void registerAllGroupMembersAccess(final UnaryOperator<GroupMember> access) {
+        ALL_GROUP_MEMBERS_ACCESS.compareAndSet(null, access);
+    }
+
+    /**
+     * Returns a copy of a group member marked as listed with the inherited members, so that its {@code refresh()} loads
+     * it through {@code GET /groups/{id}/members/all/{user_id}}. No request is made. Pass a member built with its
+     * public constructor, which initializes {@link GroupMember} and so registers the access.
+     *
+     * @param member the member as listed
+     * @return the marked copy
+     * @throws NullPointerException if the access was never registered
+     */
+    public static GroupMember fromAllGroupMembers(final GroupMember member) {
+        return requireNonNull(ALL_GROUP_MEMBERS_ACCESS.get(), "allGroupMembersAccess")
+                .apply(member);
     }
 }

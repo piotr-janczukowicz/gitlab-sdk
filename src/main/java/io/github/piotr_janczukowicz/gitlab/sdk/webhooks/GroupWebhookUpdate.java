@@ -6,6 +6,8 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWebhooksUpdatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.UpdateState;
 import java.io.IOException;
+import java.util.Collection;
+import java.util.Set;
 
 /**
  * Collects changes to a {@link GroupWebhook} and sends them in one request. Only the fields that were set are sent, and
@@ -92,17 +94,51 @@ public final class GroupWebhookUpdate {
     }
 
     /**
-     * Switches the webhook on for the named events. Only those flags are sent, set to {@code true}; the flags of other
-     * events are left as they are, so this cannot switch an event off.
+     * Replaces the events the webhook is subscribed to. Every flag of {@link WebhookEvent} is sent: {@code true} for
+     * the listed events and {@code false} for the others. An empty collection is allowed, as in {@code github-sdk}, and
+     * switches all of them off; the request still carries the nine flags, so it is not empty. Events outside
+     * {@link WebhookEvent} are left as they are. The event calls of one update apply in order.
      *
-     * @param events the events to switch on
+     * @param events the events the webhook is subscribed to afterwards
      * @return this update
-     * @throws IllegalArgumentException if {@code events} is {@code null} or empty
-     * @throws NullPointerException if an event is {@code null}
+     * @throws NullPointerException if {@code events} or an event is {@code null}
      */
-    public GroupWebhookUpdate events(final WebhookEvent... events) {
+    public GroupWebhookUpdate events(final Collection<WebhookEvent> events) {
+        final Set<WebhookEvent> subscribed = WebhookEvent.requireEventSet(events);
+        for (final WebhookEvent event : WebhookEvent.values()) {
+            event.set(payload, subscribed.contains(event));
+        }
+        return changed();
+    }
+
+    /**
+     * Adds events to the subscription. Only the flags of the named events are sent, set to {@code true}; the others are
+     * left as they are. The event calls of one update apply in order.
+     *
+     * @param events the events to add
+     * @return this update
+     * @throws NullPointerException if {@code events} or an event is {@code null}
+     * @throws IllegalArgumentException if no event is given
+     */
+    public GroupWebhookUpdate addEvents(final WebhookEvent... events) {
         for (final WebhookEvent event : WebhookEvent.requireEvents(events)) {
-            event.turnOn(payload);
+            event.set(payload, true);
+        }
+        return changed();
+    }
+
+    /**
+     * Removes events from the subscription. Only the flags of the named events are sent, set to {@code false}; the
+     * others are left as they are. The event calls of one update apply in order.
+     *
+     * @param events the events to remove
+     * @return this update
+     * @throws NullPointerException if {@code events} or an event is {@code null}
+     * @throws IllegalArgumentException if no event is given
+     */
+    public GroupWebhookUpdate removeEvents(final WebhookEvent... events) {
+        for (final WebhookEvent event : WebhookEvent.requireEvents(events)) {
+            event.set(payload, false);
         }
         return changed();
     }

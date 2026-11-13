@@ -8,6 +8,9 @@ import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupHook;
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectHook;
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProjectWebhooksCreateTestTrigger;
 import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProjectWebhooksUpdatePayloadBuilder;
+import java.util.Collection;
+import java.util.EnumSet;
+import java.util.Set;
 import org.jspecify.annotations.Nullable;
 
 /**
@@ -78,42 +81,51 @@ public enum WebhookEvent {
                 });
     }
 
-    void turnOn(final GitLabProjectProjectWebhooksUpdatePayloadBuilder payload) {
+    void set(final GitLabProjectProjectWebhooksUpdatePayloadBuilder payload, final boolean on) {
         switch (this) {
-            case PUSH -> payload.pushEvents(true);
-            case TAG_PUSH -> payload.tagPushEvents(true);
-            case ISSUES -> payload.issuesEvents(true);
-            case NOTE -> payload.noteEvents(true);
-            case MERGE_REQUESTS -> payload.mergeRequestsEvents(true);
-            case JOB -> payload.jobEvents(true);
-            case PIPELINE -> payload.pipelineEvents(true);
-            case WIKI_PAGE -> payload.wikiPageEvents(true);
-            case RELEASES -> payload.releasesEvents(true);
+            case PUSH -> payload.pushEvents(on);
+            case TAG_PUSH -> payload.tagPushEvents(on);
+            case ISSUES -> payload.issuesEvents(on);
+            case NOTE -> payload.noteEvents(on);
+            case MERGE_REQUESTS -> payload.mergeRequestsEvents(on);
+            case JOB -> payload.jobEvents(on);
+            case PIPELINE -> payload.pipelineEvents(on);
+            case WIKI_PAGE -> payload.wikiPageEvents(on);
+            case RELEASES -> payload.releasesEvents(on);
         }
     }
 
-    void turnOn(final GitLabGroupGroupWebhooksUpdatePayloadBuilder payload) {
+    void set(final GitLabGroupGroupWebhooksUpdatePayloadBuilder payload, final boolean on) {
         switch (this) {
-            case PUSH -> payload.pushEvents(true);
-            case TAG_PUSH -> payload.tagPushEvents(true);
-            case ISSUES -> payload.issuesEvents(true);
-            case NOTE -> payload.noteEvents(true);
-            case MERGE_REQUESTS -> payload.mergeRequestsEvents(true);
-            case JOB -> payload.jobEvents(true);
-            case PIPELINE -> payload.pipelineEvents(true);
-            case WIKI_PAGE -> payload.wikiPageEvents(true);
-            case RELEASES -> payload.releasesEvents(true);
+            case PUSH -> payload.pushEvents(on);
+            case TAG_PUSH -> payload.tagPushEvents(on);
+            case ISSUES -> payload.issuesEvents(on);
+            case NOTE -> payload.noteEvents(on);
+            case MERGE_REQUESTS -> payload.mergeRequestsEvents(on);
+            case JOB -> payload.jobEvents(on);
+            case PIPELINE -> payload.pipelineEvents(on);
+            case WIKI_PAGE -> payload.wikiPageEvents(on);
+            case RELEASES -> payload.releasesEvents(on);
         }
     }
 
-    static WebhookEvent[] requireEvents(final WebhookEvent @Nullable ... events) {
-        if (events == null || events.length == 0) {
+    static WebhookEvent[] requireEvents(final WebhookEvent... events) {
+        requireNonNull(events, "events");
+        if (events.length == 0) {
             throw new IllegalArgumentException("At least one event is required");
         }
         for (final WebhookEvent event : events) {
             requireNonNull(event, "event");
         }
         return events;
+    }
+
+    static Set<WebhookEvent> requireEventSet(final Collection<WebhookEvent> events) {
+        final Set<WebhookEvent> checked = EnumSet.noneOf(WebhookEvent.class);
+        for (final WebhookEvent event : requireNonNull(events, "events")) {
+            checked.add(requireNonNull(event, "event"));
+        }
+        return checked;
     }
 
     private static boolean isTrue(final @Nullable Boolean flag) {

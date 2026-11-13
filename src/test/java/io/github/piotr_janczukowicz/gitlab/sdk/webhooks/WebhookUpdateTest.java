@@ -1,5 +1,7 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.webhooks;
 
+import static io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhooksFixtures.allFlags;
+import static io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhooksFixtures.flags;
 import static io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhooksFixtures.groupHook;
 import static io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhooksFixtures.groupHookNamed;
 import static io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhooksFixtures.hook;
@@ -7,6 +9,7 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhooksFixtures.
 import static io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhooksFixtures.sent;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
+import static org.assertj.core.api.Assertions.entry;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -23,8 +26,9 @@ import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProj
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.EnumSet;
-import java.util.Set;
+import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
@@ -54,6 +58,17 @@ class WebhookUpdateTest {
                 ArgumentCaptor.forClass(GitLabGroupGroupWebhooksUpdatePayload.class);
         verify(gitLab.groupwebhooks()).update(eq(GROUP_ID), eq(7L), payload.capture());
         return payload.getValue();
+    }
+
+    private void stubProjectUpdate() throws IOException {
+        when(gitLab.projectwebhooks()
+                        .update(eq(PROJECT_ID), eq(7L), any(GitLabProjectProjectWebhooksUpdatePayload.class)))
+                .thenReturn(hook(7L, URL));
+    }
+
+    private void stubGroupUpdate() throws IOException {
+        when(gitLab.groupwebhooks().update(eq(GROUP_ID), eq(7L), any(GitLabGroupGroupWebhooksUpdatePayload.class)))
+                .thenReturn(groupHook(7L, URL));
     }
 
     @Test
@@ -113,64 +128,151 @@ class WebhookUpdateTest {
 
     @ParameterizedTest
     @EnumSource(WebhookEvent.class)
-    void events_shouldSetOnlyNamedFlags_whenOneEventGiven(final WebhookEvent event) throws IOException {
-        when(gitLab.projectwebhooks()
-                        .update(eq(PROJECT_ID), eq(7L), any(GitLabProjectProjectWebhooksUpdatePayload.class)))
-                .thenReturn(hook(7L, URL));
+    void events_shouldSendEveryFlag_whenReplacingWithOneEvent(final WebhookEvent event) throws IOException {
+        stubProjectUpdate();
 
-        projectHook.update().events(event).send();
+        projectHook.update().events(List.of(event)).send();
 
-        assertThat(sent(projectPayload())).containsExactly(event);
+        assertThat(flags(projectPayload())).isEqualTo(allFlags(EnumSet.of(event)));
     }
 
     @Test
-    void events_shouldSetOnlyNamedFlags_whenSeveralEventsGiven() throws IOException {
-        when(gitLab.projectwebhooks()
-                        .update(eq(PROJECT_ID), eq(7L), any(GitLabProjectProjectWebhooksUpdatePayload.class)))
-                .thenReturn(hook(7L, URL));
+    void events_shouldSendEveryFlag_whenReplacingWithSeveralEvents() throws IOException {
+        stubProjectUpdate();
 
-        projectHook.update().events(WebhookEvent.PUSH, WebhookEvent.NOTE).send();
+        projectHook
+                .update()
+                .events(List.of(WebhookEvent.PUSH, WebhookEvent.NOTE))
+                .send();
 
-        final Set<WebhookEvent> expected = EnumSet.of(WebhookEvent.PUSH, WebhookEvent.NOTE);
-        assertThat(sent(projectPayload())).isEqualTo(expected);
+        assertThat(flags(projectPayload())).isEqualTo(allFlags(EnumSet.of(WebhookEvent.PUSH, WebhookEvent.NOTE)));
     }
 
     @Test
-    void events_shouldThrowIllegalArgumentException_whenEmpty() {
+    void events_shouldSwitchEveryEventOff_whenCollectionIsEmpty() throws IOException {
+        stubProjectUpdate();
+
+        projectHook.update().events(List.of()).send();
+
+        assertThat(flags(projectPayload())).isEqualTo(allFlags(EnumSet.noneOf(WebhookEvent.class)));
+    }
+
+    @Test
+    void events_shouldThrowNullPointerException_whenNull() {
         final WebhookUpdate update = projectHook.update();
 
-        final Throwable thrown = catchThrowable(update::events);
-
-        assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void events_shouldThrowIllegalArgumentException_whenNull() {
-        final WebhookUpdate update = projectHook.update();
-
-        final Throwable thrown = catchThrowable(() -> update.events((WebhookEvent[]) null));
-
-        assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
-    }
-
-    @Test
-    void events_shouldThrowNullPointerException_whenElementIsNull() {
-        final WebhookUpdate update = projectHook.update();
-
-        final Throwable thrown = catchThrowable(() -> update.events(WebhookEvent.PUSH, null));
+        final Throwable thrown = catchThrowable(() -> update.events(null));
 
         assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
 
     @Test
-    void events_shouldNotMarkUpdate_whenRejected() {
+    void events_shouldThrowNullPointerException_whenElementIsNull() {
         final WebhookUpdate update = projectHook.update();
-        catchThrowable(update::events);
+        final List<WebhookEvent> events = Arrays.asList(WebhookEvent.PUSH, null);
+
+        final Throwable thrown = catchThrowable(() -> update.events(events));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void events_shouldApplyCallsInOrder_whenCombinedWithRemoveEvents() throws IOException {
+        stubProjectUpdate();
+
+        projectHook
+                .update()
+                .events(List.of(WebhookEvent.PUSH, WebhookEvent.NOTE))
+                .removeEvents(WebhookEvent.PUSH)
+                .send();
+
+        assertThat(flags(projectPayload())).isEqualTo(allFlags(EnumSet.of(WebhookEvent.NOTE)));
+    }
+
+    @ParameterizedTest
+    @EnumSource(WebhookEvent.class)
+    void addEvents_shouldSendOnlyNamedFlagsTrue_whenOneEventGiven(final WebhookEvent event) throws IOException {
+        stubProjectUpdate();
+
+        projectHook.update().addEvents(event).send();
+
+        assertThat(flags(projectPayload())).containsExactly(entry(event, true));
+    }
+
+    @Test
+    void addEvents_shouldSendOnlyNamedFlagsTrue_whenSeveralEventsGiven() throws IOException {
+        stubProjectUpdate();
+
+        projectHook.update().addEvents(WebhookEvent.PUSH, WebhookEvent.NOTE).send();
+
+        assertThat(flags(projectPayload()))
+                .containsExactly(entry(WebhookEvent.PUSH, true), entry(WebhookEvent.NOTE, true));
+    }
+
+    @Test
+    void addEvents_shouldThrowIllegalArgumentException_whenEmpty() {
+        final WebhookUpdate update = projectHook.update();
+
+        final Throwable thrown = catchThrowable(update::addEvents);
+
+        assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void addEvents_shouldThrowNullPointerException_whenNull() {
+        final WebhookUpdate update = projectHook.update();
+
+        final Throwable thrown = catchThrowable(() -> update.addEvents((WebhookEvent[]) null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void addEvents_shouldThrowNullPointerException_whenElementIsNull() {
+        final WebhookUpdate update = projectHook.update();
+
+        final Throwable thrown = catchThrowable(() -> update.addEvents(WebhookEvent.PUSH, null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void addEvents_shouldNotMarkUpdate_whenRejected() {
+        final WebhookUpdate update = projectHook.update();
+        catchThrowable(update::addEvents);
 
         final Throwable thrown = catchThrowable(update::send);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class);
         verifyNoInteractions(gitLab);
+    }
+
+    @ParameterizedTest
+    @EnumSource(WebhookEvent.class)
+    void removeEvents_shouldSendOnlyNamedFlagsFalse_whenOneEventGiven(final WebhookEvent event) throws IOException {
+        stubProjectUpdate();
+
+        projectHook.update().removeEvents(event).send();
+
+        assertThat(flags(projectPayload())).containsExactly(entry(event, false));
+    }
+
+    @Test
+    void removeEvents_shouldThrowIllegalArgumentException_whenEmpty() {
+        final WebhookUpdate update = projectHook.update();
+
+        final Throwable thrown = catchThrowable(update::removeEvents);
+
+        assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void removeEvents_shouldThrowNullPointerException_whenElementIsNull() {
+        final WebhookUpdate update = projectHook.update();
+
+        final Throwable thrown = catchThrowable(() -> update.removeEvents(WebhookEvent.PUSH, null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
 
     @Test
@@ -266,22 +368,71 @@ class WebhookUpdateTest {
 
     @ParameterizedTest
     @EnumSource(WebhookEvent.class)
-    void events_shouldSetOnlyNamedFlags_whenOneEventGivenOnGroupWebhook(final WebhookEvent event) throws IOException {
-        when(gitLab.groupwebhooks().update(eq(GROUP_ID), eq(7L), any(GitLabGroupGroupWebhooksUpdatePayload.class)))
-                .thenReturn(groupHook(7L, URL));
+    void events_shouldSendEveryFlag_whenReplacingWithOneEventOnGroupWebhook(final WebhookEvent event)
+            throws IOException {
+        stubGroupUpdate();
 
-        groupHook.update().events(event).send();
+        groupHook.update().events(List.of(event)).send();
 
-        assertThat(sent(groupPayload())).containsExactly(event);
+        assertThat(flags(groupPayload())).isEqualTo(allFlags(EnumSet.of(event)));
     }
 
     @Test
-    void events_shouldThrowIllegalArgumentException_whenEmptyOnGroupWebhook() {
+    void events_shouldSwitchEveryEventOff_whenCollectionIsEmptyOnGroupWebhook() throws IOException {
+        stubGroupUpdate();
+
+        groupHook.update().events(List.of()).send();
+
+        assertThat(flags(groupPayload())).isEqualTo(allFlags(EnumSet.noneOf(WebhookEvent.class)));
+    }
+
+    @Test
+    void events_shouldThrowNullPointerException_whenNullOnGroupWebhook() {
         final GroupWebhookUpdate update = groupHook.update();
 
-        final Throwable thrown = catchThrowable(update::events);
+        final Throwable thrown = catchThrowable(() -> update.events(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @ParameterizedTest
+    @EnumSource(WebhookEvent.class)
+    void addEvents_shouldSendOnlyNamedFlagsTrue_whenOneEventGivenOnGroupWebhook(final WebhookEvent event)
+            throws IOException {
+        stubGroupUpdate();
+
+        groupHook.update().addEvents(event).send();
+
+        assertThat(flags(groupPayload())).containsExactly(entry(event, true));
+    }
+
+    @ParameterizedTest
+    @EnumSource(WebhookEvent.class)
+    void removeEvents_shouldSendOnlyNamedFlagsFalse_whenOneEventGivenOnGroupWebhook(final WebhookEvent event)
+            throws IOException {
+        stubGroupUpdate();
+
+        groupHook.update().removeEvents(event).send();
+
+        assertThat(flags(groupPayload())).containsExactly(entry(event, false));
+    }
+
+    @Test
+    void addEvents_shouldThrowIllegalArgumentException_whenEmptyOnGroupWebhook() {
+        final GroupWebhookUpdate update = groupHook.update();
+
+        final Throwable thrown = catchThrowable(update::addEvents);
 
         assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void removeEvents_shouldThrowNullPointerException_whenNullOnGroupWebhook() {
+        final GroupWebhookUpdate update = groupHook.update();
+
+        final Throwable thrown = catchThrowable(() -> update.removeEvents((WebhookEvent[]) null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
 
     @Test
