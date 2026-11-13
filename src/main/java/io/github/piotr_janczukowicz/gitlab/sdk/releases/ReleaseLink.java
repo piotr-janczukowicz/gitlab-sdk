@@ -79,13 +79,12 @@ public final class ReleaseLink {
     /**
      * Returns the type of the link.
      *
-     * @return the type; {@link ReleaseLinkType#OTHER}, GitLab's default, when the response has none
+     * @return the type, or empty when the response has none
      * @throws IllegalArgumentException if the SDK does not know the type in the response; {@link #typeName()} gives the
      *     raw name
      */
-    public ReleaseLinkType type() {
-        final String name = response.linkType();
-        return name == null ? ReleaseLinkType.OTHER : ReleaseLinkType.from(name);
+    public Optional<ReleaseLinkType> type() {
+        return Optional.ofNullable(response.linkType()).map(ReleaseLinkType::from);
     }
 
     /**

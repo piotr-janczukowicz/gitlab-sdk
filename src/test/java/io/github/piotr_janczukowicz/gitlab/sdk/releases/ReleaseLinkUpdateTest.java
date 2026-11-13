@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -21,6 +22,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.ArgumentCaptor;
 
 @UnitTest
@@ -84,6 +87,20 @@ class ReleaseLinkUpdateTest {
         });
     }
 
+    @ParameterizedTest
+    @EnumSource(ReleaseLinkType.class)
+    void type_shouldMapToCoreUpdateEnum_whenTypeIsAny(final ReleaseLinkType type) throws IOException {
+        stubUpdate(link(5, "bin", type.value()));
+
+        link.update().type(type).send();
+
+        final GitLabProjectReleaseLinksUpdateLinkType sent = sent().linkType();
+        assertSoftly(softly -> {
+            softly.assertThat(sent).isEqualTo(GitLabProjectReleaseLinksUpdateLinkType.valueOf(type.name()));
+            softly.assertThat(sent.wireValue()).isEqualTo(type.value());
+        });
+    }
+
     @Test
     void send_shouldReturnLinkFromAnswer_whenSent() throws IOException {
         final GitLabReleaseLink answer = link(5, "new", "other");
@@ -95,7 +112,7 @@ class ReleaseLinkUpdateTest {
             softly.assertThat(result.response()).isSameAs(answer);
             softly.assertThat(result.release()).isSameAs(release);
         });
-        verify(gitLab.releaselinks(), org.mockito.Mockito.never()).get(any(), any(), eq(5L));
+        verify(gitLab.releaselinks(), never()).get(any(), any(), eq(5L));
     }
 
     @Test

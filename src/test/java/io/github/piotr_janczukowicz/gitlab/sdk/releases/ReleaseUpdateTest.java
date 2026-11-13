@@ -8,6 +8,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -105,7 +106,7 @@ class ReleaseUpdateTest {
             softly.assertThat(result.response()).isSameAs(answer);
             softly.assertThat(result.project()).isSameAs(release.project());
         });
-        verify(gitLab.releases(), org.mockito.Mockito.never()).get(any(), any());
+        verify(gitLab.releases(), never()).get(any(), any());
     }
 
     @Test

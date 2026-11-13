@@ -49,7 +49,7 @@ class ReleaseLinkTest {
             softly.assertThat(result.name()).isEqualTo("bin");
             softly.assertThat(result.url()).isEqualTo("https://dl.example/bin");
             softly.assertThat(result.directAssetUrl()).contains("https://gl.example/direct/bin");
-            softly.assertThat(result.type()).isEqualTo(ReleaseLinkType.RUNBOOK);
+            softly.assertThat(result.type()).contains(ReleaseLinkType.RUNBOOK);
             softly.assertThat(result.typeName()).contains("runbook");
             softly.assertThat(result.release()).isSameAs(release);
             softly.assertThat(result.response()).isSameAs(full);
@@ -66,7 +66,7 @@ class ReleaseLinkTest {
     void type_shouldMapValue_whenKnown(final String wire, final ReleaseLinkType expected) {
         final ReleaseLink result = new ReleaseLink(release, link(1, "a", wire));
 
-        assertThat(result.type()).isEqualTo(expected);
+        assertThat(result.type()).contains(expected);
     }
 
     @Test
@@ -83,12 +83,12 @@ class ReleaseLinkTest {
     }
 
     @Test
-    void type_shouldBeOther_whenAbsent() {
+    void type_shouldBeEmpty_whenAbsent() {
         final ReleaseLink result = new ReleaseLink(
                 release, GitLabReleaseLinkBuilder.builder().id(1L).build());
 
         assertSoftly(softly -> {
-            softly.assertThat(result.type()).isEqualTo(ReleaseLinkType.OTHER);
+            softly.assertThat(result.type()).isEmpty();
             softly.assertThat(result.typeName()).isEmpty();
         });
     }

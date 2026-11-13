@@ -172,6 +172,20 @@ class TagTest {
     }
 
     @Test
+    void release_shouldPassSlashNameUnchanged_whenTagNameContainsSlash() throws IOException {
+        final Tag slashed =
+                new Tag(project, GitLabTagBuilder.builder().name("v1.0/rc").build());
+        when(gitLab.releases().get(ID, "v1.0/rc"))
+                .thenReturn(Optional.of(
+                        GitLabReleaseBuilder.builder().tagName("v1.0/rc").build()));
+
+        final Optional<Release> result = slashed.release();
+
+        assertThat(result).isPresent();
+        verify(gitLab.releases()).get(ID, "v1.0/rc");
+    }
+
+    @Test
     void release_shouldBeEmpty_whenGitLabAnswers404() throws IOException {
         when(gitLab.releases().get(ID, NAME)).thenReturn(Optional.empty());
 
