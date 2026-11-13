@@ -3,15 +3,14 @@ package io.github.piotr_janczukowicz.gitlab.sdk.reactions;
 import static io.github.piotr_janczukowicz.gitlab.sdk.reactions.ReactionsFixtures.award;
 import static io.github.piotr_janczukowicz.gitlab.sdk.reactions.ReactionsFixtures.mergeRequest;
 import static io.github.piotr_janczukowicz.gitlab.sdk.reactions.ReactionsFixtures.note;
+import static io.github.piotr_janczukowicz.gitlab.sdk.reactions.ReactionsFixtures.verifyNoCreateExcept;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -62,7 +61,7 @@ class MergeRequestNoteReactionsTest {
             softly.assertThat(result.response()).isSameAs(created);
             softly.assertThat(result.id()).isEqualTo(AWARD_ID);
         });
-        verifyNoCreateExcept("createRequestsNotesAwardEmoji");
+        verifyNoCreateExcept(gitLab, "createRequestsNotesAwardEmoji");
     }
 
     @Test
@@ -70,7 +69,7 @@ class MergeRequestNoteReactionsTest {
         final Throwable thrown = catchThrowable(() -> sut.react(" "));
 
         assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
-        verifyNoCreateExcept("");
+        verifyNoCreateExcept(gitLab, "");
     }
 
     @Test
@@ -78,7 +77,7 @@ class MergeRequestNoteReactionsTest {
         final Throwable thrown = catchThrowable(() -> sut.react(null));
 
         assertThat(thrown).isInstanceOf(NullPointerException.class);
-        verifyNoCreateExcept("");
+        verifyNoCreateExcept(gitLab, "");
     }
 
     @Test
@@ -143,20 +142,5 @@ class MergeRequestNoteReactionsTest {
         final Throwable thrown = catchThrowable(reaction::refresh);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("11");
-    }
-
-    private void verifyNoCreateExcept(final String allowed) throws IOException {
-        if (!"createIssuesAwardEmoji".equals(allowed)) {
-            verify(gitLab.emojireactions(), never()).createIssuesAwardEmoji(any(), anyLong(), any());
-        }
-        if (!"createIssuesNotesAwardEmoji".equals(allowed)) {
-            verify(gitLab.emojireactions(), never()).createIssuesNotesAwardEmoji(any(), anyLong(), anyLong(), any());
-        }
-        if (!"createRequestsAwardEmoji".equals(allowed)) {
-            verify(gitLab.emojireactions(), never()).createRequestsAwardEmoji(any(), anyLong(), any());
-        }
-        if (!"createRequestsNotesAwardEmoji".equals(allowed)) {
-            verify(gitLab.emojireactions(), never()).createRequestsNotesAwardEmoji(any(), anyLong(), anyLong(), any());
-        }
     }
 }

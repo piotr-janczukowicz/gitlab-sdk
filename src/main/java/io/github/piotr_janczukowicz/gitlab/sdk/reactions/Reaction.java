@@ -98,7 +98,7 @@ public final class Reaction {
     }
 
     /**
-     * Returns the user who reacted, as the core's record.
+     * Returns the user who reacted, as the core's record. The type comes from the core and is not wrapped by the SDK.
      *
      * @return the user, or empty when GitLab does not return one
      */
