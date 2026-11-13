@@ -38,11 +38,15 @@ import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectPr
 import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectProtectedBranchesCreatePushAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreateAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsListFilter;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.RepositoryFile;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.Tag;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.CreatedDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployKey;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployToken;
@@ -746,6 +750,78 @@ public final class Project {
      */
     public Optional<Commit> commit(final String sha) throws IOException {
         return sdk.gitLab().commits().get(id, sha).map(loaded -> new Commit(this, loaded));
+    }
+
+    /**
+     * Lists the tags of the project ({@code GET /projects/{id}/repository/tags}). Pages are fetched only as the stream
+     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the tags
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Tag> tags() throws IOException {
+        return sdk.gitLab().tags().list(id).stream().map(listed -> new Tag(this, listed));
+    }
+
+    /**
+     * Lists the tags of the project that match a filter ({@code GET /projects/{id}/repository/tags}). Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (sort, order, search)
+     * @return the tags
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Tag> tags(final GitLabProjectTagsListFilter filter) throws IOException {
+        return sdk.gitLab().tags().list(id, requireNonNull(filter, "filter")).stream()
+                .map(listed -> new Tag(this, listed));
+    }
+
+    /**
+     * Loads a tag ({@code GET /projects/{id}/repository/tags/{tag_name}}).
+     *
+     * @param name the tag name, which may contain slashes; the core encodes it
+     * @return the tag, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Tag> tag(final String name) throws IOException {
+        return sdk.gitLab().tags().get(id, requireNotBlank(name, NAME)).map(loaded -> new Tag(this, loaded));
+    }
+
+    /**
+     * Creates a tag at a ref ({@code POST /projects/{id}/repository/tags}); the tag is lightweight.
+     *
+     * @param name the name of the new tag, which may contain slashes
+     * @param ref the branch, tag or commit to tag
+     * @return the created tag
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Tag createTag(final String name, final String ref) throws IOException {
+        return createTag(name, ref, null);
+    }
+
+    /**
+     * Creates an annotated tag at a ref ({@code POST /projects/{id}/repository/tags}).
+     *
+     * @param name the name of the new tag, which may contain slashes
+     * @param ref the branch, tag or commit to tag
+     * @param message the message of the annotated tag; {@code null} creates a lightweight tag
+     * @return the created tag
+     * @throws NullPointerException if {@code name} or {@code ref} is {@code null}
+     * @throws IllegalArgumentException if {@code name} or {@code ref} is blank
+     * @throws IOException if the transport fails
+     */
+    public Tag createTag(final String name, final String ref, final @Nullable String message) throws IOException {
+        final GitLabProjectTagsCreatePayload payload = GitLabProjectTagsCreatePayloadBuilder.builder()
+                .tagName(requireNotBlank(name, NAME))
+                .ref(requireNotBlank(ref, "ref"))
+                .message(message)
+                .build();
+        return new Tag(this, sdk.gitLab().tags().create(id, payload));
     }
 
     /**

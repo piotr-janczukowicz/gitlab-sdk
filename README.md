@@ -77,13 +77,12 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
-| **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), commits (list, load, diff, cherry-pick, revert) |
+| **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create, delete, signature, the tagged commit), commits (list, load, diff, cherry-pick, revert) |
 
 Not covered: project and group fields beyond the common typed ones, project import and export, and creating a project
 for another user (`createUser`); member roles; webhook URL variables, custom headers, delivery logs and resending an
 event; group-level deploy keys (GitLab has none); protected-branch rules of a user, a group, a deploy key or a member role
-(they stay in `response()`). The same goes for every area outside the table, such as releases, tags (other than protected
-tags), milestones, snippets, packages, the container registry and the administration of an instance. Use
+(they stay in `response()`). The same goes for every area outside the table, such as releases, milestones, snippets, packages, the container registry and the administration of an instance. Use
 `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
 [Live smoke tests](docs/guide/smoke-tests.md).
 

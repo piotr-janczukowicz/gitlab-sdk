@@ -14,6 +14,8 @@ import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepo
 import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepositoryFilesGetResponseBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepositoryFilesUpdateResponse;
 import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepositoryFilesUpdateResponseBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTag;
+import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTagBuilder;
 import java.util.Base64;
 
 /** Builds the core records for the tests of the file, branch and commit objects. */
@@ -69,6 +71,15 @@ final class CodeFixtures {
                 .shortId(sha.substring(0, Math.min(8, sha.length())))
                 .title(message)
                 .message(message)
+                .build();
+    }
+
+    static GitLabTag tag(final String name, final String sha) {
+        return GitLabTagBuilder.builder()
+                .name(name)
+                .target("target-of-" + name)
+                .commit(listedCommit(sha))
+                .protectedValue(false)
                 .build();
     }
 
