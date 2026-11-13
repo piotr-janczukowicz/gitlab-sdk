@@ -9,6 +9,7 @@ import io.github.piotr_janczukowicz.gitlab.client.GitLabClients;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
@@ -28,14 +29,14 @@ final class SmokeEnvironment {
 
     private final String token;
     private final String project;
-    private final URI baseUri;
+    private final String url;
     private GitLabClient client;
     private GitLabSdk sdk;
 
-    private SmokeEnvironment(final String token, final String project, final URI baseUri) {
+    private SmokeEnvironment(final String token, final String project, final String url) {
         this.token = token;
         this.project = project;
-        this.baseUri = baseUri;
+        this.url = url;
     }
 
     static SmokeEnvironment fromEnv() {
@@ -45,9 +46,8 @@ final class SmokeEnvironment {
     static SmokeEnvironment of(final Map<String, String> env) {
         requireNonNull(env, "env");
         final String project = env.getOrDefault(PROJECT_VARIABLE, "").strip();
-        final URI baseUri =
-                URI.create(env.getOrDefault(URL_VARIABLE, DEFAULT_URL).strip());
-        return new SmokeEnvironment(env.getOrDefault(TOKEN_VARIABLE, "").strip(), project, baseUri);
+        final String url = env.getOrDefault(URL_VARIABLE, DEFAULT_URL).strip();
+        return new SmokeEnvironment(env.getOrDefault(TOKEN_VARIABLE, "").strip(), project, url);
     }
 
     boolean configured() {
@@ -76,10 +76,36 @@ final class SmokeEnvironment {
         return "smoke-" + RUN_ID + "-" + suffix;
     }
 
-    /** Skips the calling test class when no token or sandbox is set; refuses a sandbox that does not look like one. */
+    /**
+     * Skips the calling test class when no token or sandbox is set; refuses a sandbox that does not look like one, and
+     * a {@value #URL_VARIABLE} that is not an absolute {@code http} or {@code https} URI.
+     */
     void requireConfigured() {
         Assumptions.assumeTrue(configured(), TOKEN_VARIABLE + " and " + PROJECT_VARIABLE + " are not set");
         requireSandbox(project);
+        baseUri();
+    }
+
+    /**
+     * The root of the instance, read from {@value #URL_VARIABLE} only when it is needed, so a malformed value fails the
+     * smoke run with a clear message instead of failing the class initialization of every test that reads the
+     * variables.
+     *
+     * @return the base URI
+     * @throws IllegalStateException if the value is not an absolute {@code http} or {@code https} URI
+     */
+    URI baseUri() {
+        final URI parsed;
+        try {
+            parsed = new URI(url);
+        } catch (final URISyntaxException e) {
+            throw new IllegalStateException(URL_VARIABLE + " is not a valid URI: " + url, e);
+        }
+        final String scheme = parsed.getScheme();
+        if (!"https".equalsIgnoreCase(scheme) && !"http".equalsIgnoreCase(scheme) || parsed.getHost() == null) {
+            throw new IllegalStateException(URL_VARIABLE + " must be an absolute http or https URI, but was: " + url);
+        }
+        return parsed;
     }
 
     static void requireSandbox(final String project) {
@@ -95,7 +121,7 @@ final class SmokeEnvironment {
             client = GitLabClients.create(
                     GitLabAuthenticationProviders.personalToken(token),
                     USER_AGENT,
-                    GitLabClientConfiguration.builder().baseUri(baseUri).build());
+                    GitLabClientConfiguration.builder().baseUri(baseUri()).build());
             sdk = GitLabSdk.of(client);
         }
         return sdk;
@@ -112,6 +138,6 @@ final class SmokeEnvironment {
 
     @Override
     public String toString() {
-        return "SmokeEnvironment[" + baseUri + " " + project + ", run " + RUN_ID + "]";
+        return "SmokeEnvironment[" + url + " " + project + ", run " + RUN_ID + "]";
     }
 }

@@ -32,28 +32,30 @@ class CodeSmokeIT {
         final String branchName = ENV.name("files");
         final String path = ENV.name("file") + ".txt";
         project.createBranch(branchName, defaultBranch);
-        try {
-            final RepositoryFile created = project.createFile(path, branchName, NON_ASCII, "smoke: create");
-            final RepositoryFile updated = created.update(NON_ASCII + " 2", "smoke: update");
-            final Optional<RepositoryFile> read = project.file(path, branchName);
-            final Optional<RepositoryFile> missing = project.file(ENV.name("missing") + ".txt", branchName);
-            updated.delete("smoke: delete");
-            final Optional<RepositoryFile> afterDelete = project.file(path, branchName);
+        SmokeCleanup.run(
+                () -> {
+                    final RepositoryFile created = project.createFile(path, branchName, NON_ASCII, "smoke: create");
+                    final RepositoryFile updated = created.update(NON_ASCII + " 2", "smoke: update");
+                    final Optional<RepositoryFile> read = project.file(path, branchName);
+                    final Optional<RepositoryFile> missing = project.file(ENV.name("missing") + ".txt", branchName);
+                    updated.delete("smoke: delete");
+                    final Optional<RepositoryFile> afterDelete = project.file(path, branchName);
 
-            assertSoftly(softly -> {
-                softly.assertThat(created.text()).isEqualTo(NON_ASCII);
-                softly.assertThat(created.bytes()).isEqualTo(NON_ASCII.getBytes(StandardCharsets.UTF_8));
-                softly.assertThat(updated.text()).isEqualTo(NON_ASCII + " 2");
-                softly.assertThat(read).map(RepositoryFile::text).contains(NON_ASCII + " 2");
-                softly.assertThat(missing).isEmpty();
-                softly.assertThat(afterDelete).isEmpty();
-            });
-        } finally {
-            final Optional<Branch> branch = project.branch(branchName);
-            if (branch.isPresent()) {
-                branch.get().delete();
-            }
-        }
+                    assertSoftly(softly -> {
+                        softly.assertThat(created.text()).isEqualTo(NON_ASCII);
+                        softly.assertThat(created.bytes()).isEqualTo(NON_ASCII.getBytes(StandardCharsets.UTF_8));
+                        softly.assertThat(updated.text()).isEqualTo(NON_ASCII + " 2");
+                        softly.assertThat(read).map(RepositoryFile::text).contains(NON_ASCII + " 2");
+                        softly.assertThat(missing).isEmpty();
+                        softly.assertThat(afterDelete).isEmpty();
+                    });
+                },
+                () -> {
+                    final Optional<Branch> branch = project.branch(branchName);
+                    if (branch.isPresent()) {
+                        branch.get().delete();
+                    }
+                });
     }
 
     @Test
@@ -61,32 +63,31 @@ class CodeSmokeIT {
         final Project project = ENV.sandbox();
         final String defaultBranch = project.fetch().orElseThrow().response().defaultBranch();
         final Branch created = project.createBranch(ENV.name("branch"), defaultBranch);
-        try {
-            final Branch protectedBranch = created.protect();
-            final Branch unprotected = protectedBranch.unprotect();
-            final Optional<Branch> loaded = project.branch(created.name());
+        SmokeCleanup.run(
+                () -> {
+                    final Branch protectedBranch = created.protect();
+                    final Branch unprotected = protectedBranch.unprotect();
+                    final Optional<Branch> loaded = project.branch(created.name());
 
-            assertSoftly(softly -> {
-                softly.assertThat(created.isProtected()).isFalse();
-                softly.assertThat(protectedBranch.isProtected()).isTrue();
-                softly.assertThat(unprotected.isProtected()).isFalse();
-                softly.assertThat(loaded).map(Branch::name).contains(created.name());
-            });
-        } finally {
-            SmokeCleanup.all(
-                    () -> {
-                        final Optional<Branch> branch = project.branch(created.name());
-                        if (branch.isPresent() && branch.get().isProtected()) {
-                            branch.get().unprotect();
-                        }
-                    },
-                    () -> {
-                        final Optional<Branch> branch = project.branch(created.name());
-                        if (branch.isPresent()) {
-                            branch.get().delete();
-                        }
+                    assertSoftly(softly -> {
+                        softly.assertThat(created.isProtected()).isFalse();
+                        softly.assertThat(protectedBranch.isProtected()).isTrue();
+                        softly.assertThat(unprotected.isProtected()).isFalse();
+                        softly.assertThat(loaded).map(Branch::name).contains(created.name());
                     });
-        }
+                },
+                () -> {
+                    final Optional<Branch> branch = project.branch(created.name());
+                    if (branch.isPresent() && branch.get().isProtected()) {
+                        branch.get().unprotect();
+                    }
+                },
+                () -> {
+                    final Optional<Branch> branch = project.branch(created.name());
+                    if (branch.isPresent()) {
+                        branch.get().delete();
+                    }
+                });
     }
 
     @Test

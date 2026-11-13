@@ -33,53 +33,54 @@ class MergeRequestsSmokeIT {
         final String target = project.fetch().orElseThrow().response().defaultBranch();
         final String source = ENV.name("mr");
         project.createBranch(source, target);
-        MergeRequest merge = null;
-        try {
-            project.createFile(ENV.name("mr") + ".txt", source, "smoke", "smoke: change for a merge request");
-            merge = project.createMergeRequest(GitLabProjectMergeRequestsCreatePayloadBuilder.builder()
-                    .title(ENV.name("merge-request"))
-                    .sourceBranch(source)
-                    .targetBranch(target)
-                    .build());
-            final MergeRequestNote note = merge.comment("smoke comment");
-            final MergeRequestNote edited = note.update("smoke comment, edited");
-            final List<MergeRequestNote> notes = merge.notes().limit(20).toList();
-            final MergeRequest updated = merge.update()
-                    .title(ENV.name("merge-request-updated"))
-                    .description("changed by a smoke test")
-                    .send();
-            final MergeRequest closed = updated.close();
-            final MergeRequest reopened = closed.reopen();
-            final Optional<MergeRequest> reloaded = project.mergeRequest(merge.iid());
-            final long commits = reopened.commits().limit(5).count();
-            final MergeRequest created = merge;
+        SmokeCleanup.run(
+                () -> {
+                    project.createFile(ENV.name("mr") + ".txt", source, "smoke", "smoke: change for a merge request");
+                    final MergeRequest merge =
+                            project.createMergeRequest(GitLabProjectMergeRequestsCreatePayloadBuilder.builder()
+                                    .title(ENV.name("merge-request"))
+                                    .sourceBranch(source)
+                                    .targetBranch(target)
+                                    .build());
+                    SmokeCleanup.run(
+                            () -> {
+                                final MergeRequestNote note = merge.comment("smoke comment");
+                                final MergeRequestNote edited = note.update("smoke comment, edited");
+                                final List<MergeRequestNote> notes =
+                                        merge.notes().limit(20).toList();
+                                final MergeRequest updated = merge.update()
+                                        .title(ENV.name("merge-request-updated"))
+                                        .description("changed by a smoke test")
+                                        .send();
+                                final MergeRequest closed = updated.close();
+                                final MergeRequest reopened = closed.reopen();
+                                final Optional<MergeRequest> reloaded = project.mergeRequest(merge.iid());
+                                final long commits = reopened.commits().limit(5).count();
 
-            assertSoftly(softly -> {
-                softly.assertThat(created.sourceBranch()).contains(source);
-                softly.assertThat(created.targetBranch()).contains(target);
-                softly.assertThat(notes).extracting(MergeRequestNote::id).contains(note.id());
-                softly.assertThat(edited.body()).contains("smoke comment, edited");
-                softly.assertThat(updated.title()).isEqualTo(ENV.name("merge-request-updated"));
-                softly.assertThat(closed.state()).isEqualTo(MergeRequestState.CLOSED);
-                softly.assertThat(reopened.state()).isEqualTo(MergeRequestState.OPENED);
-                softly.assertThat(reloaded).map(MergeRequest::iid).contains(created.iid());
-                softly.assertThat(commits).isGreaterThanOrEqualTo(1);
-            });
-        } finally {
-            final MergeRequest toDelete = merge;
-            SmokeCleanup.all(
-                    () -> {
-                        if (toDelete != null) {
-                            toDelete.delete();
-                        }
-                    },
-                    () -> {
-                        final Optional<Branch> branch = project.branch(source);
-                        if (branch.isPresent()) {
-                            branch.get().delete();
-                        }
-                    });
-        }
+                                assertSoftly(softly -> {
+                                    softly.assertThat(merge.sourceBranch()).contains(source);
+                                    softly.assertThat(merge.targetBranch()).contains(target);
+                                    softly.assertThat(notes)
+                                            .extracting(MergeRequestNote::id)
+                                            .contains(note.id());
+                                    softly.assertThat(edited.body()).contains("smoke comment, edited");
+                                    softly.assertThat(updated.title()).isEqualTo(ENV.name("merge-request-updated"));
+                                    softly.assertThat(closed.state()).isEqualTo(MergeRequestState.CLOSED);
+                                    softly.assertThat(reopened.state()).isEqualTo(MergeRequestState.OPENED);
+                                    softly.assertThat(reloaded)
+                                            .map(MergeRequest::iid)
+                                            .contains(merge.iid());
+                                    softly.assertThat(commits).isGreaterThanOrEqualTo(1);
+                                });
+                            },
+                            merge::delete);
+                },
+                () -> {
+                    final Optional<Branch> branch = project.branch(source);
+                    if (branch.isPresent()) {
+                        branch.get().delete();
+                    }
+                });
     }
 
     @Test

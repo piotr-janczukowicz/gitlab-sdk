@@ -50,4 +50,61 @@ class SmokeEnvironmentTest {
 
         assertThat(thrown).isNull();
     }
+
+    @Test
+    void of_shouldNotThrow_whenUrlIsMalformed() {
+        final Throwable thrown =
+                catchThrowable(() -> SmokeEnvironment.of(Map.of(SmokeEnvironment.URL_VARIABLE, "ht tp://bad url")));
+
+        assertThat(thrown).isNull();
+    }
+
+    @Test
+    void requireConfigured_shouldThrowIllegalStateExceptionNamingTheVariable_whenUrlIsMalformed() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of(
+                SmokeEnvironment.TOKEN_VARIABLE,
+                "token",
+                SmokeEnvironment.PROJECT_VARIABLE,
+                "me/gitlab-smoke",
+                SmokeEnvironment.URL_VARIABLE,
+                "ht tp://bad url"));
+
+        final Throwable thrown = catchThrowable(sut::requireConfigured);
+
+        assertThat(thrown)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(SmokeEnvironment.URL_VARIABLE);
+    }
+
+    @Test
+    void requireConfigured_shouldThrowIllegalStateException_whenUrlIsNotAbsoluteHttp() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of(
+                SmokeEnvironment.TOKEN_VARIABLE,
+                "token",
+                SmokeEnvironment.PROJECT_VARIABLE,
+                "me/gitlab-smoke",
+                SmokeEnvironment.URL_VARIABLE,
+                "gitlab.example.com"));
+
+        final Throwable thrown = catchThrowable(sut::requireConfigured);
+
+        assertThat(thrown)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining(SmokeEnvironment.URL_VARIABLE);
+    }
+
+    @Test
+    void requireConfigured_shouldAccept_whenUrlIsAnHttpsUri() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of(
+                SmokeEnvironment.TOKEN_VARIABLE,
+                "token",
+                SmokeEnvironment.PROJECT_VARIABLE,
+                "me/gitlab-smoke",
+                SmokeEnvironment.URL_VARIABLE,
+                "https://gitlab.example.com"));
+
+        final Throwable thrown = catchThrowable(sut::requireConfigured);
+
+        assertThat(thrown).isNull();
+    }
 }
