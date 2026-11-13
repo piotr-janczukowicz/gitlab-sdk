@@ -5,15 +5,18 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsListJobsFilter;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
@@ -245,9 +248,22 @@ public final class Project {
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<Pipeline> pipelines() throws IOException {
-        return sdk.gitLab().pipelines().listProject(id).stream()
-                .map(listed -> Lookups.find(() -> pipeline(requireNonNull(listed.id(), "id"))))
-                .flatMap(Optional::stream);
+        return loaded(sdk.gitLab().pipelines().listProject(id).stream());
+    }
+
+    /**
+     * Lists the pipelines of the project that match a filter ({@code GET /projects/{id}/pipelines}). GitLab lists a
+     * summary of each pipeline, so each one is loaded ({@code GET /projects/{id}/pipelines/{pipeline_id}}) as the
+     * stream reaches it, and one that is gone by then is skipped. Pages are fetched only as the stream is consumed;
+     * transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the filter of the core client, for example by ref, status or user
+     * @return the pipelines
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Pipeline> pipelines(final GitLabProjectPipelinesListProjectFilter filter) throws IOException {
+        return loaded(sdk.gitLab().pipelines().listProject(id, requireNonNull(filter, "filter")).stream());
     }
 
     /**
@@ -302,6 +318,20 @@ public final class Project {
      */
     public Stream<Job> jobs() throws IOException {
         return sdk.gitLab().jobs().project().listJobs(id).stream().map(listed -> new Job(this, listed));
+    }
+
+    /**
+     * Lists the jobs of the project that match a filter ({@code GET /projects/{id}/jobs}). Pages are fetched only as
+     * the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the filter of the core client, by scope and ref
+     * @return the jobs
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Job> jobs(final GitLabProjectJobsListJobsFilter filter) throws IOException {
+        return sdk.gitLab().jobs().project().listJobs(id, requireNonNull(filter, "filter")).stream()
+                .map(listed -> new Job(this, listed));
     }
 
     /**
@@ -375,6 +405,28 @@ public final class Project {
      * @throws IOException if the transport fails
      */
     public RepositoryFile createFile(final String path, final String branch, final String content, final String message)
+            throws IOException {
+        sdk.gitLab().repositoryfiles().create(id, path, FileForms.of(branch, content, message));
+        return file(path, branch).orElseThrow(() -> new IllegalStateException("File " + path + IS_GONE));
+    }
+
+    /**
+     * Creates a file with binary content by a commit to a branch ({@code POST
+     * /projects/{id}/repository/files/{file_path}}, the content Base64-encoded with {@code encoding=base64}) and loads
+     * it ({@code GET /projects/{id}/repository/files/{file_path}?ref=...}), because GitLab answers the creation with a
+     * smaller record.
+     *
+     * @param path the path of the new file within the repository
+     * @param branch the branch to commit to
+     * @param content the content; may be empty
+     * @param message the commit message
+     * @return the created file, read at {@code branch}
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument other than {@code content} is blank
+     * @throws IllegalStateException if GitLab no longer has the file after creating it
+     * @throws IOException if the transport fails
+     */
+    public RepositoryFile createFile(final String path, final String branch, final byte[] content, final String message)
             throws IOException {
         sdk.gitLab().repositoryfiles().create(id, path, FileForms.of(branch, content, message));
         return file(path, branch).orElseThrow(() -> new IllegalStateException("File " + path + IS_GONE));
@@ -461,5 +513,10 @@ public final class Project {
             throw new IllegalStateException("Project " + id + " is not loaded; call fetch()");
         }
         return response;
+    }
+
+    private Stream<Pipeline> loaded(final Stream<GitLabCiPipelineBasic> listed) {
+        return listed.map(item -> Lookups.find(() -> pipeline(requireNonNull(item.id(), "id"))))
+                .flatMap(Optional::stream);
     }
 }

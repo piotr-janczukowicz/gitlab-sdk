@@ -6,7 +6,9 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdatePayloadBuilder;
@@ -161,15 +163,24 @@ public final class MergeRequest {
      *     example because the merge request is not mergeable; it passes through unchanged
      */
     public MergeRequest merge() throws IOException {
+        return merge(GitLabProjectMergeRequestsMergePayloadBuilder.builder().build());
+    }
+
+    /**
+     * Merges the merge request with the given options ({@code PUT
+     * /projects/{id}/merge_requests/{merge_request_iid}/merge}), for example squashing, the commit messages, removing
+     * the source branch or merging when the pipeline succeeds. This object is not changed.
+     *
+     * @param options the merge options of the core client; a field left unset is not sent
+     * @return the merge request as GitLab returned it after the merge
+     * @throws NullPointerException if {@code options} is {@code null}
+     * @throws IOException if the transport fails, or the core's {@code GitLabApiException} when GitLab refuses, for
+     *     example because the merge request is not mergeable; it passes through unchanged
+     */
+    public MergeRequest merge(final GitLabProjectMergeRequestsMergePayload options) throws IOException {
         return new MergeRequest(
                 project,
-                gitLab().mergerequests()
-                        .project()
-                        .merge(
-                                project.id(),
-                                iid(),
-                                GitLabProjectMergeRequestsMergePayloadBuilder.builder()
-                                        .build()));
+                gitLab().mergerequests().project().merge(project.id(), iid(), requireNonNull(options, "options")));
     }
 
     /**
@@ -180,15 +191,23 @@ public final class MergeRequest {
      * @throws IOException if the transport fails
      */
     public Approvals approve() throws IOException {
+        return approve(GitLabProjectMergeRequestsApprovePayloadBuilder.builder().build());
+    }
+
+    /**
+     * Approves the merge request as the authenticated user with the given options ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/approve}), for example the {@code sha} the approval is for or
+     * whether to publish a pending review.
+     *
+     * @param options the approval options of the core client; a field left unset is not sent
+     * @return the approvals as GitLab returned them after the approval
+     * @throws NullPointerException if {@code options} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Approvals approve(final GitLabProjectMergeRequestsApprovePayload options) throws IOException {
         return new Approvals(
                 this,
-                gitLab().mergerequests()
-                        .project()
-                        .approve(
-                                project.id(),
-                                iid(),
-                                GitLabProjectMergeRequestsApprovePayloadBuilder.builder()
-                                        .build()));
+                gitLab().mergerequests().project().approve(project.id(), iid(), requireNonNull(options, "options")));
     }
 
     /**

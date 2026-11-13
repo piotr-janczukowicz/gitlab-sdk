@@ -10,7 +10,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 | Entry point | Objects and what they do |
 |---|---|
 | `GitLabSdk.of(...)` | Wraps a `GitLab`, a `GitLabCaller` or a `GitLabClient`. `project(id)` and `group(id)` give handles, `user(id)` loads a user, `me()` gives the signed-in account |
-| `Project` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `archive()`, `unarchive()`, `delete()`, `response()`. Issues: `issues()`, `issues(filter)`, `issue(iid)`, `createIssue(title)`, `createIssue(payload)`. Labels: `labels()`, `createLabel(name, color)`. Merge requests: `mergeRequests()`, `mergeRequests(filter)`, `mergeRequest(iid)`, `createMergeRequest(payload)`. Pipelines and jobs: `pipelines()`, `pipeline(id)`, `createPipeline(ref)`, `createPipeline(payload)`, `jobs()`, `job(id)`. Code: `file(path, ref)`, `createFile(path, branch, content, message)`, `branches()`, `branch(name)`, `createBranch(name, ref)`, `commits()`, `commit(sha)` |
+| `Project` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `archive()`, `unarchive()`, `delete()`, `response()`. Issues: `issues()`, `issues(filter)`, `issue(iid)`, `createIssue(title)`, `createIssue(payload)`. Labels: `labels()`, `createLabel(name, color)`. Merge requests: `mergeRequests()`, `mergeRequests(filter)`, `mergeRequest(iid)`, `createMergeRequest(payload)`. Pipelines and jobs: `pipelines()`, `pipelines(filter)`, `pipeline(id)`, `createPipeline(ref)`, `createPipeline(payload)`, `jobs()`, `jobs(filter)`, `job(id)`. Code: `file(path, ref)`, `createFile(path, branch, content, message)` (content as text or `byte[]`), `branches()`, `branch(name)`, `createBranch(name, ref)`, `commits()`, `commit(sha)` |
 | `Group` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `archive()`, `unarchive()`, `delete()`, `projects()` (each project is loaded as the stream reaches it), `subgroups()` (the direct subgroups, one level down; each group is loaded as the stream reaches it), `response()` |
 | `User` | Loaded. `id()`, `username()`, `refresh()`, `response()` |
 | `Me` | A handle. `profile()` loads the signed-in account as a `User` |
@@ -29,7 +29,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Object | Methods |
 |---|---|
-| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `approve()`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
+| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
 | `MergeRequestUpdate` | `title(...)`, `description(...)`, `targetBranch(...)`, `labels(names)`, `send()` |
 | `MergeRequestNote` | `mergeRequest()`, `id()`, `body()`, `update(body)`, `delete()`, `refresh()`, `response()` |
 | `Approvals` | `mergeRequest()`, `approved()`, `approvalsLeft()`, `approvalsRequired()`, `userHasApproved()`, `response()` |
@@ -45,7 +45,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Object | Methods |
 |---|---|
-| `RepositoryFile` | `project()`, `path()`, `name()`, `ref()`, `bytes()` (exact bytes, also of a binary file), `text()` (strict UTF-8), `update(content, message)`, `delete(message)`, `response()`. Content is sent as UTF-8 text |
+| `RepositoryFile` | `project()`, `path()`, `name()`, `ref()`, `bytes()` (exact bytes, also of a binary file), `text()` (strict UTF-8), `update(content, message)` (content as text or `byte[]`), `delete(message)`, `response()`. Text is sent as UTF-8; `byte[]` is sent Base64-encoded with `encoding=base64` |
 | `Branch` | `project()`, `name()`, `isProtected()`, `isDefault()`, `protect()` (GitLab's default rules), `unprotect()`, `delete()`, `refresh()`, `response()` |
 | `Commit` | `project()`, `sha()`, `title()`, `message()`, `diff()` (the core's `GitLabDiff` records), `cherryPick(branch)`, `revert(branch)`, `response()` |
 
@@ -53,12 +53,10 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 - **Creating and updating a project or a group.** The core takes a `MultipartFormData` for them, so v1 has no
   `createProject`, `Project.update()` or `Group.update()`. Archive, unarchive and delete are covered.
-- **Writing a binary file.** `createFile` and `RepositoryFile.update` send text as UTF-8. Reading a binary file is covered:
-  `bytes()` returns the exact bytes.
-- **Options of a merge and of an approval.** `merge()` and `approve()` use GitLab's defaults (no squash, no message, no SHA
-  guard, no approval password). Likewise `Branch.protect()` uses GitLab's default rules. Call the core for the options.
-- **Filters on pipelines and jobs.** `project.pipelines()`, `pipeline.jobs()` and `project.jobs()` list without a filter;
-  issues and merge requests accept the core's filter. Pipeline and job logs, artifacts and variables are not covered.
+- **Options of `Branch.protect()`.** It uses GitLab's default rules. Call the core for the options. (`merge(options)`,
+  `approve(options)`, `pipelines(filter)` and `jobs(filter)` take the core's own payload and filter records.)
+- **Filter on the jobs of one pipeline.** `pipeline.jobs()` lists without a filter. Pipeline and job logs, artifacts and
+  variables are not covered.
 - **Everything outside the areas above**, such as releases, tags, milestones, snippets, protected branches in detail, members
   and access tokens, webhooks, the container registry and packages, deploy keys and tokens, environments, discussions and
   threads, labels of a group, the descendant groups of a group at every level, and the administration of an instance. Use `gitlab-rest-client` for them; see

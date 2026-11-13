@@ -16,9 +16,14 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsListJobsFilter;
+import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsListJobsFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsListJobsScope;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabCiPipelineWithMetadata;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
@@ -110,6 +115,26 @@ class ProjectCiTest {
     }
 
     @Test
+    void pipelines_shouldPassFilter_whenGiven() throws IOException {
+        final GitLabProjectPipelinesListProjectFilter filter = GitLabProjectPipelinesListProjectFilterBuilder.builder()
+                .ref("main")
+                .build();
+        when(gitLab.pipelines().listProject(ID, filter).stream()).thenReturn(Stream.of(basicPipeline(1L)));
+        when(gitLab.pipelines().get(ID, 1L)).thenReturn(Optional.of(pipeline(1L, "success")));
+
+        final List<Pipeline> result = sut.pipelines(filter).toList();
+
+        assertThat(result).extracting(Pipeline::id).containsExactly(1L);
+    }
+
+    @Test
+    void pipelines_shouldThrowNullPointerException_whenFilterIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.pipelines((GitLabProjectPipelinesListProjectFilter) null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void createPipeline_shouldSendRefAndLoadPipeline_whenRefIsGiven() throws IOException {
         when(gitLab.pipelines().create(any(String.class), any(GitLabProjectPipelinesCreatePayload.class)))
                 .thenReturn(createdPipeline(9L));
@@ -176,6 +201,26 @@ class ProjectCiTest {
         final List<Job> result = sut.jobs().toList();
 
         assertThat(result).extracting(Job::name).containsExactly("build", "test");
+    }
+
+    @Test
+    void jobs_shouldPassFilter_whenGiven() throws IOException {
+        final GitLabProjectJobsListJobsFilter filter = GitLabProjectJobsListJobsFilterBuilder.builder()
+                .scope(List.of(GitLabProjectJobsListJobsScope.FAILED))
+                .ref("main")
+                .build();
+        when(gitLab.jobs().project().listJobs(ID, filter).stream()).thenReturn(Stream.of(job(2L, "test", "failed")));
+
+        final List<Job> result = sut.jobs(filter).toList();
+
+        assertThat(result).extracting(Job::name).containsExactly("test");
+    }
+
+    @Test
+    void jobs_shouldThrowNullPointerException_whenFilterIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.jobs((GitLabProjectJobsListJobsFilter) null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
 
     @Test

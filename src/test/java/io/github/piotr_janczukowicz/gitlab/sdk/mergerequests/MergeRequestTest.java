@@ -21,7 +21,9 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitDetailBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdateStateEvent;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateRequestsNotesPayload;
@@ -159,6 +161,48 @@ class MergeRequestTest {
     }
 
     @Test
+    void merge_shouldSendPayload_whenGivenOptions() throws IOException {
+        final GitLabMergeRequest merged = mergeRequest(IID, "Fix", "merged");
+        final GitLabProjectMergeRequestsMergePayload options = GitLabProjectMergeRequestsMergePayloadBuilder.builder()
+                .squash(true)
+                .squashCommitMessage("Squashed")
+                .build();
+        when(gitLab.mergerequests().project().merge(ID, IID, options)).thenReturn(merged);
+
+        final MergeRequest result = sut.merge(options);
+
+        final ArgumentCaptor<GitLabProjectMergeRequestsMergePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestsMergePayload.class);
+        verify(gitLab.mergerequests().project()).merge(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().squash()).isTrue();
+            softly.assertThat(payload.getValue().squashCommitMessage()).isEqualTo("Squashed");
+            softly.assertThat(result.response()).isSameAs(merged);
+        });
+    }
+
+    @Test
+    void merge_shouldThrowNullPointerException_whenPayloadIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.merge(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void merge_shouldSendEmptyPayload_whenCalledWithoutArguments() throws IOException {
+        when(gitLab.mergerequests().project().merge(eq(ID), eq(IID), any(GitLabProjectMergeRequestsMergePayload.class)))
+                .thenReturn(mergeRequest(IID, "Fix", "merged"));
+
+        sut.merge();
+
+        verify(gitLab.mergerequests().project())
+                .merge(
+                        ID,
+                        IID,
+                        GitLabProjectMergeRequestsMergePayloadBuilder.builder().build());
+    }
+
+    @Test
     void merge_shouldPassCoreException_whenNotMergeable() throws IOException {
         final GitLabApiException refused = mock(GitLabApiException.class);
         when(gitLab.mergerequests().project().merge(eq(ID), eq(IID), any(GitLabProjectMergeRequestsMergePayload.class)))
@@ -182,6 +226,51 @@ class MergeRequestTest {
             softly.assertThat(result.approved()).contains(true);
             softly.assertThat(result.mergeRequest()).isSameAs(sut);
         });
+    }
+
+    @Test
+    void approve_shouldSendShaAndPublishReview_whenGivenOptions() throws IOException {
+        final GitLabProjectMergeRequestsApprovePayload options =
+                GitLabProjectMergeRequestsApprovePayloadBuilder.builder()
+                        .sha("abc123")
+                        .publishReview(true)
+                        .build();
+        when(gitLab.mergerequests().project().approve(ID, IID, options)).thenReturn(approvals(true, 0));
+
+        final Approvals result = sut.approve(options);
+
+        final ArgumentCaptor<GitLabProjectMergeRequestsApprovePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestsApprovePayload.class);
+        verify(gitLab.mergerequests().project()).approve(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().sha()).isEqualTo("abc123");
+            softly.assertThat(payload.getValue().publishReview()).isTrue();
+            softly.assertThat(result.mergeRequest()).isSameAs(sut);
+        });
+    }
+
+    @Test
+    void approve_shouldThrowNullPointerException_whenPayloadIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.approve(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void approve_shouldSendEmptyPayload_whenCalledWithoutArguments() throws IOException {
+        when(gitLab.mergerequests()
+                        .project()
+                        .approve(eq(ID), eq(IID), any(GitLabProjectMergeRequestsApprovePayload.class)))
+                .thenReturn(approvals(true, 0));
+
+        sut.approve();
+
+        verify(gitLab.mergerequests().project())
+                .approve(
+                        ID,
+                        IID,
+                        GitLabProjectMergeRequestsApprovePayloadBuilder.builder()
+                                .build());
     }
 
     @Test

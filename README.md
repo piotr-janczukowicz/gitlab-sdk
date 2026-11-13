@@ -73,10 +73,9 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
-| **Code** | files (read, create, update and delete text), branches (create, protect, unprotect, delete), commits (list, load, diff, cherry-pick, revert) |
+| **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), commits (list, load, diff, cherry-pick, revert) |
 
-Not covered: creating or updating a project or a group (the client sends them as a multipart form), writing a binary file,
-the options of a merge and of an approval, and the filters of the pipeline and job lists. The same goes for every area
+Not covered: creating or updating a project or a group (the client sends them as a multipart form). The same goes for every area
 outside the table, such as releases, milestones, snippets, packages, the container registry, webhooks and the
 administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet;
 see [Live smoke tests](docs/guide/smoke-tests.md).

@@ -37,7 +37,7 @@ class FileFormsTest {
 
     @Test
     void of_shouldThrowNullPointerException_whenContentIsNull() {
-        final Throwable thrown = catchThrowable(() -> FileForms.of("main", null, "m"));
+        final Throwable thrown = catchThrowable(() -> FileForms.of("main", (String) null, "m"));
 
         assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
@@ -54,5 +54,33 @@ class FileFormsTest {
         final Throwable thrown = catchThrowable(() -> FileForms.of("main", "c", " "));
 
         assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
+    }
+
+    @Test
+    void of_shouldHoldBase64Encoding_whenContentIsBytes() {
+        final MultipartFormData form = FileForms.of("main", new byte[] {0, -1, 10, 13}, "Add file");
+
+        final String body = form.body().mapBytes(bytes -> new String(bytes, StandardCharsets.UTF_8), () -> "");
+        assertThat(body)
+                .contains("name=\"encoding\"")
+                .contains("base64")
+                .contains("name=\"content\"")
+                .contains("AP8KDQ==")
+                .contains("name=\"commit_message\"");
+    }
+
+    @Test
+    void of_shouldHoldEmptyContent_whenBytesAreEmpty() {
+        final MultipartFormData form = FileForms.of("main", new byte[0], "Add file");
+
+        final String body = form.body().mapBytes(bytes -> new String(bytes, StandardCharsets.UTF_8), () -> "");
+        assertThat(body).contains("name=\"content\"").contains("name=\"encoding\"");
+    }
+
+    @Test
+    void of_shouldThrowNullPointerException_whenBytesAreNull() {
+        final Throwable thrown = catchThrowable(() -> FileForms.of("main", (byte[]) null, "m"));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
 }

@@ -241,7 +241,39 @@ class RepositoryFileTest {
     void update_shouldThrowNullPointerException_whenContentIsNull() {
         final RepositoryFile sut = fileOf(new byte[0]);
 
-        final Throwable thrown = catchThrowable(() -> sut.update(null, "m"));
+        final Throwable thrown = catchThrowable(() -> sut.update((String) null, "m"));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void update_shouldSendBase64_whenContentIsBytes() throws IOException {
+        final RepositoryFile sut = fileOf(new byte[0]);
+        final GitLabProjectRepositoryFilesGetResponse reloaded = file(PATH, new byte[] {0, -1, 10, 13});
+        when(gitLab.repositoryfiles().update(eq(ID), eq(PATH), any(MultipartFormData.class)))
+                .thenReturn(updatedFile(PATH, REF));
+        when(gitLab.repositoryfiles().get(ID, PATH, REF)).thenReturn(Optional.of(reloaded));
+
+        final RepositoryFile result = sut.update(new byte[] {0, -1, 10, 13}, "Change it");
+
+        final ArgumentCaptor<MultipartFormData> form = ArgumentCaptor.forClass(MultipartFormData.class);
+        verify(gitLab.repositoryfiles()).update(eq(ID), eq(PATH), form.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(result.response()).isSameAs(reloaded);
+            softly.assertThat(result.ref()).isEqualTo(REF);
+            softly.assertThat(bodyOf(form.getValue()))
+                    .contains("name=\"encoding\"")
+                    .contains("base64")
+                    .contains("AP8KDQ==")
+                    .contains("Change it");
+        });
+    }
+
+    @Test
+    void update_shouldThrowNullPointerException_whenBytesAreNull() {
+        final RepositoryFile sut = fileOf(new byte[0]);
+
+        final Throwable thrown = catchThrowable(() -> sut.update((byte[]) null, "m"));
 
         assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
@@ -285,6 +317,70 @@ class RepositoryFileTest {
         when(gitLab.repositoryfiles().get(ID, PATH, "dev")).thenReturn(Optional.empty());
 
         final Throwable thrown = catchThrowable(() -> project.createFile(PATH, "dev", "", "Add it"));
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining(PATH);
+    }
+
+    @Test
+    void createFile_shouldSendBase64Encoding_whenContentIsBytes() throws IOException {
+        final GitLabProjectRepositoryFilesGetResponse reloaded = file(PATH, new byte[] {0, -1, 10, 13});
+        when(gitLab.repositoryfiles().create(eq(ID), eq(PATH), any(MultipartFormData.class)))
+                .thenReturn(createdFile(PATH, "dev"));
+        when(gitLab.repositoryfiles().get(ID, PATH, "dev")).thenReturn(Optional.of(reloaded));
+
+        final RepositoryFile result = project.createFile(PATH, "dev", new byte[] {0, -1, 10, 13}, "Add it");
+
+        final ArgumentCaptor<MultipartFormData> form = ArgumentCaptor.forClass(MultipartFormData.class);
+        verify(gitLab.repositoryfiles()).create(eq(ID), eq(PATH), form.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(result.response()).isSameAs(reloaded);
+            softly.assertThat(bodyOf(form.getValue()))
+                    .contains("name=\"encoding\"")
+                    .contains("base64")
+                    .contains("AP8KDQ==")
+                    .contains("Add it");
+        });
+    }
+
+    @Test
+    void createFile_shouldSendEmptyContent_whenBytesAreEmpty() throws IOException {
+        when(gitLab.repositoryfiles().create(eq(ID), eq(PATH), any(MultipartFormData.class)))
+                .thenReturn(createdFile(PATH, "dev"));
+        when(gitLab.repositoryfiles().get(ID, PATH, "dev")).thenReturn(Optional.of(file(PATH, new byte[0])));
+
+        project.createFile(PATH, "dev", new byte[0], "Add it");
+
+        final ArgumentCaptor<MultipartFormData> form = ArgumentCaptor.forClass(MultipartFormData.class);
+        verify(gitLab.repositoryfiles()).create(eq(ID), eq(PATH), form.capture());
+        assertThat(bodyOf(form.getValue())).contains("name=\"content\"").contains("name=\"encoding\"");
+    }
+
+    @Test
+    void createFile_shouldThrowNullPointerException_whenBytesAreNull() {
+        final Throwable thrown = catchThrowable(() -> project.createFile(PATH, "dev", (byte[]) null, "m"));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void update_shouldThrowIllegalStateException_whenFileIsGoneAfterBytesUpdate() throws IOException {
+        final RepositoryFile sut = fileOf(new byte[0]);
+        when(gitLab.repositoryfiles().update(eq(ID), eq(PATH), any(MultipartFormData.class)))
+                .thenReturn(updatedFile(PATH, REF));
+        when(gitLab.repositoryfiles().get(ID, PATH, REF)).thenReturn(Optional.empty());
+
+        final Throwable thrown = catchThrowable(() -> sut.update(new byte[] {1}, "m"));
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining(PATH);
+    }
+
+    @Test
+    void createFile_shouldThrowIllegalStateException_whenFileIsGoneAfterBytesCreate() throws IOException {
+        when(gitLab.repositoryfiles().create(eq(ID), eq(PATH), any(MultipartFormData.class)))
+                .thenReturn(createdFile(PATH, "dev"));
+        when(gitLab.repositoryfiles().get(ID, PATH, "dev")).thenReturn(Optional.empty());
+
+        final Throwable thrown = catchThrowable(() -> project.createFile(PATH, "dev", new byte[] {1}, "m"));
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining(PATH);
     }

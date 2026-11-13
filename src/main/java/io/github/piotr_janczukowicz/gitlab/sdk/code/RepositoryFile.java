@@ -156,6 +156,25 @@ public final class RepositoryFile {
     }
 
     /**
+     * Commits new binary content of the file to the branch it was read at ({@code PUT
+     * /projects/{id}/repository/files/{file_path}}, the content Base64-encoded with {@code encoding=base64}) and loads
+     * the file again ({@code GET /projects/{id}/repository/files/{file_path}?ref=...}). This object is not changed.
+     *
+     * @param content the new content; may be empty
+     * @param message the commit message
+     * @return the file as GitLab holds it afterwards
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code message} is blank
+     * @throws IllegalStateException if GitLab no longer has the file after the update
+     * @throws IOException if the transport fails
+     */
+    public RepositoryFile update(final byte[] content, final String message) throws IOException {
+        final MultipartFormData form = FileForms.of(ref, content, message);
+        gitLab().repositoryfiles().update(project.id(), path(), form);
+        return project.file(path(), ref).orElseThrow(() -> new IllegalStateException(FILE + path() + " is gone"));
+    }
+
+    /**
      * Deletes the file from the branch it was read at ({@code DELETE /projects/{id}/repository/files/{file_path}}) by a
      * commit.
      *
