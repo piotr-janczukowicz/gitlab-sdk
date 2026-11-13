@@ -120,4 +120,18 @@ class IssueDiscussionsTest {
         assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
         verify(gitLab.discussions().project(), never()).getIssuesDiscussions(any(), eq(IID), any());
     }
+
+    @Test
+    void startDiscussion_shouldThrowNullPointerException_whenBodyIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.startDiscussion((String) null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void discussion_shouldThrowNullPointerException_whenIdIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.discussion(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
 }

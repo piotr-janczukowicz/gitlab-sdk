@@ -58,7 +58,7 @@ public final class IssueDiscussion {
     }
 
     /**
-     * Tells whether the discussion is a single note that cannot be replied to as a thread.
+     * Tells whether the discussion is a standalone note, not a thread.
      *
      * @return {@code true} for an individual note; {@code false} otherwise or when GitLab does not return the flag
      */

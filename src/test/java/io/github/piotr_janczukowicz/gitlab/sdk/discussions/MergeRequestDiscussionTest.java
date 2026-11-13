@@ -224,4 +224,45 @@ class MergeRequestDiscussionTest {
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining(DISCUSSION_ID);
     }
+
+    @Test
+    void resolve_shouldPassCoreException_whenDiscussionIsNotResolvable() throws IOException {
+        final IOException failure = new IOException("not resolvable");
+        when(gitLab.discussions().project().updateRequestsDiscussions(eq(ID), eq(IID), eq(DISCUSSION_ID), any()))
+                .thenThrow(failure);
+
+        final Throwable thrown = catchThrowable(sut::resolve);
+
+        assertThat(thrown).isSameAs(failure);
+        verify(gitLab.discussions().project(), never()).getRequestsDiscussions(any(), eq(IID), any());
+    }
+
+    @Test
+    void unresolve_shouldPassCoreException_whenDiscussionIsNotResolvable() throws IOException {
+        final IOException failure = new IOException("not resolvable");
+        when(gitLab.discussions().project().updateRequestsDiscussions(eq(ID), eq(IID), eq(DISCUSSION_ID), any()))
+                .thenThrow(failure);
+
+        final Throwable thrown = catchThrowable(sut::unresolve);
+
+        assertThat(thrown).isSameAs(failure);
+        verify(gitLab.discussions().project(), never()).getRequestsDiscussions(any(), eq(IID), any());
+    }
+
+    @Test
+    void reply_shouldThrowNullPointerException_whenBodyIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.reply(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void id_shouldThrowNullPointerException_whenResponseHasNoId() {
+        final MergeRequestDiscussion bare = new MergeRequestDiscussion(
+                mergeRequest, GitLabDiscussionBuilder.builder().build());
+
+        final Throwable thrown = catchThrowable(bare::id);
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
 }

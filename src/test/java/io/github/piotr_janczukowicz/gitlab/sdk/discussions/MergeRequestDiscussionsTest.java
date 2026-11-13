@@ -160,4 +160,18 @@ class MergeRequestDiscussionsTest {
         assertThat(thrown).isInstanceOf(NullPointerException.class);
         verify(gitLab.discussions().project(), never()).createRequestsDiscussions(any(), eq(IID), any());
     }
+
+    @Test
+    void startDiscussion_shouldThrowNullPointerException_whenBodyIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.startDiscussion((String) null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void discussion_shouldThrowNullPointerException_whenIdIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.discussion(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
 }

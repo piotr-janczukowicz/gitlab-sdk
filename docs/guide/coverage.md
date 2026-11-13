@@ -146,8 +146,7 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
   available from `response()`; the `allowed_to_push`, `allowed_to_merge`, `allowed_to_unprotect` and `allowed_to_create`
   rules and the unprotect level cannot be set; use the core.
 - **Everything outside the areas above**, such as group releases, snippets, member roles
-  (Ultimate), the premium-only member endpoints (approving pending members, billable members), access tokens, the container registry and packages, instance-level deploy keys and tokens, environments, discussions and
-  threads, the descendant groups of a group at every level, and the administration of an instance. Use `gitlab-rest-client` for them; see
+  (Ultimate), the premium-only member endpoints (approving pending members, billable members), access tokens, the container registry and packages, instance-level deploy keys and tokens, environments, the descendant groups of a group at every level, and the administration of an instance. Use `gitlab-rest-client` for them; see
   [When the SDK does not cover a call](../../README.md#when-the-sdk-does-not-cover-a-call).
 - **Releases.** Group releases, the typed latest-release getter (the core only has `void` permalink calls), release asset
   sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release (they stay

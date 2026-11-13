@@ -17,7 +17,7 @@ import java.io.IOException;
 import java.util.List;
 
 /**
- * A discussion (thread) on an {@link MergeRequest}, as GitLab returned it. The object is immutable, and
+ * A discussion (thread) on a {@link MergeRequest}, as GitLab returned it. The object is immutable, and
  * {@link #response()} gives the complete response for every field the accessors here do not cover. Editing or deleting
  * a reply uses the {@link MergeRequestNote} objects of {@link #notes()}.
  */
@@ -30,7 +30,7 @@ public final class MergeRequestDiscussion {
      * Wraps a response. Applications normally get this object from the object that owns it; call the constructor only
      * to wrap a response that was loaded some other way.
      *
-     * @param mergeRequest the mergeRequest the object belongs to
+     * @param mergeRequest the merge request the object belongs to
      * @param response the response record the object is built from
      * @throws NullPointerException if an argument is {@code null}
      */
@@ -40,9 +40,9 @@ public final class MergeRequestDiscussion {
     }
 
     /**
-     * Returns the mergeRequest the discussion belongs to.
+     * Returns the merge request the discussion belongs to.
      *
-     * @return the mergeRequest
+     * @return the merge request
      */
     public MergeRequest mergeRequest() {
         return mergeRequest;
@@ -58,7 +58,7 @@ public final class MergeRequestDiscussion {
     }
 
     /**
-     * Tells whether the discussion is a single note that cannot be replied to as a thread.
+     * Tells whether the discussion is a standalone note, not a thread.
      *
      * @return {@code true} for an individual note; {@code false} otherwise or when GitLab does not return the flag
      */
