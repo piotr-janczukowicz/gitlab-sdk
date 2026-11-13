@@ -68,14 +68,14 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 
 | Area | What it covers |
 |---|---|
-| **Projects and groups** | load a project or a group by id or path, archive, unarchive and delete; the projects and the direct subgroups of a group |
+| **Projects and groups** | load a project or a group by id or path, create, update, archive, unarchive and delete; the projects and the direct subgroups of a group |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), commits (list, load, diff, cherry-pick, revert) |
 
-Not covered: creating or updating a project or a group (the client sends them as a multipart form). The same goes for every area
+Not covered: project and group fields beyond the common typed ones. The same goes for every area
 outside the table, such as releases, milestones, snippets, packages, the container registry, webhooks and the
 administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet;
 see [Live smoke tests](docs/guide/smoke-tests.md).
@@ -122,7 +122,7 @@ All objects behave the same way, so you learn them once:
   transport failure during iteration is an `UncheckedIOException`.
 - **Several fields at once** go through `update()`:
   `issue.update().title("New").labels(List.of("bug")).send()` sends one request with only the fields you set. `send()` with
-  nothing set throws `IllegalStateException`. Issues, merge requests and labels have an `update()`.
+  nothing set throws `IllegalStateException`. Projects, groups, issues, merge requests and labels have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
 - `refresh()` reloads an object and throws `IllegalStateException` when it is gone.

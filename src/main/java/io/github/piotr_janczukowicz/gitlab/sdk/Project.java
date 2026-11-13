@@ -90,6 +90,16 @@ public final class Project {
     }
 
     /**
+     * Starts a change of the name, path, description, visibility or default branch. Nothing is sent until
+     * {@link ProjectUpdate#send()}.
+     *
+     * @return the update builder
+     */
+    public ProjectUpdate update() {
+        return new ProjectUpdate(sdk, id);
+    }
+
+    /**
      * Archives the project ({@code POST /projects/{id}/archive}) and loads it again.
      *
      * @return the archived project as GitLab returns it afterwards

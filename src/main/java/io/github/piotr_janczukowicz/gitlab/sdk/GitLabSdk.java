@@ -88,6 +88,31 @@ public final class GitLabSdk {
     }
 
     /**
+     * Starts a new project. Nothing is sent until {@link ProjectDraft#send()}.
+     *
+     * @param name the name of the project
+     * @return the draft
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     */
+    public ProjectDraft createProject(final String name) {
+        return new ProjectDraft(this, name);
+    }
+
+    /**
+     * Starts a new group. Nothing is sent until {@link GroupDraft#send()}.
+     *
+     * @param name the name of the group
+     * @param path the path (URL slug) of the group
+     * @return the draft
+     * @throws NullPointerException if {@code name} or {@code path} is {@code null}
+     * @throws IllegalArgumentException if {@code name} or {@code path} is blank
+     */
+    public GroupDraft createGroup(final String name, final String path) {
+        return new GroupDraft(this, name, path);
+    }
+
+    /**
      * Loads a user ({@code GET /users/{id}}).
      *
      * @param id the numeric id of the user

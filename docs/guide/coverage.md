@@ -9,9 +9,14 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Entry point | Objects and what they do |
 |---|---|
-| `GitLabSdk.of(...)` | Wraps a `GitLab`, a `GitLabCaller` or a `GitLabClient`. `project(id)` and `group(id)` give handles, `user(id)` loads a user, `me()` gives the signed-in account |
-| `Project` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `archive()`, `unarchive()`, `delete()`, `response()`. Issues: `issues()`, `issues(filter)`, `issue(iid)`, `createIssue(title)`, `createIssue(payload)`. Labels: `labels()`, `createLabel(name, color)`. Merge requests: `mergeRequests()`, `mergeRequests(filter)`, `mergeRequest(iid)`, `createMergeRequest(payload)`. Pipelines and jobs: `pipelines()`, `pipelines(filter)`, `pipeline(id)`, `createPipeline(ref)`, `createPipeline(payload)`, `jobs()`, `jobs(filter)`, `job(id)`. Code: `file(path, ref)`, `createFile(path, branch, content, message)` (content as text or `byte[]`), `branches()`, `branch(name)`, `createBranch(name, ref)`, `commits()`, `commit(sha)` |
-| `Group` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `archive()`, `unarchive()`, `delete()`, `projects()` (each project is loaded as the stream reaches it), `subgroups()` (the direct subgroups, one level down; each group is loaded as the stream reaches it), `response()` |
+| `GitLabSdk.of(...)` | Wraps a `GitLab`, a `GitLabCaller` or a `GitLabClient`. `project(id)` and `group(id)` give handles, `createProject(name)` and `createGroup(name, path)` start a `ProjectDraft` and a `GroupDraft`, `user(id)` loads a user, `me()` gives the signed-in account |
+| `Project` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `update()`, `archive()`, `unarchive()`, `delete()`, `response()`. Issues: `issues()`, `issues(filter)`, `issue(iid)`, `createIssue(title)`, `createIssue(payload)`. Labels: `labels()`, `createLabel(name, color)`. Merge requests: `mergeRequests()`, `mergeRequests(filter)`, `mergeRequest(iid)`, `createMergeRequest(payload)`. Pipelines and jobs: `pipelines()`, `pipelines(filter)`, `pipeline(id)`, `createPipeline(ref)`, `createPipeline(payload)`, `jobs()`, `jobs(filter)`, `job(id)`. Code: `file(path, ref)`, `createFile(path, branch, content, message)` (content as text or `byte[]`), `branches()`, `branch(name)`, `createBranch(name, ref)`, `commits()`, `commit(sha)` |
+| `Group` | A handle, loaded by `fetch()`. `id()`, `fetch()`, `refresh()`, `update()`, `archive()`, `unarchive()`, `delete()`, `projects()` (each project is loaded as the stream reaches it), `subgroups()` (the direct subgroups, one level down; each group is loaded as the stream reaches it), `response()` |
+| `Visibility` | `PRIVATE`, `INTERNAL`, `PUBLIC` |
+| `ProjectDraft` | From `sdk.createProject(name)`: `path(...)`, `namespaceId(...)`, `description(...)`, `visibility(...)`, `defaultBranch(...)`, `initializeWithReadme(...)`, `send()` (creates, then loads the project again) |
+| `ProjectUpdate` | `name(...)`, `path(...)`, `description(...)`, `clearDescription()`, `visibility(...)`, `defaultBranch(...)`, `send()`; `send()` with nothing set throws `IllegalStateException`. Archiving stays with `archive()` |
+| `GroupDraft` | From `sdk.createGroup(name, path)`: `description(...)`, `visibility(...)`, `parentId(...)`, `send()` |
+| `GroupUpdate` | `name(...)`, `path(...)`, `description(...)`, `visibility(...)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `User` | Loaded. `id()`, `username()`, `refresh()`, `response()` |
 | `Me` | A handle. `profile()` loads the signed-in account as a `User` |
 
@@ -51,8 +56,8 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 ## What is not covered
 
-- **Creating and updating a project or a group.** The core takes a `MultipartFormData` for them, so v1 has no
-  `createProject`, `Project.update()` or `Group.update()`. Archive, unarchive and delete are covered.
+- **Fields of a project or group outside the typed set.** `ProjectDraft`, `ProjectUpdate`, `GroupDraft` and
+  `GroupUpdate` take the common fields only (see above); anything else needs the core's `MultipartFormData` API.
 - **Options of `Branch.protect()`.** It uses GitLab's default rules. Call the core for the options. (`merge(options)`,
   `approve(options)`, `pipelines(filter)` and `jobs(filter)` take the core's own payload and filter records.)
 - **Filter on the jobs of one pipeline.** `pipeline.jobs()` lists without a filter. Pipeline and job logs, artifacts and

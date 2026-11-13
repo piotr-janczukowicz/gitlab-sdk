@@ -66,6 +66,15 @@ public final class Group {
     }
 
     /**
+     * Starts a change of the name, path, description or visibility. Nothing is sent until {@link GroupUpdate#send()}.
+     *
+     * @return the update builder
+     */
+    public GroupUpdate update() {
+        return new GroupUpdate(sdk, id);
+    }
+
+    /**
      * Archives the group ({@code POST /groups/{id}/archive}) and loads it again.
      *
      * @return the archived group as GitLab returns it afterwards
