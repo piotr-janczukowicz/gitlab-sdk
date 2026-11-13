@@ -113,16 +113,22 @@ public final class Group {
 
     /**
      * Transfers the group to another parent group ({@code POST /groups/{id}/transfer}) and loads it again ({@code GET
-     * /groups/{id}}), because GitLab answers the transfer with no body.
+     * /groups/{id}}), because GitLab answers the transfer with no body. A transfer changes the full path of the group,
+     * so the group is addressed by its numeric id from then on: the returned group has a numeric {@link #id()}. For a
+     * group that is not loaded (a handle) this costs one extra {@code GET /groups/{id}} before the transfer, to learn
+     * the numeric id.
      *
      * @param newParentGroupId the id of the new parent group
      * @return the moved group as GitLab returns it afterwards
-     * @throws IllegalStateException if the group is gone when it is loaded again
+     * @throws IllegalStateException if the group is gone before the transfer, or gone when it is loaded again
      * @throws IOException if the transport fails
      */
     public Group transfer(final long newParentGroupId) throws IOException {
+        final long numericId =
+                requireNonNull((response != null ? this : refresh()).response().id(), "id");
         sdk.gitLab().groups().transfer(id, new GitLabGroupGroupsTransferPayload(newParentGroupId));
-        return refresh();
+        final String movedId = String.valueOf(numericId);
+        return sdk.group(movedId).fetch().orElseThrow(() -> new IllegalStateException("Group " + movedId + IS_GONE));
     }
 
     /**

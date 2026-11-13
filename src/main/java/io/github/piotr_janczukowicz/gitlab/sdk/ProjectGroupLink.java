@@ -8,7 +8,7 @@ import java.util.Optional;
 
 /**
  * The sharing of a project with a group, as GitLab answers it. The object is immutable and has no refresh; unshare with
- * {@link Project#unshare(long)}.
+ * {@link Project#unshare(long)}. No method returns it yet; sharing arrives with a later release.
  */
 public final class ProjectGroupLink {
 

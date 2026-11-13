@@ -67,6 +67,13 @@ class ProjectForksTest {
     }
 
     @Test
+    void fork_shouldThrowNullPointerException_whenNamespacePathIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.fork(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     void forks_shouldSkipForkGone_whenListedButNotLoadable() throws IOException {
         when(gitLab.projectforks().list(ID).stream()).thenReturn(Stream.of(listedProject(1L), listedProject(2L)));
         when(gitLab.projects().project().get("1")).thenReturn(Optional.empty());

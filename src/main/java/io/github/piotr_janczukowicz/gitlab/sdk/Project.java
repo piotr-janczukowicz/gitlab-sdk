@@ -154,7 +154,7 @@ public final class Project {
     public Project transfer(final String namespace) throws IOException {
         final GitLabProjectProjectsTransferPayload payload =
                 new GitLabProjectProjectsTransferPayload(requireNotBlank(namespace, "namespace"));
-        return reload(sdk.gitLab().projects().project().transfer(id, payload).id());
+        return loadById(sdk.gitLab().projects().project().transfer(id, payload).id());
     }
 
     /**
@@ -173,7 +173,7 @@ public final class Project {
         final GitLabProjectProjectForksCreatePayload payload = GitLabProjectProjectForksCreatePayloadBuilder.builder()
                 .namespacePath(requireNotBlank(namespacePath, "namespacePath"))
                 .build();
-        return reload(sdk.gitLab().projectforks().create(id, payload).id());
+        return loadById(sdk.gitLab().projectforks().create(id, payload).id());
     }
 
     /**
@@ -612,7 +612,7 @@ public final class Project {
         return response;
     }
 
-    private Project reload(final @Nullable Long newId) throws IOException {
+    private Project loadById(final @Nullable Long newId) throws IOException {
         final String loadId = String.valueOf(requireNonNull(newId, "id"));
         return sdk.project(loadId).fetch().orElseThrow(() -> new IllegalStateException("Project " + loadId + IS_GONE));
     }
