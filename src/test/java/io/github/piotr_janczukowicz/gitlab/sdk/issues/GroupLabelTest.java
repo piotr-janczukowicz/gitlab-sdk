@@ -123,4 +123,31 @@ class GroupLabelTest {
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("Group label bug is gone");
     }
+
+    @Test
+    void refresh_shouldPassNameWithSlashUnchanged_whenNameContainsSlashAndSpace() throws IOException {
+        final GroupLabel slashed = new GroupLabel(group, groupLabel("team/a b", "#FF0000"));
+        when(gitLab.grouplabels().get(ID, "team/a b")).thenReturn(Optional.of(groupLabel("team/a b", "#0000FF")));
+
+        final GroupLabel refreshed = slashed.refresh();
+
+        assertThat(refreshed.color()).isEqualTo("#0000FF");
+    }
+
+    @Test
+    void delete_shouldPassNameWithSlashUnchanged_whenNameContainsSlashAndSpace() throws IOException {
+        new GroupLabel(group, groupLabel("team/a b", "#FF0000")).delete();
+
+        verify(gitLab.grouplabels()).deleteByName(ID, "team/a b");
+    }
+
+    @Test
+    void subscribe_shouldPassNameWithSlashUnchanged_whenNameContainsSlashAndSpace() throws IOException {
+        final GitLabGroupLabel answer = groupLabel("team/a b", "#FF0000");
+        when(gitLab.grouplabels().subscribe(ID, "team/a b")).thenReturn(answer);
+
+        final GroupLabel result = new GroupLabel(group, groupLabel("team/a b", "#FF0000")).subscribe();
+
+        assertThat(result.response()).isSameAs(answer);
+    }
 }

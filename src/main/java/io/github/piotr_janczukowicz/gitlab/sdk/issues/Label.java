@@ -81,23 +81,30 @@ public final class Label {
     }
 
     /**
-     * Promotes the label to a label of the project's group ({@code PUT /projects/{id}/labels/{name}/promote}). The
-     * core's answer does not name the group, so the group of the returned label is derived from the project's
-     * namespace: after the promotion this sends {@code GET /projects/{id}} (one request, so that the namespace is
-     * current even for a project handle that was never loaded) and addresses the group by the numeric id of that
-     * namespace, or by its full path when the id is absent. No request goes out before the promotion. GitLab rejects
-     * the promotion of a label of a project in a user namespace; the core's exception passes through and no group is
-     * invented. This object is not changed.
+     * Promotes the label to a label of the project's group. The core's answer does not name the group, and the
+     * promotion cannot be repeated, so the group is resolved first: this sends {@code GET /projects/{id}} (so that the
+     * namespace is current even for a project handle that was never loaded), then {@code PUT
+     * /projects/{id}/labels/{name}/promote}. The group of the returned label is addressed by the numeric id of the
+     * project's namespace, or by its full path when the id is absent; a namespace without a kind but with an id is
+     * treated as a group. If the project cannot be loaded (transport failure, or it is gone) nothing was promoted. A
+     * project in a user namespace is not rejected by the SDK: the promotion is sent and GitLab's rejection passes
+     * through as the core's exception, and no group is invented. Only if GitLab unexpectedly promotes the label while
+     * no group can be derived is an {@link IllegalStateException} thrown after the promotion; that is practically
+     * unreachable, and the label can then be found through its group. This object is not changed.
      *
      * @return the group label, which belongs to the project's group
-     * @throws IllegalStateException if the project is gone when it is loaded after the promotion, or its namespace is
-     *     not a group
+     * @throws IllegalStateException if the project is gone (nothing was promoted), or if the label was promoted but no
+     *     group could be derived from the project's namespace
      * @throws IOException if the transport fails
      */
     public GroupLabel promote() throws IOException {
+        final @Nullable String groupId = groupId(project.refresh().response().namespace());
         final GitLabGroupLabel promoted = gitLab().labels().promoteByName(project.id(), name());
-        final GitLabNamespaceBasic namespace = project.refresh().response().namespace();
-        return new GroupLabel(Internals.group(project, groupId(namespace)), promoted);
+        if (groupId == null) {
+            throw new IllegalStateException("Label " + name() + " of project " + project.id()
+                    + " was promoted, but no group could be derived from the project's namespace");
+        }
+        return new GroupLabel(Internals.group(project, groupId), promoted);
     }
 
     /**
@@ -136,17 +143,15 @@ public final class Label {
         return new Label(project, gitLab().labels().updateByName(project.id(), name(), payload));
     }
 
-    private String groupId(final @Nullable GitLabNamespaceBasic namespace) {
+    private static @Nullable String groupId(final @Nullable GitLabNamespaceBasic namespace) {
         if (namespace == null || namespace.kind() != null && !"group".equalsIgnoreCase(namespace.kind())) {
-            throw new IllegalStateException("The namespace of project " + project.id() + " is not a group");
+            return null;
         }
         if (namespace.id() != null) {
             return String.valueOf(namespace.id());
         }
-        if (namespace.fullPath() != null && !namespace.fullPath().isBlank()) {
-            return namespace.fullPath();
-        }
-        throw new IllegalStateException("The namespace of project " + project.id() + " names no group");
+        final @Nullable String path = namespace.fullPath();
+        return path == null || path.isBlank() ? null : path;
     }
 
     private GitLab gitLab() {

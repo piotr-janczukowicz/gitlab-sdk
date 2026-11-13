@@ -28,7 +28,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 | `Issue` | `project()`, `iid()`, `title()`, `description()`, `state()` (`IssueState`: `OPENED`, `CLOSED`), `labels()`, `update()`, `close()`, `reopen()`, `comment(body)`, `notes()`, `delete()`, `refresh()`, `response()` |
 | `IssueUpdate` | `title(...)`, `description(...)`, `clearDescription()`, `labels(names)`, `assignees(userIds)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `Note` | `issue()`, `id()`, `body()`, `update(body)`, `delete()`, `refresh()`, `response()` |
-| `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends the promotion, then `GET /projects/{id}` to find the group from the project's namespace; a project in a user namespace fails with the core's exception), `delete()`, `refresh()`, `response()` |
+| `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends `GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a failed GET promotes nothing; a project in a user namespace fails with the core's exception), `delete()`, `refresh()`, `response()` |
 | `LabelUpdate` | `name(...)`, `color(...)`, `description(...)`, `send()` |
 | `GroupLabel` | `group()`, `name()`, `color()`, `description()`, `isSubscribed()`, `update()`, `subscribe()`, `unsubscribe()`, `delete()`, `refresh()`, `response()`; addressed by name (a slash or space reaches the core unchanged) |
 | `GroupLabelUpdate` | `name(...)` (the new name), `color(...)`, `description(...)`, `archived(boolean)`, `send()`; `send()` with nothing set throws `IllegalStateException` |

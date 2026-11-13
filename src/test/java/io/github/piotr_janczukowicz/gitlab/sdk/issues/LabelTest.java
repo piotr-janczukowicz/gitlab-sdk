@@ -10,6 +10,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
@@ -27,6 +28,7 @@ import java.io.IOException;
 import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
+import org.mockito.InOrder;
 
 @UnitTest
 class LabelTest {
@@ -135,33 +137,55 @@ class LabelTest {
             softly.assertThat(result.response()).isSameAs(promoted);
             softly.assertThat(result.group().id()).isEqualTo("77");
         });
-        verify(gitLab.labels()).promoteByName(ID, "bug");
+    }
+
+    @Test
+    void promote_shouldPromoteAfterLoadingProject_whenCalled() throws IOException {
+        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
+        when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectIn("group", 77L, "my-group")));
+
+        sut.promote();
+
+        final InOrder order = inOrder(gitLab.projects().project(), gitLab.labels());
+        order.verify(gitLab.projects().project()).get(ID);
+        order.verify(gitLab.labels()).promoteByName(ID, "bug");
+    }
+
+    @Test
+    void promote_shouldNotPromote_whenProjectCannotBeLoaded() throws IOException {
+        when(gitLab.projects().project().get(ID)).thenThrow(new IOException("down"));
+
+        final Throwable thrown = catchThrowable(sut::promote);
+
+        assertThat(thrown).isInstanceOf(IOException.class);
+        verify(gitLab.labels(), never()).promoteByName(any(), any());
+    }
+
+    @Test
+    void promote_shouldNotPromote_whenProjectIsGone() throws IOException {
+        when(gitLab.projects().project().get(ID)).thenReturn(Optional.empty());
+
+        final Throwable thrown = catchThrowable(sut::promote);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        verify(gitLab.labels(), never()).promoteByName(any(), any());
     }
 
     @Test
     void promote_shouldPassCoreException_whenProjectIsInUserNamespace() throws IOException {
+        when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectIn("user", 5L, "jane")));
         when(gitLab.labels().promoteByName(ID, "bug")).thenThrow(new IOException("rejected"));
 
         final Throwable thrown = catchThrowable(sut::promote);
 
         assertThat(thrown).isInstanceOf(IOException.class).hasMessage("rejected");
-        verify(gitLab.projects().project(), never()).get(ID);
-    }
-
-    @Test
-    void promote_shouldThrowIllegalStateException_whenNamespaceIsNotAGroup() throws IOException {
-        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
-        when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectIn("user", 5L, "jane")));
-
-        final Throwable thrown = catchThrowable(sut::promote);
-
-        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("is not a group");
+        verify(gitLab.labels()).promoteByName(ID, "bug");
     }
 
     @Test
     void promote_shouldAddressGroupByFullPath_whenNamespaceHasNoId() throws IOException {
-        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
         when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectIn("group", null, "my-group")));
+        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
 
         final GroupLabel result = sut.promote();
 
@@ -169,32 +193,42 @@ class LabelTest {
     }
 
     @Test
+    void promote_shouldTreatMissingKindAsGroup_whenNamespaceHasId() throws IOException {
+        when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectIn(null, 9L, null)));
+        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
+
+        final GroupLabel result = sut.promote();
+
+        assertThat(result.group().id()).isEqualTo("9");
+    }
+
+    @Test
+    void promote_shouldThrowIllegalStateException_whenPromotedButNoGroupDerivable() throws IOException {
+        when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectIn("user", 5L, "jane")));
+        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
+
+        final Throwable thrown = catchThrowable(sut::promote);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("was promoted");
+    }
+
+    @Test
     void promote_shouldThrowIllegalStateException_whenNamespaceNamesNoGroup() throws IOException {
-        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
         when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectIn(null, null, " ")));
+        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
 
         final Throwable thrown = catchThrowable(sut::promote);
 
-        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("names no group");
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("was promoted");
     }
 
     @Test
-    void promote_shouldThrowIllegalStateException_whenProjectHasNoNamespace() throws IOException {
-        when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
+    void promote_shouldThrowIllegalStateException_whenProjectHasNoNamespaceAndPromotionSucceeds() throws IOException {
         when(gitLab.projects().project().get(ID)).thenReturn(Optional.of(projectWithoutNamespace()));
-
-        final Throwable thrown = catchThrowable(sut::promote);
-
-        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("is not a group");
-    }
-
-    @Test
-    void promote_shouldThrowIllegalStateException_whenProjectIsGoneAfterPromotion() throws IOException {
         when(gitLab.labels().promoteByName(ID, "bug")).thenReturn(groupLabel("bug", "#FF0000"));
-        when(gitLab.projects().project().get(ID)).thenReturn(Optional.empty());
 
         final Throwable thrown = catchThrowable(sut::promote);
 
-        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("was promoted");
     }
 }
