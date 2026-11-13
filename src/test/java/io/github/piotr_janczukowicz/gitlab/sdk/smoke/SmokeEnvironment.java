@@ -21,6 +21,7 @@ final class SmokeEnvironment {
     static final String TOKEN_VARIABLE = "SMOKE_GITLAB_TOKEN";
     static final String PROJECT_VARIABLE = "SMOKE_GITLAB_PROJECT";
     static final String URL_VARIABLE = "SMOKE_GITLAB_URL";
+    static final String USER_ID_VARIABLE = "SMOKE_GITLAB_USER_ID";
 
     private static final String DEFAULT_URL = "https://gitlab.com";
     private static final String USER_AGENT = "gitlab-sdk-smoke/1.0";
@@ -30,13 +31,15 @@ final class SmokeEnvironment {
     private final String token;
     private final String project;
     private final String url;
+    private final String userId;
     private GitLabClient client;
     private GitLabSdk sdk;
 
-    private SmokeEnvironment(final String token, final String project, final String url) {
+    private SmokeEnvironment(final String token, final String project, final String url, final String userId) {
         this.token = token;
         this.project = project;
         this.url = url;
+        this.userId = userId;
     }
 
     static SmokeEnvironment fromEnv() {
@@ -47,7 +50,8 @@ final class SmokeEnvironment {
         requireNonNull(env, "env");
         final String project = env.getOrDefault(PROJECT_VARIABLE, "").strip();
         final String url = env.getOrDefault(URL_VARIABLE, DEFAULT_URL).strip();
-        return new SmokeEnvironment(env.getOrDefault(TOKEN_VARIABLE, "").strip(), project, url);
+        final String userId = env.getOrDefault(USER_ID_VARIABLE, "").strip();
+        return new SmokeEnvironment(env.getOrDefault(TOKEN_VARIABLE, "").strip(), project, url, userId);
     }
 
     boolean configured() {
@@ -66,6 +70,28 @@ final class SmokeEnvironment {
     Optional<String> namespace() {
         final int slash = project.lastIndexOf('/');
         return slash > 0 ? Optional.of(project.substring(0, slash)) : Optional.empty();
+    }
+
+    /**
+     * The id of a second user who may be added to and removed from the sandbox, from the optional
+     * {@value #USER_ID_VARIABLE}.
+     *
+     * @return the user id, or empty when the variable is not set
+     * @throws IllegalStateException if the value is not a positive number
+     */
+    Optional<Long> secondUserId() {
+        if (userId.isEmpty()) {
+            return Optional.empty();
+        }
+        try {
+            final long id = Long.parseLong(userId);
+            if (id > 0) {
+                return Optional.of(id);
+            }
+        } catch (final NumberFormatException ignored) {
+            // reported below with the variable name
+        }
+        throw new IllegalStateException(USER_ID_VARIABLE + " must be the numeric id of a user, but was: " + userId);
     }
 
     String runId() {

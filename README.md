@@ -79,10 +79,17 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), commits (list, load, diff, cherry-pick, revert) |
 
-Not covered: project and group fields beyond the common typed ones. The same goes for every area
-outside the table, such as releases, milestones, snippets, packages, the container registry and the
-administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet;
-see [Live smoke tests](docs/guide/smoke-tests.md).
+Not covered: project and group fields beyond the common typed ones, project import and export, and creating a project
+for another user (`createUser`); member roles; webhook URL variables, custom headers, delivery logs and resending an
+event; group-level deploy keys (GitLab has none); protected-branch rules of a user, a group, a deploy key or a member role
+(they stay in `response()`). The same goes for every area outside the table, such as releases, tags (other than protected
+tags), milestones, snippets, packages, the container registry and the administration of an instance. Use
+`gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
+[Live smoke tests](docs/guide/smoke-tests.md).
+
+Two things to know about the project and group calls: a project or group you transfer is addressed by its numeric id
+afterwards, because its path changed, and `project.fork(...)` returns at once while GitLab creates the fork
+asynchronously, so the fork may still be importing.
 
 ### Members
 
@@ -93,7 +100,11 @@ Member member = project.addMember("ann", AccessLevel.DEVELOPER);
 member = member.update().accessLevel(AccessLevel.MAINTAINER).expiresAt(LocalDate.of(2027, 3, 1)).send();
 project.members().forEach(m -> System.out.println(m.username() + " " + m.accessLevel()));
 project.share(9L, AccessLevel.REPORTER);                                // share with a group
+group.share(9L, AccessLevel.REPORTER);                                  // the same for a group
 ```
+
+An expiry can be set (`expiresAt(...)`) but not cleared: the core's payloads cannot express "no expiry". Member roles
+(Ultimate) are not covered.
 
 ### Webhooks
 
@@ -107,6 +118,9 @@ hook.test(WebhookEvent.PUSH);
 boolean onPush = hook.isEnabledFor(WebhookEvent.PUSH);
 group.createWebhook("https://ci.example/group-hook");                   // Premium
 ```
+
+`createWebhook` has two overloads, one for a URL and one for the core's payload, so a literal `null` needs a cast to pick
+one; either overload rejects `null` with a `NullPointerException`.
 
 ### Deploy keys and tokens
 
@@ -171,20 +185,21 @@ back to it as well: every object has `response()`, the complete client record, w
 All objects behave the same way, so you learn them once:
 
 - Objects are **immutable**. An operation returns a new object; the old one keeps its old state.
-- A **project or group** is a `String`: its numeric id or its path, as in the core (`my-group/my-project`). Issues and merge
-  requests are addressed by their `iid`, the number within the project.
+- A **project or group** is a `String`: its numeric id or its path, as in the core (`my-group/my-project`). A transferred project or
+  group is addressed by its numeric id afterwards. Issues and merge requests are addressed by their `iid`, the number within
+  the project.
 - A **lookup** (`project.issue(42)`, `sdk.user(7)`, `project.file("README.md", "main")`) returns an `Optional`, empty when
   GitLab answers 404.
 - A **list** is a lazy, single-use `Stream`. Pages are fetched as you consume it, so `limit(...)` stops further requests; a
   transport failure during iteration is an `UncheckedIOException`.
 - **Several fields at once** go through `update()`:
   `issue.update().title("New").labels(List.of("bug")).send()` sends one request with only the fields you set. `send()` with
-  nothing set throws `IllegalStateException`. Projects, groups, issues, merge requests and labels have an `update()`.
+  nothing set throws `IllegalStateException`. Projects, groups, members, webhooks, deploy keys, issues, merge requests and labels have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
 - `refresh()` reloads an object and throws `IllegalStateException` when it is gone.
-- Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, and the projects
-  and subgroups of a group), the SDK loads each item with one more request as the stream reaches it. The Javadoc says so,
+- Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, the forks of a project,
+  and the projects and subgroups of a group), the SDK loads each item with one more request as the stream reaches it. The Javadoc says so,
   and `limit(...)` bounds the cost. An item that is gone before it is loaded is skipped.
 - A field that GitLab may leave out is an `Optional` (`issue.description()`, `mergeRequest.targetBranch()`).
 - A **state or status** is an enum (`issue.state()`, `pipeline.status()`, `job.status()`) and throws

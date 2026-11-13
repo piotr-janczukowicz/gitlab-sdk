@@ -31,6 +31,29 @@ class SmokeEnvironmentTest {
     }
 
     @Test
+    void secondUserId_shouldBeEmpty_whenVariableIsNotSet() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of());
+
+        assertThat(sut.secondUserId()).isEmpty();
+    }
+
+    @Test
+    void secondUserId_shouldReturnTheId_whenVariableIsSet() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of(SmokeEnvironment.USER_ID_VARIABLE, " 42 "));
+
+        assertThat(sut.secondUserId()).contains(42L);
+    }
+
+    @Test
+    void secondUserId_shouldThrowIllegalStateException_whenVariableIsNotANumber() {
+        final SmokeEnvironment sut = SmokeEnvironment.of(Map.of(SmokeEnvironment.USER_ID_VARIABLE, "ann"));
+
+        final Throwable thrown = catchThrowable(sut::secondUserId);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("SMOKE_GITLAB_USER_ID");
+    }
+
+    @Test
     void requireSandbox_shouldThrowIllegalStateException_whenPathDoesNotContainSmoke() {
         final Throwable thrown = catchThrowable(() -> SmokeEnvironment.requireSandbox("me/production"));
 
