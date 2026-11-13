@@ -66,13 +66,19 @@ class MergeRequestsSmokeIT {
                 softly.assertThat(commits).isGreaterThanOrEqualTo(1);
             });
         } finally {
-            if (merge != null) {
-                merge.delete();
-            }
-            final Optional<Branch> branch = project.branch(source);
-            if (branch.isPresent()) {
-                branch.get().delete();
-            }
+            final MergeRequest toDelete = merge;
+            SmokeCleanup.all(
+                    () -> {
+                        if (toDelete != null) {
+                            toDelete.delete();
+                        }
+                    },
+                    () -> {
+                        final Optional<Branch> branch = project.branch(source);
+                        if (branch.isPresent()) {
+                            branch.get().delete();
+                        }
+                    });
         }
     }
 

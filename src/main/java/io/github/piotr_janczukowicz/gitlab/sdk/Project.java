@@ -32,9 +32,10 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A project, identified by its numeric id or URL-encoded path. A handle from {@link GitLabSdk#project(String)} holds no
- * data from GitLab; {@link #fetch()} returns a loaded project. It is the starting point for the operations that belong
- * to a project. The object is immutable: every operation returns a new project built from GitLab's answer.
+ * A project, identified by its numeric id or plain full path, such as {@code my-group/my-project} (the core encodes
+ * it). A handle from {@link GitLabSdk#project(String)} holds no data from GitLab; {@link #fetch()} returns a loaded
+ * project. It is the starting point for the operations that belong to a project. The object is immutable: every
+ * operation returns a new project built from GitLab's answer.
  */
 public final class Project {
 
@@ -57,7 +58,7 @@ public final class Project {
     /**
      * Returns the id this object was addressed with.
      *
-     * @return the numeric id or the URL-encoded path
+     * @return the numeric id or the plain full path
      */
     public String id() {
         return id;

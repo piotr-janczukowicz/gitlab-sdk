@@ -13,7 +13,7 @@ import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
 
 /**
- * A group, identified by its numeric id or URL-encoded path; it may be nested. A handle from
+ * A group, identified by its numeric id or plain full path (the core encodes it); it may be nested. A handle from
  * {@link GitLabSdk#group(String)} holds no data from GitLab; {@link #fetch()} returns a loaded group. The object is
  * immutable: every operation returns a new group built from GitLab's answer.
  */
@@ -38,7 +38,7 @@ public final class Group {
     /**
      * Returns the id this object was addressed with.
      *
-     * @return the numeric id or the URL-encoded path
+     * @return the numeric id or the plain full path
      */
     public String id() {
         return id;

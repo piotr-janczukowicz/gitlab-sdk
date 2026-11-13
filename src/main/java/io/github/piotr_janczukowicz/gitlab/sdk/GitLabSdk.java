@@ -64,7 +64,8 @@ public final class GitLabSdk {
     /**
      * Returns a handle to a project. No request is made until {@link Project#fetch()}.
      *
-     * @param id the numeric id or the URL-encoded path of the project, for example {@code my-group%2Fmy-project}
+     * @param id the numeric id or the plain full path of the project, for example {@code my-group/my-project}; the core
+     *     encodes the path, so do not encode it yourself
      * @return the project handle
      * @throws NullPointerException if {@code id} is {@code null}
      * @throws IllegalArgumentException if {@code id} is blank
@@ -76,7 +77,8 @@ public final class GitLabSdk {
     /**
      * Returns a handle to a group. No request is made until {@link Group#fetch()}.
      *
-     * @param id the numeric id or the URL-encoded path of the group
+     * @param id the numeric id or the plain full path of the group, for example {@code my-group}; the core encodes the
+     *     path
      * @return the group handle
      * @throws NullPointerException if {@code id} is {@code null}
      * @throws IllegalArgumentException if {@code id} is blank

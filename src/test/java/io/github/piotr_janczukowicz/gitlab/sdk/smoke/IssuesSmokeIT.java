@@ -61,13 +61,10 @@ class IssuesSmokeIT {
     void label_shouldRoundTrip_whenCreatedUpdatedAndAppliedToAnIssue() throws IOException {
         final Project project = ENV.sandbox();
         final Label label = project.createLabel(ENV.name("label"), "#428bca");
-        Issue issue = null;
+        final Issue created = project.createIssue(ENV.name("labelled"));
         try {
             final Label described = label.update().description("smoke").send();
-            issue = project.createIssue(ENV.name("labelled"))
-                    .update()
-                    .labels(List.of(label.name()))
-                    .send();
+            final Issue issue = created.update().labels(List.of(label.name())).send();
             final boolean listed =
                     project.labels().limit(100).anyMatch(each -> each.name().equals(label.name()));
 
@@ -77,10 +74,7 @@ class IssuesSmokeIT {
             });
             assertThat(issue.labels()).contains(label.name());
         } finally {
-            if (issue != null) {
-                issue.delete();
-            }
-            label.delete();
+            SmokeCleanup.all(created::delete, label::delete);
         }
     }
 

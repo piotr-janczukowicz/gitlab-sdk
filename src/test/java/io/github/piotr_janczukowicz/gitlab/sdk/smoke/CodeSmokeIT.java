@@ -73,10 +73,19 @@ class CodeSmokeIT {
                 softly.assertThat(loaded).map(Branch::name).contains(created.name());
             });
         } finally {
-            final Optional<Branch> branch = project.branch(created.name());
-            if (branch.isPresent()) {
-                branch.get().unprotect().delete();
-            }
+            SmokeCleanup.all(
+                    () -> {
+                        final Optional<Branch> branch = project.branch(created.name());
+                        if (branch.isPresent() && branch.get().isProtected()) {
+                            branch.get().unprotect();
+                        }
+                    },
+                    () -> {
+                        final Optional<Branch> branch = project.branch(created.name());
+                        if (branch.isPresent()) {
+                            branch.get().delete();
+                        }
+                    });
         }
     }
 
