@@ -69,7 +69,7 @@ class ProjectsSmokeIT {
     void me_shouldReturnTheSignedInUser_andUserLookupFindsThem() throws IOException {
         final Me me = ENV.sdk().me();
 
-        final User current = me.fetch();
+        final User current = me.profile();
         final Optional<User> byId = ENV.sdk().user(current.id());
         final Optional<User> missing = ENV.sdk().user(Long.MAX_VALUE);
         final long refreshedId = current.refresh().id();

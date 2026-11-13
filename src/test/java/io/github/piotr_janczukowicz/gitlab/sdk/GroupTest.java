@@ -8,6 +8,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -133,9 +134,9 @@ class GroupTest {
     }
 
     @Test
-    void subgroups_shouldReturnGroups() throws IOException {
+    void subgroups_shouldLoadDirectChildrenAndSkipGone_whenListed() throws IOException {
         final GitLabGroupDetail child = loadedGroup(8L, "child");
-        when(gitLab.groups().listDescendantGroups(any(String.class), any(GitLabPageRequest.class)).stream())
+        when(gitLab.groups().listGroup(any(String.class), any(GitLabPageRequest.class)).stream())
                 .thenReturn(Stream.of(listedGroup(8L), listedGroup(9L)));
         when(gitLab.groups().get("8")).thenReturn(Optional.of(child));
         when(gitLab.groups().get("9")).thenReturn(Optional.empty());
@@ -148,6 +149,26 @@ class GroupTest {
                     softly.assertThat(g.id()).isEqualTo("8");
                     softly.assertThat(g.response()).isSameAs(child);
                 }));
+        verify(gitLab.groups()).listGroup(eq(ID), any(GitLabPageRequest.class));
+        verify(gitLab.groups(), never()).listDescendantGroups(any(String.class), any(GitLabPageRequest.class));
+    }
+
+    @Test
+    void subgroups_shouldLoadLazily_whenStreamIsLimited() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.groups().listGroup(any(String.class), any(GitLabPageRequest.class)).stream())
+                .thenReturn(Stream.of(8L, 9L).map(id -> {
+                    consumed.incrementAndGet();
+                    return listedGroup(id);
+                }));
+        when(gitLab.groups().get("8")).thenReturn(Optional.of(loadedGroup(8L, "child")));
+
+        final Stream<Group> groups = sut.subgroups();
+
+        assertThat(consumed).hasValue(0);
+        assertThat(groups.limit(1).toList()).hasSize(1);
+        assertThat(consumed).hasValue(1);
+        verify(gitLab.groups(), never()).get("9");
     }
 
     @Test

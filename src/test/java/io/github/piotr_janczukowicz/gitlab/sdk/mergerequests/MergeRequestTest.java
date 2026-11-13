@@ -10,6 +10,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -18,6 +19,7 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasicBuild
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitDetailBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdatePayload;
@@ -31,6 +33,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -61,6 +64,22 @@ class MergeRequestTest {
             softly.assertThat(sut.targetBranch()).isEmpty();
             softly.assertThat(sut.sourceBranch()).isEmpty();
             softly.assertThat(sut.labels()).isEmpty();
+        });
+    }
+
+    @Test
+    void labels_shouldReturnAnUnmodifiableCopy_whenTheResponseListIsMutable() {
+        final List<String> names = new ArrayList<>(List.of("bug"));
+        final MergeRequest labelled = new MergeRequest(
+                project,
+                GitLabMergeRequestBuilder.builder(response).labels(names).build());
+
+        final List<String> labels = labelled.labels();
+        names.add("later");
+
+        assertSoftly(softly -> {
+            softly.assertThat(labels).containsExactly("bug");
+            softly.assertThatThrownBy(() -> labels.add("x")).isInstanceOf(UnsupportedOperationException.class);
         });
     }
 
@@ -309,6 +328,118 @@ class MergeRequestTest {
         final List<Pipeline> result = sut.pipelines().toList();
 
         assertThat(result).extracting(Pipeline::id).containsExactly(1L, 3L);
+    }
+
+    @Test
+    void pipelines_shouldLoadPipelineThroughItsOwnProject_whenItRanInAFork() throws IOException {
+        when(gitLab.mergerequests().project().listPipelines(ID, IID))
+                .thenReturn(List.of(GitLabCiPipelineBasicBuilder.builder()
+                        .id(4L)
+                        .projectId(99L)
+                        .build()));
+        when(gitLab.pipelines().get("99", 4L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(4L)
+                        .projectId(99L)
+                        .status("success")
+                        .build()));
+
+        final List<Pipeline> result = sut.pipelines().toList();
+
+        assertThat(result)
+                .singleElement()
+                .satisfies(pipeline -> assertSoftly(softly -> {
+                    softly.assertThat(pipeline.id()).isEqualTo(4L);
+                    softly.assertThat(pipeline.project().id()).isEqualTo("99");
+                }));
+        verify(gitLab.pipelines(), never()).get(ID, 4L);
+    }
+
+    @Test
+    void pipelines_shouldKeepTheProjectOfTheMergeRequest_whenPipelineRanInTheTargetProject() throws IOException {
+        final MergeRequest inProject42 = new MergeRequest(
+                project,
+                GitLabMergeRequestBuilder.builder(response).projectId(42L).build());
+        when(gitLab.mergerequests().project().listPipelines(ID, IID))
+                .thenReturn(List.of(GitLabCiPipelineBasicBuilder.builder()
+                        .id(1L)
+                        .projectId(42L)
+                        .build()));
+        when(gitLab.pipelines().get(ID, 1L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(1L)
+                        .status("success")
+                        .build()));
+
+        final List<Pipeline> result = inProject42.pipelines().toList();
+
+        assertThat(result)
+                .singleElement()
+                .satisfies(pipeline -> assertThat(pipeline.project()).isSameAs(project));
+        verify(gitLab.pipelines(), never()).get("42", 1L);
+    }
+
+    @Test
+    void pipelines_shouldKeepTheProjectOfTheMergeRequest_whenPipelineRanInTheTargetProjectById() throws IOException {
+        final MergeRequest targeting42 = new MergeRequest(
+                project,
+                GitLabMergeRequestBuilder.builder(response).targetProjectId(42L).build());
+        when(gitLab.mergerequests().project().listPipelines(ID, IID))
+                .thenReturn(List.of(GitLabCiPipelineBasicBuilder.builder()
+                        .id(1L)
+                        .projectId(42L)
+                        .build()));
+        when(gitLab.pipelines().get(ID, 1L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(1L)
+                        .status("success")
+                        .build()));
+
+        final List<Pipeline> result = targeting42.pipelines().toList();
+
+        assertThat(result)
+                .singleElement()
+                .satisfies(pipeline -> assertThat(pipeline.project()).isSameAs(project));
+    }
+
+    @Test
+    void pipelines_shouldKeepTheProjectOfTheMergeRequest_whenItIsAddressedByTheSameNumericId() throws IOException {
+        final Project numeric = GitLabSdk.of(gitLab).project("42");
+        final MergeRequest inNumeric = new MergeRequest(numeric, response);
+        when(gitLab.mergerequests().project().listPipelines("42", IID))
+                .thenReturn(List.of(GitLabCiPipelineBasicBuilder.builder()
+                        .id(1L)
+                        .projectId(42L)
+                        .build()));
+        when(gitLab.pipelines().get("42", 1L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(1L)
+                        .status("success")
+                        .build()));
+
+        final List<Pipeline> result = inNumeric.pipelines().toList();
+
+        assertThat(result)
+                .singleElement()
+                .satisfies(pipeline -> assertThat(pipeline.project()).isSameAs(numeric));
+    }
+
+    @Test
+    void pipelines_shouldLoadLazily_whenStreamIsLimited() throws IOException {
+        when(gitLab.mergerequests().project().listPipelines(ID, IID))
+                .thenReturn(List.of(
+                        GitLabCiPipelineBasicBuilder.builder().id(1L).build(),
+                        GitLabCiPipelineBasicBuilder.builder().id(2L).build()));
+        when(gitLab.pipelines().get(ID, 1L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(1L)
+                        .status("success")
+                        .build()));
+
+        final List<Pipeline> result = sut.pipelines().limit(1).toList();
+
+        assertThat(result).extracting(Pipeline::id).containsExactly(1L);
+        verify(gitLab.pipelines(), never()).get(ID, 2L);
     }
 
     @Test

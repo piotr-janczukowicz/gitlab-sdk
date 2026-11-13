@@ -12,7 +12,7 @@ import java.io.IOException;
 import java.util.Optional;
 
 /**
- * Entry point of the object layer. It wraps an existing {@link GitLab} client, so authentication, flavor, version and
+ * Entry point of the object layer. It wraps an existing {@link GitLab} client, so authentication, base URI, tier and
  * limits are configured on the client as usual; the SDK has no configuration of its own.
  */
 public final class GitLabSdk {

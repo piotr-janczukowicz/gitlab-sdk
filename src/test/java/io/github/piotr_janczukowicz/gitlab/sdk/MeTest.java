@@ -22,23 +22,41 @@ class MeTest {
     private final Me sut = GitLabSdk.of(gitLab).me();
 
     @Test
-    void me_shouldReturnCurrentUser() throws IOException {
+    void profile_shouldReturnCurrentUser_whenGitLabHasTheAccount() throws IOException {
         final GitLabUserProfile response = profile(5L, "tanuki");
         when(gitLab.users().getUser()).thenReturn(currentUser(5L));
         when(gitLab.users().get(5L)).thenReturn(Optional.of(response));
 
-        final User user = sut.fetch();
+        final User user = sut.profile();
 
         assertThat(user.response()).isSameAs(response);
     }
 
     @Test
-    void fetch_shouldThrowIllegalStateException_whenProfileIsGone() throws IOException {
+    void profile_shouldThrowIllegalStateException_whenProfileIsGone() throws IOException {
         when(gitLab.users().getUser()).thenReturn(currentUser(5L));
         when(gitLab.users().get(5L)).thenReturn(Optional.empty());
 
-        final Throwable thrown = catchThrowable(sut::fetch);
+        final Throwable thrown = catchThrowable(sut::profile);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("is gone");
+    }
+
+    @Test
+    void constructor_shouldBePublicAndWrapTheSdk_whenCalled() throws ReflectiveOperationException, IOException {
+        final GitLabSdk sdk = GitLabSdk.of(gitLab);
+        when(gitLab.users().getUser()).thenReturn(currentUser(5L));
+        when(gitLab.users().get(5L)).thenReturn(Optional.of(profile(5L, "tanuki")));
+
+        final Me created = Me.class.getConstructor(GitLabSdk.class).newInstance(sdk);
+
+        assertThat(created.profile().username()).isEqualTo("tanuki");
+    }
+
+    @Test
+    void constructor_shouldThrowNullPointerException_whenSdkIsNull() {
+        final Throwable thrown = catchThrowable(() -> new Me(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
 }

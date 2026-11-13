@@ -90,6 +90,21 @@ public final class Note {
     }
 
     /**
+     * Loads the note again ({@code GET /projects/{id}/issues/{issue_iid}/notes/{note_id}}). This object is not changed.
+     *
+     * @return the note as GitLab holds it now
+     * @throws IllegalStateException if GitLab no longer has the note
+     * @throws IOException if the transport fails
+     */
+    public Note refresh() throws IOException {
+        return gitLab().notes()
+                .project()
+                .getIssuesNotes(issue.project().id(), issue.iid(), id())
+                .map(loaded -> new Note(issue, loaded))
+                .orElseThrow(() -> new IllegalStateException("Note " + id() + " is gone"));
+    }
+
+    /**
      * Returns the complete response this object was built from.
      *
      * @return the response record

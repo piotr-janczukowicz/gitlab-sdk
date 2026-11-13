@@ -89,10 +89,11 @@ public final class Issue {
     /**
      * Returns the names of the labels of the issue.
      *
-     * @return the label names, empty when there are none
+     * @return the label names as an unmodifiable list, empty when there are none
      */
     public List<String> labels() {
-        return Optional.ofNullable(response.labels()).orElse(List.of());
+        final List<String> labels = response.labels();
+        return labels == null ? List.of() : List.copyOf(labels);
     }
 
     /**

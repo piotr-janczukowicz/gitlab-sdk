@@ -43,6 +43,7 @@ public final class Project {
 
     static {
         Internals.registerProjectAccess(project -> project.sdk.gitLab());
+        Internals.registerSiblingAccess((project, otherId) -> project.sdk.project(otherId));
     }
 
     private final GitLabSdk sdk;
@@ -89,7 +90,8 @@ public final class Project {
      * Archives the project ({@code POST /projects/{id}/archive}) and loads it again.
      *
      * @return the archived project as GitLab returns it afterwards
-     * @throws IllegalStateException if GitLab no longer has the project
+     * @throws IllegalStateException if the project is gone when it is loaded again after the change; a project that is
+     *     already gone fails the {@code POST} first, with the core's exception
      * @throws IOException if the transport fails
      */
     public Project archive() throws IOException {
@@ -101,7 +103,8 @@ public final class Project {
      * Unarchives the project ({@code POST /projects/{id}/unarchive}) and loads it again.
      *
      * @return the unarchived project as GitLab returns it afterwards
-     * @throws IllegalStateException if GitLab no longer has the project
+     * @throws IllegalStateException if the project is gone when it is loaded again after the change; a project that is
+     *     already gone fails the {@code POST} first, with the core's exception
      * @throws IOException if the transport fails
      */
     public Project unarchive() throws IOException {

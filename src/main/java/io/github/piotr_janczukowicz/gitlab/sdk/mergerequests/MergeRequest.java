@@ -4,6 +4,7 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayloadBuilder;
@@ -113,10 +114,11 @@ public final class MergeRequest {
     /**
      * Returns the names of the labels of the merge request.
      *
-     * @return the label names, empty when there are none
+     * @return the label names as an unmodifiable list, empty when there are none
      */
     public List<String> labels() {
-        return Optional.ofNullable(response.labels()).orElse(List.of());
+        final List<String> labels = response.labels();
+        return labels == null ? List.of() : List.copyOf(labels);
     }
 
     /**
@@ -248,14 +250,17 @@ public final class MergeRequest {
      * Lists the pipelines of the merge request ({@code GET
      * /projects/{id}/merge_requests/{merge_request_iid}/pipelines}). GitLab lists a summary of each pipeline, so each
      * one is loaded ({@code GET /projects/{id}/pipelines/{pipeline_id}}) as the stream reaches it, and one that is gone
-     * by then is skipped. Transport failures during iteration are {@link java.io.UncheckedIOException}.
+     * by then is skipped. Each pipeline is loaded from the project it ran in, which for a merge request from a fork can
+     * be the fork, so {@link Pipeline#project()} is a handle to that project; when GitLab does not name the project, or
+     * names the target project, it is {@link #project()}. Transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
      *
      * @return the pipelines
      * @throws IOException if the list cannot be loaded
      */
     public Stream<Pipeline> pipelines() throws IOException {
         return gitLab().mergerequests().project().listPipelines(project.id(), iid()).stream()
-                .map(listed -> Lookups.find(() -> project.pipeline(requireNonNull(listed.id(), "id"))))
+                .map(listed -> Lookups.find(() -> projectOf(listed).pipeline(requireNonNull(listed.id(), "id"))))
                 .flatMap(Optional::stream);
     }
 
@@ -314,6 +319,17 @@ public final class MergeRequest {
         return apply(GitLabProjectMergeRequestsUpdatePayloadBuilder.builder()
                 .stateEvent(event)
                 .build());
+    }
+
+    private Project projectOf(final GitLabCiPipelineBasic listed) {
+        final Long ranIn = listed.projectId();
+        if (ranIn == null
+                || ranIn.equals(response.projectId())
+                || ranIn.equals(response.targetProjectId())
+                || project.id().equals(String.valueOf(ranIn))) {
+            return project;
+        }
+        return Internals.project(project, String.valueOf(ranIn));
     }
 
     private GitLab gitLab() {

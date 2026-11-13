@@ -14,8 +14,9 @@ carry methods which call the GitLab REST API, such as `project.createIssue(...)`
   issue number.
 - **What GitLab holds, not a copy.** Every operation returns a new object built from GitLab's answer. Objects are
   immutable, and `refresh()` reloads one.
-- **No hidden requests.** A `Project` from `sdk.project("my-group/my-project")` is a handle and makes no request until you
-  call `fetch()`. Every other object is loaded, and every network call is a visible method call.
+- **No hidden requests.** A `Project` from `sdk.project("my-group/my-project")` and a `Group` from `sdk.group("my-group")`
+  are handles and make no request until you call `fetch()`; `Me` from `sdk.me()` is a handle too, loaded by `profile()`.
+  Every other object is loaded, and every network call is a visible method call.
 - **The client stays within reach.** Every object has `response()`, the complete `gitlab-rest-client` response, and you
   keep the `GitLab` client you passed in for everything the objects do not cover.
 - **Small on purpose.** Synchronous REST only: no async API and no GraphQL.
@@ -67,8 +68,8 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 
 | Area | What it covers |
 |---|---|
-| **Projects and groups** | load a project or a group by id or path, archive, unarchive and delete; the projects and subgroups of a group |
-| **Users** | load a user by id, the signed-in account |
+| **Projects and groups** | load a project or a group by id or path, archive, unarchive and delete; the projects and the direct subgroups of a group |
+| **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
@@ -130,6 +131,9 @@ All objects behave the same way, so you learn them once:
   and subgroups of a group), the SDK loads each item with one more request as the stream reaches it. The Javadoc says so,
   and `limit(...)` bounds the cost. An item that is gone before it is loaded is skipped.
 - A field that GitLab may leave out is an `Optional` (`issue.description()`, `mergeRequest.targetBranch()`).
+- A **state or status** is an enum (`issue.state()`, `pipeline.status()`, `job.status()`) and throws
+  `IllegalArgumentException` for a value this SDK does not know yet. `pipeline.statusName()` and `job.statusName()` return
+  the raw value GitLab sent, for that case.
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
 - `IOException` and the client's `GitLabApiException` pass through unchanged.

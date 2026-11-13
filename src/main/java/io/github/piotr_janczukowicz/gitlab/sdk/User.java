@@ -14,7 +14,15 @@ public final class User {
     private final GitLabSdk sdk;
     private final GitLabUserProfile response;
 
-    User(final GitLabSdk sdk, final GitLabUserProfile response) {
+    /**
+     * Wraps a response. Applications normally get this object from {@link GitLabSdk#user(long)} or
+     * {@link Me#profile()}; call the constructor only to wrap a response that was loaded some other way.
+     *
+     * @param sdk the SDK that makes the calls
+     * @param response the response record the object is built from
+     * @throws NullPointerException if an argument is {@code null}
+     */
+    public User(final GitLabSdk sdk, final GitLabUserProfile response) {
         this.sdk = requireNonNull(sdk, "sdk");
         this.response = requireNonNull(response, "response");
     }

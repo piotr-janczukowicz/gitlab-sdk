@@ -56,10 +56,21 @@ public final class Pipeline {
      * Returns the pipeline status.
      *
      * @return the status
-     * @throws IllegalArgumentException if GitLab returns a status the core does not document
+     * @throws IllegalArgumentException if GitLab returns a status this SDK does not know; {@link #statusName()} still
+     *     returns it
      */
     public PipelineStatus status() {
-        return PipelineStatus.from(requireNonNull(response.status(), "status"));
+        return PipelineStatus.from(statusName());
+    }
+
+    /**
+     * Returns the pipeline status as GitLab sent it, for example {@code running}. Use it when {@link #status()} throws
+     * {@link IllegalArgumentException} because GitLab returned a status this SDK does not know yet.
+     *
+     * @return the raw status value
+     */
+    public String statusName() {
+        return requireNonNull(response.status(), "status");
     }
 
     /**

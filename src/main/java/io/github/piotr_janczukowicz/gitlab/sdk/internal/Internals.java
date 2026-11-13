@@ -7,6 +7,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Group;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
 
@@ -22,6 +23,8 @@ public final class Internals {
     private static final AtomicReference<@Nullable Function<Project, GitLab>> PROJECT_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable Function<Group, GitLab>> GROUP_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable Function<GitLabSdk, GitLab>> SDK_ACCESS = new AtomicReference<>();
+    private static final AtomicReference<@Nullable BiFunction<Project, String, Project>> SIBLING_ACCESS =
+            new AtomicReference<>();
 
     private Internals() {
         throw new UnsupportedOperationException("Utility class");
@@ -35,6 +38,29 @@ public final class Internals {
      */
     public static void registerProjectAccess(final Function<Project, GitLab> access) {
         PROJECT_ACCESS.compareAndSet(null, access);
+    }
+
+    /**
+     * Registers how to make a handle to another project of the same SDK. Called by {@link Project} when it is
+     * initialized. Only the first registration counts.
+     *
+     * @param access the function that returns a handle to the project with the given id, on the SDK of a project
+     */
+    public static void registerSiblingAccess(final BiFunction<Project, String, Project> access) {
+        SIBLING_ACCESS.compareAndSet(null, access);
+    }
+
+    /**
+     * Returns a handle to another project on the same SDK as a project, for example the fork a pipeline ran in. No
+     * request is made.
+     *
+     * @param project a project of the SDK
+     * @param id the numeric id or plain full path of the other project
+     * @return the handle
+     * @throws NullPointerException if the sibling access was never registered
+     */
+    public static Project project(final Project project, final String id) {
+        return requireNonNull(SIBLING_ACCESS.get(), "siblingAccess").apply(project, id);
     }
 
     /**

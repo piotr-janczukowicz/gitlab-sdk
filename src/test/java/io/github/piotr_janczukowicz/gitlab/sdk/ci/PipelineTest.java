@@ -69,6 +69,18 @@ class PipelineTest {
     }
 
     @Test
+    void statusName_shouldReturnRawValue_whenStatusIsUnknownToTheSdk() {
+        final Pipeline unknown = new Pipeline(project, pipeline(PIPELINE_ID, "UNRECOGNIZED"));
+
+        assertThat(unknown.statusName()).isEqualTo("UNRECOGNIZED");
+    }
+
+    @Test
+    void statusName_shouldReturnRawValue_whenStatusIsKnown() {
+        assertThat(sut.statusName()).isEqualTo("running");
+    }
+
+    @Test
     void status_shouldThrowIllegalArgumentException_whenUnrecognized() {
         final Pipeline unknown = new Pipeline(project, pipeline(PIPELINE_ID, "UNRECOGNIZED"));
 

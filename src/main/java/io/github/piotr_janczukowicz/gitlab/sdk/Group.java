@@ -69,7 +69,8 @@ public final class Group {
      * Archives the group ({@code POST /groups/{id}/archive}) and loads it again.
      *
      * @return the archived group as GitLab returns it afterwards
-     * @throws IllegalStateException if GitLab no longer has the group
+     * @throws IllegalStateException if the group is gone when it is loaded again after the change; a group that is
+     *     already gone fails the {@code POST} first, with the core's exception
      * @throws IOException if the transport fails
      */
     public Group archive() throws IOException {
@@ -81,7 +82,8 @@ public final class Group {
      * Unarchives the group ({@code POST /groups/{id}/unarchive}) and loads it again.
      *
      * @return the unarchived group as GitLab returns it afterwards
-     * @throws IllegalStateException if GitLab no longer has the group
+     * @throws IllegalStateException if the group is gone when it is loaded again after the change; a group that is
+     *     already gone fails the {@code POST} first, with the core's exception
      * @throws IOException if the transport fails
      */
     public Group unarchive() throws IOException {
@@ -115,16 +117,17 @@ public final class Group {
     }
 
     /**
-     * Lists the descendant groups ({@code GET /groups/{id}/descendant_groups}). The list holds only summaries, so each
-     * group is loaded as the stream reaches it ({@code GET /groups/{id}}) and one that was deleted in the meantime is
-     * skipped. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * Lists the direct subgroups, one level down ({@code GET /groups/{id}/subgroups}); deeper descendants are not
+     * included (the core's {@code listDescendantGroups} lists them). The list holds only summaries, so each group is
+     * loaded as the stream reaches it ({@code GET /groups/{id}}) and one that was deleted in the meantime is skipped.
+     * Pages are fetched only as the stream is consumed; transport failures during iteration are
      * {@link java.io.UncheckedIOException}.
      *
      * @return the loaded groups
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<Group> subgroups() throws IOException {
-        return sdk.gitLab().groups().listDescendantGroups(id, GitLabPageRequest.byPage()).stream()
+        return sdk.gitLab().groups().listGroup(id, GitLabPageRequest.byPage()).stream()
                 .map(listed -> String.valueOf(requireNonNull(listed.id(), "id")))
                 .flatMap(groupId -> Lookups.find(() -> sdk.group(groupId).fetch()).stream());
     }

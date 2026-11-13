@@ -18,6 +18,7 @@ import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesUpdateIss
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -77,5 +78,29 @@ class NoteTest {
         sut.delete();
 
         verify(gitLab.notes().project()).deleteIssuesNotes(ID, IID, NOTE_ID);
+    }
+
+    @Test
+    void refresh_shouldReturnNewNote_whenGitLabHasIt() throws IOException {
+        final GitLabNote reloaded = note(NOTE_ID, "Edited elsewhere");
+        when(gitLab.notes().project().getIssuesNotes(ID, IID, NOTE_ID)).thenReturn(Optional.of(reloaded));
+
+        final Note refreshed = sut.refresh();
+
+        assertSoftly(softly -> {
+            softly.assertThat(refreshed).isNotSameAs(sut);
+            softly.assertThat(refreshed.response()).isSameAs(reloaded);
+            softly.assertThat(refreshed.issue()).isSameAs(issue);
+            softly.assertThat(sut.response()).isSameAs(response);
+        });
+    }
+
+    @Test
+    void refresh_shouldThrowIllegalStateException_whenGone() throws IOException {
+        when(gitLab.notes().project().getIssuesNotes(ID, IID, NOTE_ID)).thenReturn(Optional.empty());
+
+        final Throwable thrown = catchThrowable(sut::refresh);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("Note 5 is gone");
     }
 }

@@ -14,6 +14,7 @@ import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssueBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdateStateEvent;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateIssuesNotesPayload;
@@ -21,6 +22,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -49,6 +51,21 @@ class IssueTest {
             softly.assertThat(sut.response()).isSameAs(response);
             softly.assertThat(sut.description()).isEmpty();
             softly.assertThat(sut.labels()).isEmpty();
+        });
+    }
+
+    @Test
+    void labels_shouldReturnAnUnmodifiableCopy_whenTheResponseListIsMutable() {
+        final List<String> names = new ArrayList<>(List.of("bug"));
+        final Issue labelled = new Issue(
+                project, GitLabIssueBuilder.builder(response).labels(names).build());
+
+        final List<String> labels = labelled.labels();
+        names.add("later");
+
+        assertSoftly(softly -> {
+            softly.assertThat(labels).containsExactly("bug");
+            softly.assertThatThrownBy(() -> labels.add("x")).isInstanceOf(UnsupportedOperationException.class);
         });
     }
 

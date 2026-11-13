@@ -66,10 +66,21 @@ public final class Job {
      * Returns the job status.
      *
      * @return the status
-     * @throws IllegalArgumentException if GitLab returns a status the core does not document
+     * @throws IllegalArgumentException if GitLab returns a status this SDK does not know; {@link #statusName()} still
+     *     returns it
      */
     public JobStatus status() {
-        return JobStatus.from(requireNonNull(response.status(), "status"));
+        return JobStatus.from(statusName());
+    }
+
+    /**
+     * Returns the job status as GitLab sent it, for example {@code running}. Use it when {@link #status()} throws
+     * {@link IllegalArgumentException} because GitLab returned a status this SDK does not know yet.
+     *
+     * @return the raw status value
+     */
+    public String statusName() {
+        return requireNonNull(response.status(), "status");
     }
 
     /**

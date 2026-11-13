@@ -68,4 +68,15 @@ class UserTest {
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("is gone");
     }
+
+    @Test
+    void constructor_shouldBePublicAndWrapTheResponse_whenCalled() throws ReflectiveOperationException {
+        final GitLabUserProfile response = profile(5L, "tanuki");
+
+        final User created = User.class
+                .getConstructor(GitLabSdk.class, GitLabUserProfile.class)
+                .newInstance(sdk, response);
+
+        assertThat(created.response()).isSameAs(response);
+    }
 }
