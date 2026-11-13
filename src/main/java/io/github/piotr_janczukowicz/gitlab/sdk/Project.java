@@ -26,6 +26,8 @@ import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsSha
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsTransferPayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabPublicGroupDetails;
+import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProjectWebhooksCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.projectwebhooks.GitLabProjectProjectWebhooksCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
@@ -40,6 +42,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.Member;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
+import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -718,6 +722,57 @@ public final class Project {
             throw new IllegalStateException("Project " + id + " is not loaded; call fetch()");
         }
         return response;
+    }
+
+    /**
+     * Lists the webhooks of the project ({@code GET /projects/{id}/hooks}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the webhooks
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Webhook> webhooks() throws IOException {
+        return sdk.gitLab().projectwebhooks().list(id).stream().map(listed -> new Webhook(this, listed));
+    }
+
+    /**
+     * Loads a webhook ({@code GET /projects/{id}/hooks/{hook_id}}).
+     *
+     * @param hookId the id of the webhook
+     * @return the webhook, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Webhook> webhook(final long hookId) throws IOException {
+        return sdk.gitLab().projectwebhooks().get(id, hookId).map(loaded -> new Webhook(this, loaded));
+    }
+
+    /**
+     * Creates a webhook that sends to a URL ({@code POST /projects/{id}/hooks}). GitLab's defaults decide which events
+     * it is switched on for; change them with {@link Webhook#update()}.
+     *
+     * @param url the URL to send the events to
+     * @return the new webhook
+     * @throws NullPointerException if {@code url} is {@code null}
+     * @throws IllegalArgumentException if {@code url} is blank
+     * @throws IOException if the transport fails
+     */
+    public Webhook createWebhook(final String url) throws IOException {
+        return createWebhook(GitLabProjectProjectWebhooksCreatePayloadBuilder.builder()
+                .url(requireNotBlank(url, "url"))
+                .build());
+    }
+
+    /**
+     * Creates a webhook from the core's payload ({@code POST /projects/{id}/hooks}), for the fields the SDK does not
+     * wrap, such as the events outside {@link WebhookEvent}, URL variables and custom headers.
+     *
+     * @param payload the request body
+     * @return the new webhook
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Webhook createWebhook(final GitLabProjectProjectWebhooksCreatePayload payload) throws IOException {
+        return new Webhook(this, sdk.gitLab().projectwebhooks().create(id, requireNonNull(payload, "payload")));
     }
 
     private Project loadById(final @Nullable Long newId) throws IOException {

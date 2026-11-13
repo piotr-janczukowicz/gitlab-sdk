@@ -7,6 +7,8 @@ import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsSharePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsTransferPayload;
+import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWebhooksCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWebhooksCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
@@ -15,6 +17,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
+import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
+import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -293,6 +297,57 @@ public final class Group {
             throw new IllegalStateException("Group " + id + " is not loaded; call fetch()");
         }
         return response;
+    }
+
+    /**
+     * Lists the webhooks of the group ({@code GET /groups/{id}/hooks}). Premium. Pages are fetched only as the stream
+     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the webhooks
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupWebhook> webhooks() throws IOException {
+        return sdk.gitLab().groupwebhooks().list(id).stream().map(listed -> new GroupWebhook(this, listed));
+    }
+
+    /**
+     * Loads a webhook ({@code GET /groups/{id}/hooks/{hook_id}}). Premium.
+     *
+     * @param hookId the id of the webhook
+     * @return the webhook, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupWebhook> webhook(final long hookId) throws IOException {
+        return sdk.gitLab().groupwebhooks().get(id, hookId).map(loaded -> new GroupWebhook(this, loaded));
+    }
+
+    /**
+     * Creates a webhook that sends to a URL ({@code POST /groups/{id}/hooks}). Premium. GitLab's defaults decide which
+     * events it is switched on for; change them with {@link GroupWebhook#update()}.
+     *
+     * @param url the URL to send the events to
+     * @return the new webhook
+     * @throws NullPointerException if {@code url} is {@code null}
+     * @throws IllegalArgumentException if {@code url} is blank
+     * @throws IOException if the transport fails
+     */
+    public GroupWebhook createWebhook(final String url) throws IOException {
+        return createWebhook(GitLabGroupGroupWebhooksCreatePayloadBuilder.builder()
+                .url(requireNotBlank(url, "url"))
+                .build());
+    }
+
+    /**
+     * Creates a webhook from the core's payload ({@code POST /groups/{id}/hooks}). Premium. For the fields the SDK does
+     * not wrap, such as the events outside {@link WebhookEvent}, URL variables and custom headers.
+     *
+     * @param payload the request body
+     * @return the new webhook
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupWebhook createWebhook(final GitLabGroupGroupWebhooksCreatePayload payload) throws IOException {
+        return new GroupWebhook(this, sdk.gitLab().groupwebhooks().create(id, requireNonNull(payload, "payload")));
     }
 
     private GroupMember createMember(
