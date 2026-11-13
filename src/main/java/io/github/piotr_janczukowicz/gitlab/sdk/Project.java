@@ -95,6 +95,7 @@ public final class Project {
     static {
         Internals.registerProjectAccess(project -> project.sdk.gitLab());
         Internals.registerSiblingAccess((project, otherId) -> project.sdk.project(otherId));
+        Internals.registerProjectGroupAccess((project, groupId) -> project.sdk.group(groupId));
     }
 
     private final GitLabSdk sdk;

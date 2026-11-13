@@ -30,6 +30,8 @@ public final class Internals {
             new AtomicReference<>();
     private static final AtomicReference<@Nullable BiFunction<Group, String, Project>> GROUP_PROJECT_ACCESS =
             new AtomicReference<>();
+    private static final AtomicReference<@Nullable BiFunction<Project, String, Group>> PROJECT_GROUP_ACCESS =
+            new AtomicReference<>();
     private static final AtomicReference<@Nullable UnaryOperator<Member>> ALL_MEMBERS_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable UnaryOperator<GroupMember>> ALL_GROUP_MEMBERS_ACCESS =
             new AtomicReference<>();
@@ -92,6 +94,29 @@ public final class Internals {
      */
     public static Project project(final Group group, final String id) {
         return requireNonNull(GROUP_PROJECT_ACCESS.get(), "groupProjectAccess").apply(group, id);
+    }
+
+    /**
+     * Registers how to make a handle to a group of the same SDK as a project. Called by {@link Project} when it is
+     * initialized. Only the first registration counts.
+     *
+     * @param access the function that returns a handle to the group with the given id, on the SDK of a project
+     */
+    public static void registerProjectGroupAccess(final BiFunction<Project, String, Group> access) {
+        PROJECT_GROUP_ACCESS.compareAndSet(null, access);
+    }
+
+    /**
+     * Returns a handle to a group on the same SDK as a project, for example the group a promoted label belongs to. No
+     * request is made.
+     *
+     * @param project a project of the SDK
+     * @param id the numeric id or plain full path of the group
+     * @return the handle
+     * @throws NullPointerException if the access was never registered
+     */
+    public static Group group(final Project project, final String id) {
+        return requireNonNull(PROJECT_GROUP_ACCESS.get(), "projectGroupAccess").apply(project, id);
     }
 
     /**

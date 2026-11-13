@@ -76,7 +76,8 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
 | **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
 | **Users** | load a user by id, the profile of the signed-in account |
-| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
+| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels, with promotion of a project label to a group label |
+| **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create, delete, signature, the tagged commit), commits (list, load, diff, cherry-pick, revert) |

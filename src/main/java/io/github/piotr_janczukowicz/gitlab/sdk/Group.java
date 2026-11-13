@@ -6,6 +6,9 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreateScopes;
+import io.github.piotr_janczukowicz.gitlab.api.grouplabels.GitLabGroupGroupLabelsCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.grouplabels.GitLabGroupGroupLabelsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.grouplabels.GitLabGroupGroupLabelsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreateMergeAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePushAccessLevel;
@@ -26,6 +29,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupCreatedDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
+import io.github.piotr_janczukowicz.gitlab.sdk.issues.GroupLabel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
@@ -48,6 +52,7 @@ public final class Group {
 
     private static final String IS_GONE = " is gone";
     private static final String NAME = "name";
+    private static final String FILTER = "filter";
 
     static {
         Internals.registerGroupAccess(group -> group.sdk.gitLab());
@@ -546,6 +551,66 @@ public final class Group {
                 .title(requireNotBlank(title, "title"))
                 .build();
         return new GroupMilestone(this, sdk.gitLab().groupmilestones().create(id, payload));
+    }
+
+    /**
+     * Lists the labels of the group ({@code GET /groups/{id}/labels}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the labels
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupLabel> labels() throws IOException {
+        return sdk.gitLab().grouplabels().list(id).stream().map(listed -> new GroupLabel(this, listed));
+    }
+
+    /**
+     * Lists the labels of the group that match a filter ({@code GET /groups/{id}/labels}). Pages are fetched only as
+     * the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (counts, ancestor and descendant groups, group labels only, archived, search)
+     * @return the labels
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupLabel> labels(final GitLabGroupGroupLabelsListFilter filter) throws IOException {
+        return sdk.gitLab().grouplabels().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new GroupLabel(this, listed));
+    }
+
+    /**
+     * Loads a label by its name ({@code GET /groups/{id}/labels/{name}}). A name with a slash or a space reaches the
+     * core unchanged.
+     *
+     * @param name the label name
+     * @return the label, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupLabel> label(final String name) throws IOException {
+        return sdk.gitLab()
+                .grouplabels()
+                .get(id, requireNotBlank(name, NAME))
+                .map(loaded -> new GroupLabel(this, loaded));
+    }
+
+    /**
+     * Creates a label ({@code POST /groups/{id}/labels}).
+     *
+     * @param name the label name
+     * @param color the color, as a hexadecimal value with a leading {@code #} or a CSS color name
+     * @return the created label
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public GroupLabel createLabel(final String name, final String color) throws IOException {
+        final GitLabGroupGroupLabelsCreatePayload payload = GitLabGroupGroupLabelsCreatePayloadBuilder.builder()
+                .name(requireNotBlank(name, NAME))
+                .color(requireNotBlank(color, "color"))
+                .build();
+        return new GroupLabel(this, sdk.gitLab().grouplabels().create(id, payload));
     }
 
     private GroupMember createMember(
