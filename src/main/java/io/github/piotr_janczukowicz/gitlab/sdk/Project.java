@@ -17,7 +17,11 @@ import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeR
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
+import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsTransferPayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabPublicGroupDetails;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
@@ -133,6 +137,89 @@ public final class Project {
      */
     public void delete() throws IOException {
         sdk.gitLab().projects().project().delete(id);
+    }
+
+    /**
+     * Transfers the project to another namespace ({@code PUT /projects/{id}/transfer}) and loads it ({@code GET
+     * /projects/{id}}) by the id in GitLab's answer, because the answer is a smaller record. The id of the returned
+     * project is numeric.
+     *
+     * @param namespace the id or path of the target namespace
+     * @return the moved project as GitLab returns it afterwards
+     * @throws NullPointerException if {@code namespace} is {@code null}
+     * @throws IllegalArgumentException if {@code namespace} is blank
+     * @throws IllegalStateException if the project is gone when it is loaded again
+     * @throws IOException if the transport fails
+     */
+    public Project transfer(final String namespace) throws IOException {
+        final GitLabProjectProjectsTransferPayload payload =
+                new GitLabProjectProjectsTransferPayload(requireNotBlank(namespace, "namespace"));
+        return reload(sdk.gitLab().projects().project().transfer(id, payload).id());
+    }
+
+    /**
+     * Forks the project into a namespace ({@code POST /projects/{id}/fork}) and loads the fork ({@code GET
+     * /projects/{id}}) by the id in GitLab's answer, because the answer is a smaller record. GitLab creates the fork
+     * asynchronously, so it may still be importing.
+     *
+     * @param namespacePath the path of the target namespace
+     * @return the fork
+     * @throws NullPointerException if {@code namespacePath} is {@code null}
+     * @throws IllegalArgumentException if {@code namespacePath} is blank
+     * @throws IllegalStateException if the fork is gone when it is loaded
+     * @throws IOException if the transport fails
+     */
+    public Project fork(final String namespacePath) throws IOException {
+        final GitLabProjectProjectForksCreatePayload payload = GitLabProjectProjectForksCreatePayloadBuilder.builder()
+                .namespacePath(requireNotBlank(namespacePath, "namespacePath"))
+                .build();
+        return reload(sdk.gitLab().projectforks().create(id, payload).id());
+    }
+
+    /**
+     * Lists the forks of the project ({@code GET /projects/{id}/forks}). GitLab lists a summary of each fork, so each
+     * one is loaded ({@code GET /projects/{id}}) as the stream reaches it, and one that is gone by then is skipped.
+     * Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the forks
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Project> forks() throws IOException {
+        return sdk.gitLab().projectforks().list(id).stream()
+                .map(listed -> String.valueOf(requireNonNull(listed.id(), "id")))
+                .flatMap(forkId -> Lookups.find(() -> sdk.project(forkId).fetch()).stream());
+    }
+
+    /**
+     * Removes the fork relationship of the project ({@code DELETE /projects/{id}/fork}); the project stays.
+     *
+     * @throws IOException if the transport fails
+     */
+    public void removeForkRelationship() throws IOException {
+        sdk.gitLab().projectforks().delete(id);
+    }
+
+    /**
+     * Stops sharing the project with a group ({@code DELETE /projects/{id}/share/{group_id}}).
+     *
+     * @param groupId the id of the group the sharing is removed for
+     * @throws IOException if the transport fails
+     */
+    public void unshare(final long groupId) throws IOException {
+        sdk.gitLab().projects().project().deleteShare(id, groupId);
+    }
+
+    /**
+     * Lists the groups the project is shared with ({@code GET /projects/{id}/groups}); these are the records of the
+     * core, which carry the group's id, name and path. Pages are fetched only as the stream is consumed; transport
+     * failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the groups, as the core returns them
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GitLabPublicGroupDetails> sharedGroups() throws IOException {
+        return sdk.gitLab().projects().project().listGroups(id).stream();
     }
 
     /**
@@ -523,6 +610,11 @@ public final class Project {
             throw new IllegalStateException("Project " + id + " is not loaded; call fetch()");
         }
         return response;
+    }
+
+    private Project reload(final @Nullable Long newId) throws IOException {
+        final String loadId = String.valueOf(requireNonNull(newId, "id"));
+        return sdk.project(loadId).fetch().orElseThrow(() -> new IllegalStateException("Project " + loadId + IS_GONE));
     }
 
     private Stream<Pipeline> loaded(final Stream<GitLabCiPipelineBasic> listed) {

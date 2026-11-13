@@ -68,7 +68,7 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 
 | Area | What it covers |
 |---|---|
-| **Projects and groups** | load a project or a group by id or path, create, update, archive, unarchive and delete; the projects and the direct subgroups of a group |
+| **Projects and groups** | load a project or a group by id or path, create, update, archive, unarchive, delete, transfer and unshare; fork a project and list its forks; the projects and the direct subgroups of a group |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |

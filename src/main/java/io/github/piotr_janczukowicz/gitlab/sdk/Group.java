@@ -4,6 +4,7 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsTransferPayload;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
@@ -108,6 +109,30 @@ public final class Group {
      */
     public void delete() throws IOException {
         sdk.gitLab().groups().delete(id);
+    }
+
+    /**
+     * Transfers the group to another parent group ({@code POST /groups/{id}/transfer}) and loads it again ({@code GET
+     * /groups/{id}}), because GitLab answers the transfer with no body.
+     *
+     * @param newParentGroupId the id of the new parent group
+     * @return the moved group as GitLab returns it afterwards
+     * @throws IllegalStateException if the group is gone when it is loaded again
+     * @throws IOException if the transport fails
+     */
+    public Group transfer(final long newParentGroupId) throws IOException {
+        sdk.gitLab().groups().transfer(id, new GitLabGroupGroupsTransferPayload(newParentGroupId));
+        return refresh();
+    }
+
+    /**
+     * Stops sharing the group with another group ({@code DELETE /groups/{id}/share/{group_id}}).
+     *
+     * @param groupId the id of the group the sharing is removed for
+     * @throws IOException if the transport fails
+     */
+    public void unshare(final long groupId) throws IOException {
+        sdk.gitLab().groups().deleteShare(id, groupId);
     }
 
     /**
