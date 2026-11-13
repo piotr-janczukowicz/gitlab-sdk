@@ -794,230 +794,6 @@ public final class Project {
     }
 
     /**
-     * Lists the tags of the project ({@code GET /projects/{id}/repository/tags}). Pages are fetched only as the stream
-     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
-     *
-     * @return the tags
-     * @throws IOException if the first page cannot be loaded
-     */
-    public Stream<Tag> tags() throws IOException {
-        return sdk.gitLab().tags().list(id).stream().map(listed -> new Tag(this, listed));
-    }
-
-    /**
-     * Lists the tags of the project that match a filter ({@code GET /projects/{id}/repository/tags}). Pages are fetched
-     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
-     *
-     * @param filter the core's filter (sort, order, search)
-     * @return the tags
-     * @throws NullPointerException if {@code filter} is {@code null}
-     * @throws IOException if the first page cannot be loaded
-     */
-    public Stream<Tag> tags(final GitLabProjectTagsListFilter filter) throws IOException {
-        return sdk.gitLab().tags().list(id, requireNonNull(filter, FILTER)).stream()
-                .map(listed -> new Tag(this, listed));
-    }
-
-    /**
-     * Loads a tag ({@code GET /projects/{id}/repository/tags/{tag_name}}).
-     *
-     * @param name the tag name, which may contain slashes; the core encodes it
-     * @return the tag, or empty when GitLab answers HTTP 404
-     * @throws NullPointerException if {@code name} is {@code null}
-     * @throws IllegalArgumentException if {@code name} is blank
-     * @throws IOException if the transport fails
-     */
-    public Optional<Tag> tag(final String name) throws IOException {
-        return sdk.gitLab().tags().get(id, requireNotBlank(name, NAME)).map(loaded -> new Tag(this, loaded));
-    }
-
-    /**
-     * Creates a tag at a ref ({@code POST /projects/{id}/repository/tags}); the tag is lightweight.
-     *
-     * @param name the name of the new tag, which may contain slashes
-     * @param ref the branch, tag or commit to tag
-     * @return the created tag
-     * @throws NullPointerException if an argument is {@code null}
-     * @throws IllegalArgumentException if an argument is blank
-     * @throws IOException if the transport fails
-     */
-    public Tag createTag(final String name, final String ref) throws IOException {
-        return createTag(name, ref, null);
-    }
-
-    /**
-     * Creates an annotated tag at a ref ({@code POST /projects/{id}/repository/tags}).
-     *
-     * @param name the name of the new tag, which may contain slashes
-     * @param ref the branch, tag or commit to tag
-     * @param message the message of the annotated tag; {@code null} creates a lightweight tag
-     * @return the created tag
-     * @throws NullPointerException if {@code name} or {@code ref} is {@code null}
-     * @throws IllegalArgumentException if {@code name} or {@code ref} is blank
-     * @throws IOException if the transport fails
-     */
-    public Tag createTag(final String name, final String ref, final @Nullable String message) throws IOException {
-        final GitLabProjectTagsCreatePayload payload = GitLabProjectTagsCreatePayloadBuilder.builder()
-                .tagName(requireNotBlank(name, NAME))
-                .ref(requireNotBlank(ref, REF))
-                .message(message)
-                .build();
-        return new Tag(this, sdk.gitLab().tags().create(id, payload));
-    }
-
-    /**
-     * Lists the releases of the project ({@code GET /projects/{id}/releases}). Pages are fetched only as the stream is
-     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
-     *
-     * @return the releases
-     * @throws IOException if the first page cannot be loaded
-     */
-    public Stream<Release> releases() throws IOException {
-        return sdk.gitLab().releases().list(id).stream().map(listed -> new Release(this, listed));
-    }
-
-    /**
-     * Lists the releases of the project that match a filter ({@code GET /projects/{id}/releases}). Pages are fetched
-     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
-     *
-     * @param filter the core's filter (sort, order)
-     * @return the releases
-     * @throws NullPointerException if {@code filter} is {@code null}
-     * @throws IOException if the first page cannot be loaded
-     */
-    public Stream<Release> releases(final GitLabProjectReleasesListFilter filter) throws IOException {
-        return sdk.gitLab().releases().list(id, requireNonNull(filter, FILTER)).stream()
-                .map(listed -> new Release(this, listed));
-    }
-
-    /**
-     * Loads the release of a tag ({@code GET /projects/{id}/releases/{tag_name}}).
-     *
-     * @param tagName the tag name, which may contain slashes; the core encodes it
-     * @return the release, or empty when GitLab answers HTTP 404
-     * @throws NullPointerException if {@code tagName} is {@code null}
-     * @throws IllegalArgumentException if {@code tagName} is blank
-     * @throws IOException if the transport fails
-     */
-    public Optional<Release> release(final String tagName) throws IOException {
-        return sdk.gitLab()
-                .releases()
-                .get(id, requireNotBlank(tagName, TAG_NAME))
-                .map(loaded -> new Release(this, loaded));
-    }
-
-    /**
-     * Creates a release for an existing tag ({@code POST /projects/{id}/releases}).
-     *
-     * @param tagName the name of the existing tag, which may contain slashes
-     * @return the created release
-     * @throws NullPointerException if {@code tagName} is {@code null}
-     * @throws IllegalArgumentException if {@code tagName} is blank
-     * @throws IOException if the transport fails
-     */
-    public Release createRelease(final String tagName) throws IOException {
-        return createRelease(GitLabProjectReleasesCreatePayloadBuilder.builder()
-                .tagName(requireNotBlank(tagName, TAG_NAME))
-                .build());
-    }
-
-    /**
-     * Creates a release and the tag it is made for ({@code POST /projects/{id}/releases}); GitLab creates the tag from
-     * the ref when it does not exist yet.
-     *
-     * @param tagName the name of the tag, which may contain slashes
-     * @param ref the branch, tag or commit the new tag is created from
-     * @return the created release
-     * @throws NullPointerException if an argument is {@code null}
-     * @throws IllegalArgumentException if an argument is blank
-     * @throws IOException if the transport fails
-     */
-    public Release createRelease(final String tagName, final String ref) throws IOException {
-        return createRelease(GitLabProjectReleasesCreatePayloadBuilder.builder()
-                .tagName(requireNotBlank(tagName, TAG_NAME))
-                .ref(requireNotBlank(ref, REF))
-                .build());
-    }
-
-    /**
-     * Creates a release from the core's payload ({@code POST /projects/{id}/releases}), for the fields the SDK does not
-     * wrap, such as the name, the description, the milestones, the assets and the release time.
-     *
-     * @param payload the request body
-     * @return the created release
-     * @throws NullPointerException if {@code payload} is {@code null}
-     * @throws IOException if the transport fails
-     */
-    public Release createRelease(final GitLabProjectReleasesCreatePayload payload) throws IOException {
-        return new Release(this, sdk.gitLab().releases().create(id, requireNonNull(payload, "payload")));
-    }
-
-    /**
-     * Lists the milestones of the project ({@code GET /projects/{id}/milestones}). Pages are fetched only as the stream
-     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
-     *
-     * @return the milestones
-     * @throws IOException if the first page cannot be loaded
-     */
-    public Stream<Milestone> milestones() throws IOException {
-        return sdk.gitLab().projectmilestones().list(id).stream().map(listed -> new Milestone(this, listed));
-    }
-
-    /**
-     * Lists the milestones of the project that match a filter ({@code GET /projects/{id}/milestones}). Pages are
-     * fetched only as the stream is consumed; transport failures during iteration are
-     * {@link java.io.UncheckedIOException}.
-     *
-     * @param filter the core's filter (state, iids, title, search, dates, sort, parent milestones)
-     * @return the milestones
-     * @throws NullPointerException if {@code filter} is {@code null}
-     * @throws IOException if the first page cannot be loaded
-     */
-    public Stream<Milestone> milestones(final GitLabProjectProjectMilestonesListFilter filter) throws IOException {
-        return sdk.gitLab().projectmilestones().list(id, requireNonNull(filter, FILTER)).stream()
-                .map(listed -> new Milestone(this, listed));
-    }
-
-    /**
-     * Loads a milestone ({@code GET /projects/{id}/milestones/{milestone_id}}).
-     *
-     * @param milestoneId the id of the milestone (not its iid)
-     * @return the milestone, or empty when GitLab answers HTTP 404
-     * @throws IOException if the transport fails
-     */
-    public Optional<Milestone> milestone(final long milestoneId) throws IOException {
-        return sdk.gitLab().projectmilestones().get(id, milestoneId).map(loaded -> new Milestone(this, loaded));
-    }
-
-    /**
-     * Creates a milestone with a title ({@code POST /projects/{id}/milestones}).
-     *
-     * @param title the title
-     * @return the created milestone
-     * @throws NullPointerException if {@code title} is {@code null}
-     * @throws IllegalArgumentException if {@code title} is blank
-     * @throws IOException if the transport fails
-     */
-    public Milestone createMilestone(final String title) throws IOException {
-        return createMilestone(GitLabProjectProjectMilestonesCreatePayloadBuilder.builder()
-                .title(requireNotBlank(title, "title"))
-                .build());
-    }
-
-    /**
-     * Creates a milestone from the core's payload ({@code POST /projects/{id}/milestones}), for the fields the SDK does
-     * not wrap, such as the description and the dates.
-     *
-     * @param payload the request body
-     * @return the created milestone
-     * @throws NullPointerException if {@code payload} is {@code null}
-     * @throws IOException if the transport fails
-     */
-    public Milestone createMilestone(final GitLabProjectProjectMilestonesCreatePayload payload) throws IOException {
-        return new Milestone(this, sdk.gitLab().projectmilestones().create(id, requireNonNull(payload, "payload")));
-    }
-
-    /**
      * Lists the webhooks of the project ({@code GET /projects/{id}/hooks}). Pages are fetched only as the stream is
      * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
      *
@@ -1297,6 +1073,230 @@ public final class Project {
                         .createAccessLevel(GitLabProjectProtectedTagsCreateAccessLevel.fromWire(
                                 requireNonNull(create, "create").value()));
         return new ProtectedTag(this, sdk.gitLab().protectedtags().create(id, builder.build()));
+    }
+
+    /**
+     * Lists the tags of the project ({@code GET /projects/{id}/repository/tags}). Pages are fetched only as the stream
+     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the tags
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Tag> tags() throws IOException {
+        return sdk.gitLab().tags().list(id).stream().map(listed -> new Tag(this, listed));
+    }
+
+    /**
+     * Lists the tags of the project that match a filter ({@code GET /projects/{id}/repository/tags}). Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (sort, order, search)
+     * @return the tags
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Tag> tags(final GitLabProjectTagsListFilter filter) throws IOException {
+        return sdk.gitLab().tags().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new Tag(this, listed));
+    }
+
+    /**
+     * Loads a tag ({@code GET /projects/{id}/repository/tags/{tag_name}}).
+     *
+     * @param name the tag name, which may contain slashes; the core encodes it
+     * @return the tag, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Tag> tag(final String name) throws IOException {
+        return sdk.gitLab().tags().get(id, requireNotBlank(name, NAME)).map(loaded -> new Tag(this, loaded));
+    }
+
+    /**
+     * Creates a tag at a ref ({@code POST /projects/{id}/repository/tags}); the tag is lightweight.
+     *
+     * @param name the name of the new tag, which may contain slashes
+     * @param ref the branch, tag or commit to tag
+     * @return the created tag
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Tag createTag(final String name, final String ref) throws IOException {
+        return createTag(name, ref, null);
+    }
+
+    /**
+     * Creates an annotated tag at a ref ({@code POST /projects/{id}/repository/tags}).
+     *
+     * @param name the name of the new tag, which may contain slashes
+     * @param ref the branch, tag or commit to tag
+     * @param message the message of the annotated tag; {@code null} creates a lightweight tag
+     * @return the created tag
+     * @throws NullPointerException if {@code name} or {@code ref} is {@code null}
+     * @throws IllegalArgumentException if {@code name} or {@code ref} is blank
+     * @throws IOException if the transport fails
+     */
+    public Tag createTag(final String name, final String ref, final @Nullable String message) throws IOException {
+        final GitLabProjectTagsCreatePayload payload = GitLabProjectTagsCreatePayloadBuilder.builder()
+                .tagName(requireNotBlank(name, NAME))
+                .ref(requireNotBlank(ref, REF))
+                .message(message)
+                .build();
+        return new Tag(this, sdk.gitLab().tags().create(id, payload));
+    }
+
+    /**
+     * Lists the releases of the project ({@code GET /projects/{id}/releases}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the releases
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Release> releases() throws IOException {
+        return sdk.gitLab().releases().list(id).stream().map(listed -> new Release(this, listed));
+    }
+
+    /**
+     * Lists the releases of the project that match a filter ({@code GET /projects/{id}/releases}). Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (sort, order)
+     * @return the releases
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Release> releases(final GitLabProjectReleasesListFilter filter) throws IOException {
+        return sdk.gitLab().releases().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new Release(this, listed));
+    }
+
+    /**
+     * Loads the release of a tag ({@code GET /projects/{id}/releases/{tag_name}}).
+     *
+     * @param tagName the tag name, which may contain slashes; the core encodes it
+     * @return the release, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code tagName} is {@code null}
+     * @throws IllegalArgumentException if {@code tagName} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Release> release(final String tagName) throws IOException {
+        return sdk.gitLab()
+                .releases()
+                .get(id, requireNotBlank(tagName, TAG_NAME))
+                .map(loaded -> new Release(this, loaded));
+    }
+
+    /**
+     * Creates a release for an existing tag ({@code POST /projects/{id}/releases}).
+     *
+     * @param tagName the name of the existing tag, which may contain slashes
+     * @return the created release
+     * @throws NullPointerException if {@code tagName} is {@code null}
+     * @throws IllegalArgumentException if {@code tagName} is blank
+     * @throws IOException if the transport fails
+     */
+    public Release createRelease(final String tagName) throws IOException {
+        return createRelease(GitLabProjectReleasesCreatePayloadBuilder.builder()
+                .tagName(requireNotBlank(tagName, TAG_NAME))
+                .build());
+    }
+
+    /**
+     * Creates a release and the tag it is made for ({@code POST /projects/{id}/releases}); GitLab creates the tag from
+     * the ref when it does not exist yet.
+     *
+     * @param tagName the name of the tag, which may contain slashes
+     * @param ref the branch, tag or commit the new tag is created from
+     * @return the created release
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Release createRelease(final String tagName, final String ref) throws IOException {
+        return createRelease(GitLabProjectReleasesCreatePayloadBuilder.builder()
+                .tagName(requireNotBlank(tagName, TAG_NAME))
+                .ref(requireNotBlank(ref, REF))
+                .build());
+    }
+
+    /**
+     * Creates a release from the core's payload ({@code POST /projects/{id}/releases}), for the fields the SDK does not
+     * wrap, such as the name, the description, the milestones, the assets and the release time.
+     *
+     * @param payload the request body
+     * @return the created release
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Release createRelease(final GitLabProjectReleasesCreatePayload payload) throws IOException {
+        return new Release(this, sdk.gitLab().releases().create(id, requireNonNull(payload, "payload")));
+    }
+
+    /**
+     * Lists the milestones of the project ({@code GET /projects/{id}/milestones}). Pages are fetched only as the stream
+     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the milestones
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Milestone> milestones() throws IOException {
+        return sdk.gitLab().projectmilestones().list(id).stream().map(listed -> new Milestone(this, listed));
+    }
+
+    /**
+     * Lists the milestones of the project that match a filter ({@code GET /projects/{id}/milestones}). Pages are
+     * fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (state, iids, title, search, dates, sort, parent milestones)
+     * @return the milestones
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Milestone> milestones(final GitLabProjectProjectMilestonesListFilter filter) throws IOException {
+        return sdk.gitLab().projectmilestones().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new Milestone(this, listed));
+    }
+
+    /**
+     * Loads a milestone ({@code GET /projects/{id}/milestones/{milestone_id}}).
+     *
+     * @param milestoneId the id of the milestone (not its iid)
+     * @return the milestone, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Milestone> milestone(final long milestoneId) throws IOException {
+        return sdk.gitLab().projectmilestones().get(id, milestoneId).map(loaded -> new Milestone(this, loaded));
+    }
+
+    /**
+     * Creates a milestone with a title ({@code POST /projects/{id}/milestones}).
+     *
+     * @param title the title
+     * @return the created milestone
+     * @throws NullPointerException if {@code title} is {@code null}
+     * @throws IllegalArgumentException if {@code title} is blank
+     * @throws IOException if the transport fails
+     */
+    public Milestone createMilestone(final String title) throws IOException {
+        return createMilestone(GitLabProjectProjectMilestonesCreatePayloadBuilder.builder()
+                .title(requireNotBlank(title, "title"))
+                .build());
+    }
+
+    /**
+     * Creates a milestone from the core's payload ({@code POST /projects/{id}/milestones}), for the fields the SDK does
+     * not wrap, such as the description and the dates.
+     *
+     * @param payload the request body
+     * @return the created milestone
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Milestone createMilestone(final GitLabProjectProjectMilestonesCreatePayload payload) throws IOException {
+        return new Milestone(this, sdk.gitLab().projectmilestones().create(id, requireNonNull(payload, "payload")));
     }
 
     private DeployKey createDeployKey(
