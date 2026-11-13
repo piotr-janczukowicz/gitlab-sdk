@@ -142,4 +142,33 @@ class GroupMembersTest {
         });
         verify(gitLab.groups(), never()).get(any(String.class));
     }
+
+    @Test
+    void share_shouldSendLevelFive_whenLevelIsMinimalAccess() throws IOException {
+        when(gitLab.groups().share(eq(ID), any(GitLabGroupGroupsSharePayload.class)))
+                .thenReturn(GitLabGroupDetailBuilder.builder().id(7L).build());
+
+        sut.share(9L, AccessLevel.MINIMAL_ACCESS);
+
+        final ArgumentCaptor<GitLabGroupGroupsSharePayload> payload =
+                ArgumentCaptor.forClass(GitLabGroupGroupsSharePayload.class);
+        verify(gitLab.groups()).share(eq(ID), payload.capture());
+        assertThat(payload.getValue().groupAccess()).isEqualTo(GitLabGroupGroupsShareGroupAccess.N_5);
+    }
+
+    @Test
+    void addMember_shouldSendLevelFive_whenLevelIsMinimalAccess() throws IOException {
+        when(gitLab.members().group().create(eq(ID), any(GitLabGroupMembersCreatePayload.class)))
+                .thenReturn(member(5L, "ann", 5));
+
+        final GroupMember result = sut.addMember(5L, AccessLevel.MINIMAL_ACCESS);
+
+        final ArgumentCaptor<GitLabGroupMembersCreatePayload> payload =
+                ArgumentCaptor.forClass(GitLabGroupMembersCreatePayload.class);
+        verify(gitLab.members().group()).create(eq(ID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().accessLevel()).isEqualTo(5);
+            softly.assertThat(result.accessLevel()).isEqualTo(AccessLevel.MINIMAL_ACCESS);
+        });
+    }
 }

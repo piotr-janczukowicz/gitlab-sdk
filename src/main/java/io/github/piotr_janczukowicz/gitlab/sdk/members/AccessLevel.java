@@ -2,10 +2,15 @@ package io.github.piotr_janczukowicz.gitlab.sdk.members;
 
 /**
  * A GitLab access level, the role of a member in a project or group, also used when sharing a project or group with a
- * group. The levels are the ones the core client documents. GitLab may add levels later; {@link #from(int)} then throws
- * and the member's raw number stays available from {@link Member#accessLevelValue()}.
+ * group. The levels are the ones GitLab documents for members and sharing. Not every level is valid everywhere:
+ * {@link #MINIMAL_ACCESS} exists for groups only, so {@link io.github.piotr_janczukowicz.gitlab.sdk.Project#share(long,
+ * AccessLevel)} rejects it, while member requests send the number as it is and GitLab decides. GitLab may add levels
+ * later; {@link #from(int)} then throws and the member's raw number stays available from
+ * {@link Member#accessLevelValue()}.
  */
 public enum AccessLevel {
+    /** Minimal access, 5: a group member who sees only the group's overview (groups only). */
+    MINIMAL_ACCESS(5),
     /** Guest, 10. */
     GUEST(10),
     /** Planner, 15. */

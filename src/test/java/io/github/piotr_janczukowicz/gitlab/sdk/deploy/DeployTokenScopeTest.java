@@ -16,13 +16,15 @@ class DeployTokenScopeTest {
 
     @ParameterizedTest
     @EnumSource(DeployTokenScope.class)
-    void wireValue_shouldBeKnownToTheCore_whenAnyScope(final DeployTokenScope scope) {
+    void value_shouldMatchTheCoreConstantOfTheSameName_whenAnyScope(final DeployTokenScope scope) {
         assertSoftly(softly -> {
-            softly.assertThat(GitLabProjectDeployTokensCreateScopes.fromWire(scope.wireValue()))
-                    .hasToString(scope.name());
-            softly.assertThat(GitLabGroupDeployTokensCreateScopes.fromWire(scope.wireValue()))
-                    .hasToString(scope.name());
-            softly.assertThat(DeployTokenScope.fromWire(scope.wireValue())).isSameAs(scope);
+            softly.assertThat(GitLabProjectDeployTokensCreateScopes.valueOf(scope.name())
+                            .wireValue())
+                    .isEqualTo(scope.value());
+            softly.assertThat(GitLabGroupDeployTokensCreateScopes.valueOf(scope.name())
+                            .wireValue())
+                    .isEqualTo(scope.value());
+            softly.assertThat(DeployTokenScope.from(scope.value())).isSameAs(scope);
         });
     }
 
@@ -34,15 +36,15 @@ class DeployTokenScopeTest {
     }
 
     @Test
-    void fromWire_shouldThrowIllegalArgumentException_whenUnknown() {
-        final Throwable thrown = catchThrowable(() -> DeployTokenScope.fromWire("read_everything"));
+    void from_shouldThrowIllegalArgumentException_whenUnknown() {
+        final Throwable thrown = catchThrowable(() -> DeployTokenScope.from("read_everything"));
 
         assertThat(thrown).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("read_everything");
     }
 
     @Test
-    void fromWire_shouldThrowNullPointerException_whenNull() {
-        final Throwable thrown = catchThrowable(() -> DeployTokenScope.fromWire(null));
+    void from_shouldThrowNullPointerException_whenNull() {
+        final Throwable thrown = catchThrowable(() -> DeployTokenScope.from(null));
 
         assertThat(thrown).isInstanceOf(NullPointerException.class);
     }

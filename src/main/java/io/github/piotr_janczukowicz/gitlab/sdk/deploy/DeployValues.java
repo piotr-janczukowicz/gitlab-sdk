@@ -7,12 +7,15 @@ import java.util.List;
 /** Conversions shared by the project and group deploy token classes. */
 final class DeployValues {
 
+    /** The end of the message of a {@code refresh()} that finds the object gone. */
+    static final String IS_GONE = " is gone";
+
     private DeployValues() {
         throw new UnsupportedOperationException("Utility class");
     }
 
     static List<DeployTokenScope> scopes(final GitLabDeployToken response) {
-        return scopeNames(response).stream().map(DeployTokenScope::fromWire).toList();
+        return scopeNames(response).stream().map(DeployTokenScope::from).toList();
     }
 
     static List<String> scopeNames(final GitLabDeployToken response) {

@@ -13,10 +13,29 @@ import java.util.Optional;
  */
 public final class ProjectGroupLink {
 
+    private final Project project;
     private final GitLabProjectGroupLink response;
 
-    ProjectGroupLink(final GitLabProjectGroupLink response) {
+    /**
+     * Wraps a response. Applications normally get this object from the object that owns it; call the constructor only
+     * to wrap a response that was loaded some other way.
+     *
+     * @param project the project the object belongs to
+     * @param response the response record the object is built from
+     * @throws NullPointerException if an argument is {@code null}
+     */
+    public ProjectGroupLink(final Project project, final GitLabProjectGroupLink response) {
+        this.project = requireNonNull(project, "project");
         this.response = requireNonNull(response, "response");
+    }
+
+    /**
+     * Returns the project that is shared.
+     *
+     * @return the project
+     */
+    public Project project() {
+        return project;
     }
 
     /**

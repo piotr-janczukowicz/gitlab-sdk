@@ -11,6 +11,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -165,6 +166,15 @@ class ProjectMembersTest {
             softly.assertThat(payload.getValue().groupId()).isEqualTo(9L);
             softly.assertThat(payload.getValue().groupAccess()).isEqualTo(GitLabProjectProjectsShareGroupAccess.N_30);
             softly.assertThat(link.groupId()).isEqualTo(9L);
+            softly.assertThat(link.project()).isSameAs(sut);
         });
+    }
+
+    @Test
+    void share_shouldThrowIllegalArgumentException_whenLevelIsMinimalAccess() {
+        final Throwable thrown = catchThrowable(() -> sut.share(9L, AccessLevel.MINIMAL_ACCESS));
+
+        assertThat(thrown).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("MINIMAL_ACCESS");
+        verifyNoInteractions(gitLab);
     }
 }

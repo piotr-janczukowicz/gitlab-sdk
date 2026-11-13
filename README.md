@@ -206,7 +206,8 @@ All objects behave the same way, so you learn them once:
   nothing set throws `IllegalStateException`. Projects, groups, members, webhooks, deploy keys, issues, merge requests and labels have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
-- `refresh()` reloads an object and throws `IllegalStateException` when it is gone.
+- `refresh()` reloads an object and throws `IllegalStateException` when it is gone. Access requests (`AccessRequest`,
+  `GroupAccessRequest`) and `ProjectGroupLink` have no `refresh()`: the API has no lookup of a single one.
 - Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, the forks of a project,
   and the projects and subgroups of a group), the SDK loads each item with one more request as the stream reaches it. The Javadoc says so,
   and `limit(...)` bounds the cost. An item that is gone before it is loaded is skipped.

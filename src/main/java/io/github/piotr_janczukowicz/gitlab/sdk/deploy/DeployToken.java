@@ -126,6 +126,18 @@ public final class DeployToken {
     }
 
     /**
+     * Loads the token again ({@code GET /projects/{id}/deploy_tokens/{token_id}}). This object is not changed.
+     *
+     * @return the token as GitLab holds it now
+     * @throws IllegalStateException if the token is gone
+     * @throws IOException if the transport fails
+     */
+    public DeployToken refresh() throws IOException {
+        return project.deployToken(id())
+                .orElseThrow(() -> new IllegalStateException("Deploy token " + id() + DeployValues.IS_GONE));
+    }
+
+    /**
      * Returns the complete response this object was built from.
      *
      * @return the response record

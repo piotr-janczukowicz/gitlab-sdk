@@ -10,15 +10,18 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabDeployToken;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabDeployTokenBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabDeployTokenWithToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
@@ -104,6 +107,25 @@ class DeployTokenTest {
     }
 
     @Test
+    void refresh_shouldReturnLoadedToken_whenPresent() throws IOException {
+        when(gitLab.deploytokens().project().get(PROJECT_ID, 9L)).thenReturn(Optional.of(token(9L, "renamed")));
+
+        final DeployToken refreshed = sut(token(9L, "ci")).refresh();
+
+        assertThat(refreshed.name()).isEqualTo("renamed");
+    }
+
+    @Test
+    void refresh_shouldThrowIllegalStateException_whenGone() throws IOException {
+        when(gitLab.deploytokens().project().get(PROJECT_ID, 9L)).thenReturn(Optional.empty());
+        final DeployToken sut = sut(token(9L, "ci"));
+
+        final Throwable thrown = catchThrowable(sut::refresh);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("9");
+    }
+
+    @Test
     void groupAccessors_shouldReadResponse_whenAllFieldsAreSet() {
         final GroupDeployToken sut = groupSut(GitLabDeployTokenBuilder.builder()
                 .id(9L)
@@ -152,6 +174,25 @@ class DeployTokenTest {
     }
 
     @Test
+    void groupRefresh_shouldReturnLoadedToken_whenPresent() throws IOException {
+        when(gitLab.deploytokens().group().get(GROUP_ID, 9L)).thenReturn(Optional.of(token(9L, "renamed")));
+
+        final GroupDeployToken refreshed = groupSut(token(9L, "ci")).refresh();
+
+        assertThat(refreshed.name()).isEqualTo("renamed");
+    }
+
+    @Test
+    void groupRefresh_shouldThrowIllegalStateException_whenGone() throws IOException {
+        when(gitLab.deploytokens().group().get(GROUP_ID, 9L)).thenReturn(Optional.empty());
+        final GroupDeployToken sut = groupSut(token(9L, "ci"));
+
+        final Throwable thrown = catchThrowable(sut::refresh);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("9");
+    }
+
+    @Test
     void created_shouldExposeSecretOnlyThroughToken_whenProjectToken() {
         final CreatedDeployToken sut = new CreatedDeployToken(sdk.project(PROJECT_ID), created(9L, "ci"));
 
@@ -162,6 +203,30 @@ class DeployTokenTest {
             softly.assertThat(sut.deployToken().scopes()).containsExactly(DeployTokenScope.READ_REPOSITORY);
             softly.assertThat(sut.deployToken().project().id()).isEqualTo(PROJECT_ID);
             softly.assertThat(sut.deployToken().response().toString()).doesNotContain(SECRET);
+        });
+    }
+
+    @Test
+    void createdResponse_shouldReturnRecordWithRedactedToString_whenProjectToken() {
+        final GitLabDeployTokenWithToken record = created(9L, "ci");
+
+        final CreatedDeployToken sut = new CreatedDeployToken(sdk.project(PROJECT_ID), record);
+
+        assertSoftly(softly -> {
+            softly.assertThat(sut.response()).isSameAs(record);
+            softly.assertThat(sut.response().toString()).doesNotContain(SECRET);
+        });
+    }
+
+    @Test
+    void groupCreatedResponse_shouldReturnRecordWithRedactedToString_whenGroupToken() {
+        final GitLabDeployTokenWithToken record = created(9L, "ci");
+
+        final GroupCreatedDeployToken sut = new GroupCreatedDeployToken(sdk.group(GROUP_ID), record);
+
+        assertSoftly(softly -> {
+            softly.assertThat(sut.response()).isSameAs(record);
+            softly.assertThat(sut.response().toString()).doesNotContain(SECRET);
         });
     }
 

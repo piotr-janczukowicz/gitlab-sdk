@@ -255,19 +255,20 @@ public final class Project {
      * Shares the project with a group ({@code POST /projects/{id}/share}).
      *
      * @param groupId the id of the group to share with
-     * @param level the access level the group's members get in the project
+     * @param level the access level the group's members get in the project; {@link AccessLevel#MINIMAL_ACCESS} is not
+     *     accepted, because it exists for groups only and the core's project-share request has no such level
      * @return the sharing as GitLab answers it
      * @throws NullPointerException if {@code level} is {@code null}
+     * @throws IllegalArgumentException if {@code level} is {@link AccessLevel#MINIMAL_ACCESS}; no request is made
      * @throws IOException if the transport fails
      */
     public ProjectGroupLink share(final long groupId, final AccessLevel level) throws IOException {
+        if (requireNonNull(level, "level") == AccessLevel.MINIMAL_ACCESS) {
+            throw new IllegalArgumentException("A project cannot be shared with access level " + level);
+        }
         final GitLabProjectProjectsSharePayload payload = new GitLabProjectProjectsSharePayload(
-                groupId,
-                GitLabProjectProjectsShareGroupAccess.fromWire(
-                        requireNonNull(level, "level").value()),
-                null,
-                null);
-        return new ProjectGroupLink(sdk.gitLab().projects().project().share(id, payload));
+                groupId, GitLabProjectProjectsShareGroupAccess.fromWire(level.value()), null, null);
+        return new ProjectGroupLink(this, sdk.gitLab().projects().project().share(id, payload));
     }
 
     /**
@@ -907,8 +908,8 @@ public final class Project {
         final GitLabProjectDeployTokensCreatePayload payload = GitLabProjectDeployTokensCreatePayloadBuilder.builder()
                 .name(name)
                 .scopes(Stream.of(scopes)
-                        .map(scope -> GitLabProjectDeployTokensCreateScopes.fromWire(
-                                requireNonNull(scope, "scope").wireValue()))
+                        .map(scope -> GitLabProjectDeployTokensCreateScopes.valueOf(
+                                requireNonNull(scope, "scope").name()))
                         .toList())
                 .build();
         return new CreatedDeployToken(

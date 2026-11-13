@@ -409,8 +409,8 @@ public final class Group {
         final GitLabGroupDeployTokensCreatePayload payload = GitLabGroupDeployTokensCreatePayloadBuilder.builder()
                 .name(name)
                 .scopes(Stream.of(scopes)
-                        .map(scope -> GitLabGroupDeployTokensCreateScopes.fromWire(
-                                requireNonNull(scope, "scope").wireValue()))
+                        .map(scope -> GitLabGroupDeployTokensCreateScopes.valueOf(
+                                requireNonNull(scope, "scope").name()))
                         .toList())
                 .build();
         return new GroupCreatedDeployToken(

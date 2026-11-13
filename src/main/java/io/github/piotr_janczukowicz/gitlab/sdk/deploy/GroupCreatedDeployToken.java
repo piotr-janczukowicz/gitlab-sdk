@@ -45,6 +45,17 @@ public final class GroupCreatedDeployToken {
         return requireNonNull(response.token(), "token");
     }
 
+    /**
+     * Returns the complete answer of the creation. The core redacts the secret in the record's {@code toString()}, but
+     * the record's {@code token()} still holds it, as {@link #token()} does; keep the record out of logs and serialized
+     * output.
+     *
+     * @return the response record
+     */
+    public GitLabDeployTokenWithToken response() {
+        return response;
+    }
+
     @Override
     public String toString() {
         return DeployValues.describe("GroupCreatedDeployToken", response);

@@ -89,6 +89,7 @@ public final class Member {
      * not know.
      *
      * @return the access level number
+     * @throws NullPointerException if GitLab omits {@code access_level}
      */
     public int accessLevelValue() {
         return MemberValues.accessLevelValue(response.accessLevel());

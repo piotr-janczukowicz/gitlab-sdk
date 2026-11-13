@@ -4,8 +4,8 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
 /**
  * A scope of a deploy token: what the token may be used for. The values mirror the scopes the core accepts for project
- * and group deploy tokens. A scope in a response that is not listed here makes {@link DeployToken#scopes()} throw;
- * {@link DeployToken#scopeNames()} gives the raw names.
+ * and group deploy tokens, with the same constant names. A scope in a response that is not listed here makes
+ * {@link DeployToken#scopes()} throw; {@link DeployToken#scopeNames()} gives the raw names.
  */
 public enum DeployTokenScope {
     /** Clone and pull the repository. */
@@ -23,10 +23,10 @@ public enum DeployTokenScope {
     /** Write to the dependency proxy (virtual registry). */
     WRITE_VIRTUAL_REGISTRY("write_virtual_registry");
 
-    private final String wireValue;
+    private final String value;
 
-    DeployTokenScope(final String wireValue) {
-        this.wireValue = wireValue;
+    DeployTokenScope(final String value) {
+        this.value = value;
     }
 
     /**
@@ -34,8 +34,8 @@ public enum DeployTokenScope {
      *
      * @return the name GitLab uses
      */
-    public String wireValue() {
-        return wireValue;
+    public String value() {
+        return value;
     }
 
     /**
@@ -46,10 +46,10 @@ public enum DeployTokenScope {
      * @throws NullPointerException if {@code value} is {@code null}
      * @throws IllegalArgumentException if the SDK does not know the name
      */
-    public static DeployTokenScope fromWire(final String value) {
+    public static DeployTokenScope from(final String value) {
         requireNonNull(value, "value");
         for (final DeployTokenScope scope : values()) {
-            if (scope.wireValue.equals(value)) {
+            if (scope.value.equals(value)) {
                 return scope;
             }
         }
