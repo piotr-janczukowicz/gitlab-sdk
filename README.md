@@ -123,10 +123,12 @@ group.createDeployToken("packages", DeployTokenScope.READ_PACKAGE_REGISTRY);
 
 ### Protected branches and tags
 
-`ProtectedAccess` names who may push, merge or create: nobody, developers, maintainers or administrators. GitLab also
-reports other level numbers for rules that name users or groups; those rules are not wrapped, and `pushAccessValues()`,
-`mergeAccessValues()` and `createAccessValues()` return the raw numbers without failing. The v1 `Branch.protect()` stays
-the quick way to protect an existing branch with the default rules.
+`ProtectedAccess` names who may push, merge or create: nobody, developers, maintainers or administrators. The access
+lists show the role-based rules only. Rules of a user, a group, a deploy key or a member role are not wrapped: they are
+skipped in the lists (GitLab sends a level with them, which would look like a role rule) and stay available from
+`response()`. `pushAccessValues()`, `mergeAccessValues()` and `createAccessValues()` return the raw level numbers of the
+same role-based rules without failing on a level the enum does not know. The v1 `Branch.protect()` stays the quick way to
+protect an existing branch with the default rules.
 
 ```java
 ProtectedBranch main = project.protectBranch("main", ProtectedAccess.MAINTAINER, ProtectedAccess.DEVELOPER);

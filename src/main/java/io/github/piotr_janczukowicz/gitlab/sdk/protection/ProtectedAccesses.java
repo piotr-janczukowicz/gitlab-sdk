@@ -12,12 +12,16 @@ final class ProtectedAccesses {
         throw new UnsupportedOperationException("Utility class");
     }
 
-    /** The access level numbers of the entries; an entry without a number is skipped. Never throws. */
+    /**
+     * The access level numbers of the plain role rules. A rule of a user, group, deploy key or member role is skipped,
+     * although GitLab sends a level with it, and so is an entry without a level. Never throws.
+     */
     static List<Integer> values(final @Nullable List<GitLabProtectedRefAccess> entries) {
         if (entries == null) {
             return List.of();
         }
         return entries.stream()
+                .filter(ProtectedAccesses::isPlainRole)
                 .map(GitLabProtectedRefAccess::accessLevel)
                 .filter(Objects::nonNull)
                 .toList();
@@ -28,5 +32,12 @@ final class ProtectedAccesses {
      */
     static List<ProtectedAccess> levels(final @Nullable List<GitLabProtectedRefAccess> entries) {
         return values(entries).stream().map(ProtectedAccess::from).toList();
+    }
+
+    private static boolean isPlainRole(final GitLabProtectedRefAccess entry) {
+        return entry.userId() == null
+                && entry.groupId() == null
+                && entry.deployKeyId() == null
+                && entry.memberRoleId() == null;
     }
 }

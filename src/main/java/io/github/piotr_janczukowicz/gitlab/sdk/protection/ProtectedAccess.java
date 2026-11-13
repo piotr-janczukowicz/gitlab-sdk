@@ -2,9 +2,8 @@ package io.github.piotr_janczukowicz.gitlab.sdk.protection;
 
 /**
  * Who may push to, merge into or create a protected branch or tag: the access levels the core client documents for the
- * create requests. GitLab also reports other numbers for the rules that name users or groups (for example 10 or 20);
- * {@link #from(int)} throws for them, and the raw numbers stay available from the {@code ...AccessValues()} methods of
- * the protected branch and tag objects.
+ * create requests. GitLab may also report other numbers (for example 10 or 20); {@link #from(int)} throws for them, and
+ * the raw numbers stay available from the {@code ...AccessValues()} methods of the protected branch and tag objects.
  */
 public enum ProtectedAccess {
     /** Nobody, 0. */

@@ -3,7 +3,6 @@ package io.github.piotr_janczukowicz.gitlab.sdk.protection;
 import static io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectionFixtures.branch;
 import static io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectionFixtures.branchWithCodeOwners;
 import static io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectionFixtures.branchWithForcePush;
-import static io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectionFixtures.branchWithUserRule;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -79,16 +78,6 @@ class ProtectedBranchTest {
             softly.assertThat(sut.pushAccessValues()).isEmpty();
             softly.assertThat(sut.mergeAccess()).isEmpty();
             softly.assertThat(sut.mergeAccessValues()).isEmpty();
-        });
-    }
-
-    @Test
-    void access_shouldSkipEntries_whenRuleHasNoLevel() {
-        final ProtectedBranch sut = sut(branchWithUserRule("main"));
-
-        assertSoftly(softly -> {
-            softly.assertThat(sut.pushAccess()).isEmpty();
-            softly.assertThat(sut.pushAccessValues()).isEmpty();
         });
     }
 

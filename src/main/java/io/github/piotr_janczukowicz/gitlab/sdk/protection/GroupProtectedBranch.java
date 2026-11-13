@@ -16,8 +16,8 @@ import java.util.List;
  * needs the Premium tier, and the core's tier guard decides. The object is immutable: it keeps the data of the moment
  * it was loaded, and {@link #response()} gives the complete response for every field the accessors here do not cover.
  * The branch is addressed by its name, which may be a wildcard and may contain slashes; the name reaches the core
- * client unchanged and the core encodes it. User- and group-based push and merge rules are not wrapped; use the core
- * client for them.
+ * client unchanged and the core encodes it. User-, group-, deploy-key- and member-role-based rules are not wrapped:
+ * they are left out of the access lists and stay available from {@link #response()}.
  */
 public final class GroupProtectedBranch {
 
@@ -74,7 +74,8 @@ public final class GroupProtectedBranch {
     }
 
     /**
-     * Returns the access levels allowed to push. Rules that carry no level are skipped.
+     * Returns the access levels allowed to push. Only role-based rules are listed; rules of a user, a group, a deploy
+     * key or a member role are skipped and stay available from {@link #response()}.
      *
      * @return the levels, empty when GitLab returned none
      * @throws IllegalArgumentException if GitLab returns a level the SDK does not know; {@link #pushAccessValues()}
@@ -86,7 +87,8 @@ public final class GroupProtectedBranch {
 
     /**
      * Returns the access level numbers allowed to push as GitLab returned them, an escape hatch for a level
-     * {@link ProtectedAccess} does not know. Rules that carry no number are skipped.
+     * {@link ProtectedAccess} does not know. Only role-based rules are listed; rules of a user, a group, a deploy key
+     * or a member role are skipped and stay available from {@link #response()}.
      *
      * @return the numbers, empty when GitLab returned none
      */
@@ -95,7 +97,8 @@ public final class GroupProtectedBranch {
     }
 
     /**
-     * Returns the access levels allowed to merge. Rules that carry no level are skipped.
+     * Returns the access levels allowed to merge. Only role-based rules are listed; rules of a user, a group, a deploy
+     * key or a member role are skipped and stay available from {@link #response()}.
      *
      * @return the levels, empty when GitLab returned none
      * @throws IllegalArgumentException if GitLab returns a level the SDK does not know; {@link #mergeAccessValues()}
@@ -107,7 +110,8 @@ public final class GroupProtectedBranch {
 
     /**
      * Returns the access level numbers allowed to merge as GitLab returned them, an escape hatch for a level
-     * {@link ProtectedAccess} does not know. Rules that carry no number are skipped.
+     * {@link ProtectedAccess} does not know. Only role-based rules are listed; rules of a user, a group, a deploy key
+     * or a member role are skipped and stay available from {@link #response()}.
      *
      * @return the numbers, empty when GitLab returned none
      */

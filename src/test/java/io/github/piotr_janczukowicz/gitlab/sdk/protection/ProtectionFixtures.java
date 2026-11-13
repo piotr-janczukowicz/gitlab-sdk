@@ -21,9 +21,20 @@ final class ProtectionFixtures {
         return GitLabProtectedRefAccessBuilder.builder().accessLevel(level).build();
     }
 
-    /** A rule that names a user and carries no access level. */
-    static GitLabProtectedRefAccess userAccess(final long userId) {
-        return GitLabProtectedRefAccessBuilder.builder().userId(userId).build();
+    /** An entry with every field that decides its kind; null leaves the field out. */
+    static GitLabProtectedRefAccess rule(
+            final Integer level,
+            final Long userId,
+            final Long groupId,
+            final Long deployKeyId,
+            final Long memberRoleId) {
+        return GitLabProtectedRefAccessBuilder.builder()
+                .accessLevel(level)
+                .userId(userId)
+                .groupId(groupId)
+                .deployKeyId(deployKeyId)
+                .memberRoleId(memberRoleId)
+                .build();
     }
 
     static GitLabProtectedBranch branch(final String name) {
@@ -41,11 +52,28 @@ final class ProtectionFixtures {
                 .build();
     }
 
-    static GitLabProtectedBranch branchWithUserRule(final String name) {
+    static GitLabProtectedBranch branchWithRules(final GitLabProtectedRefAccess... rules) {
         return GitLabProtectedBranchBuilder.builder()
                 .id(1L)
-                .name(name)
-                .pushAccessLevels(List.of(userAccess(5L)))
+                .name("main")
+                .pushAccessLevels(List.of(rules))
+                .mergeAccessLevels(List.of(rules))
+                .build();
+    }
+
+    static GitLabGroupProtectedBranch groupBranchWithRules(final GitLabProtectedRefAccess... rules) {
+        return GitLabGroupProtectedBranchBuilder.builder()
+                .id(1L)
+                .name("main")
+                .pushAccessLevels(List.of(rules))
+                .mergeAccessLevels(List.of(rules))
+                .build();
+    }
+
+    static GitLabProtectedTag tagWithRules(final GitLabProtectedRefAccess... rules) {
+        return GitLabProtectedTagBuilder.builder()
+                .name("v*")
+                .createAccessLevels(List.of(rules))
                 .build();
     }
 

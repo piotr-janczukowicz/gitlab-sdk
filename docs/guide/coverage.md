@@ -92,8 +92,8 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 | Object | Methods |
 |---|---|
 | `ProtectedAccess` | `NO_ACCESS` (0), `DEVELOPER` (30), `MAINTAINER` (40), `ADMINISTRATOR` (60); `value()`, `from(int)` (an unknown number throws `IllegalArgumentException`) |
-| `ProtectedBranch`, `GroupProtectedBranch` | `project()` or `group()`, `name()`, `allowsForcePush()` and `requiresCodeOwnerApproval()` (a missing flag is `false`), `pushAccess()` and `mergeAccess()` (an unknown level throws `IllegalArgumentException`), `pushAccessValues()` and `mergeAccessValues()` (the raw numbers, never fail), `allowForcePush(boolean)` and `requireCodeOwnerApproval(boolean)` (each returns the new object from the answer of GitLab, no extra request), `unprotect()`, `refresh()` (`IllegalStateException` when gone), `response()`. Every group call is Premium; the core's tier guard decides |
-| `ProtectedTag` | `project()`, `name()`, `createAccess()`, `createAccessValues()`, `unprotect()`, `refresh()`, `response()`. GitLab cannot update a protected tag and has no group-level protected tags |
+| `ProtectedBranch`, `GroupProtectedBranch` | `project()` or `group()`, `name()`, `allowsForcePush()` and `requiresCodeOwnerApproval()` (a missing flag is `false`), `pushAccess()` and `mergeAccess()` (role-based rules only; an unknown level throws `IllegalArgumentException`), `pushAccessValues()` and `mergeAccessValues()` (the raw numbers of the same rules, never fail), `allowForcePush(boolean)` and `requireCodeOwnerApproval(boolean)` (each returns the new object from the answer of GitLab, no extra request), `unprotect()`, `refresh()` (`IllegalStateException` when gone), `response()`. Every group call is Premium; the core's tier guard decides |
+| `ProtectedTag` | `project()`, `name()`, `createAccess()` and `createAccessValues()` (role-based rules only, as above), `unprotect()`, `refresh()`, `response()`. GitLab cannot update a protected tag and has no group-level protected tags |
 
 `Project` adds `protectedBranches()`, `protectedBranch(name)`, `protectBranch(name)` (only the name is sent, the defaults
 of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `protectedTag(name)` and
@@ -109,8 +109,9 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
   `approve(options)`, `pipelines(filter)` and `jobs(filter)` take the core's own payload and filter records.)
 - **Filter on the jobs of one pipeline.** `pipeline.jobs()` lists without a filter. Pipeline and job logs, artifacts and
   variables are not covered.
-- **User- and group-based protection rules.** The `allowed_to_push`, `allowed_to_merge`, `allowed_to_unprotect` and
-  `allowed_to_create` rules and the unprotect level are not wrapped; use the core.
+- **User-, group-, deploy-key- and member-role-based protection rules.** They are skipped in the access lists and stay
+  available from `response()`; the `allowed_to_push`, `allowed_to_merge`, `allowed_to_unprotect` and `allowed_to_create`
+  rules and the unprotect level cannot be set; use the core.
 - **Everything outside the areas above**, such as releases, tags, milestones, snippets, member roles
   (Ultimate), the premium-only member endpoints (approving pending members, billable members), access tokens, the container registry and packages, instance-level deploy keys and tokens, environments, discussions and
   threads, labels of a group, the descendant groups of a group at every level, and the administration of an instance. Use `gitlab-rest-client` for them; see
