@@ -69,8 +69,8 @@ request is a `long`.
 | `ReleaseLink` | `release()`, `id()`, `name()`, `url()`, `directAssetUrl()`, `type()` (`ReleaseLinkType`: `OTHER`, `RUNBOOK`, `PACKAGE`, `IMAGE`; an `Optional`, empty when the response has none; an unknown value throws `IllegalArgumentException`), `typeName()` (the raw value), `update()` (`ReleaseLinkUpdate`: `name`, `url`, `type(ReleaseLinkType)`, `send()`), `delete()`, `refresh()` (`IllegalStateException` when gone), `response()` |
 
 An empty `update().send()` of a release or a link throws `IllegalStateException` and makes no request. Fields cannot be
-cleared through `ReleaseUpdate`: `null` is rejected and an empty string is sent as given, and that GitLab then clears
-the field is not confirmed by the core's documentation; `milestones(List.of())` is sent as an empty list, and that
+cleared through `ReleaseUpdate`: `null` is rejected, a blank `name` is rejected, and an empty `description` is sent as given (where an empty string is
+accepted), but that GitLab then clears the field is not confirmed by the core's documentation; `milestones(List.of())` is sent as an empty list, and that
 GitLab then removes the milestones is not confirmed either.
 
 ## `discussions`

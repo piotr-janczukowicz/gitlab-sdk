@@ -292,9 +292,9 @@ try (GitLabClient client = GitLabClients.create(
     Project project = sdk.project("my-group/my-project");
     project.createIssue("Found a bug");                                     // an SDK object
 
-    // no SDK object for milestones: use the client with the same project id
-    for (GitLabMilestone milestone : gitLab.projectmilestones().list(project.id()).all()) {
-        System.out.println(milestone.title());
+    // no SDK object for snippets yet: use the client with the same project id
+    for (GitLabProjectSnippet snippet : gitLab.projectsnippets().list(project.id()).all()) {
+        System.out.println(snippet.title());
     }
 }
 ```
