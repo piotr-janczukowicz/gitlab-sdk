@@ -1,0 +1,117 @@
+package io.github.piotr_janczukowicz.gitlab.sdk.smoke;
+
+import static java.util.Objects.requireNonNull;
+
+import io.github.piotr_janczukowicz.gitlab.client.GitLabAuthenticationProviders;
+import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
+import io.github.piotr_janczukowicz.gitlab.client.GitLabClientConfiguration;
+import io.github.piotr_janczukowicz.gitlab.client.GitLabClients;
+import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
+import io.github.piotr_janczukowicz.gitlab.sdk.Project;
+import java.net.URI;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Optional;
+import org.junit.jupiter.api.Assumptions;
+
+/** Reads the smoke variables and builds the SDK of a live GitLab instance, once per run. */
+final class SmokeEnvironment {
+
+    static final String TOKEN_VARIABLE = "SMOKE_GITLAB_TOKEN";
+    static final String PROJECT_VARIABLE = "SMOKE_GITLAB_PROJECT";
+    static final String URL_VARIABLE = "SMOKE_GITLAB_URL";
+
+    private static final String DEFAULT_URL = "https://gitlab.com";
+    private static final String USER_AGENT = "gitlab-sdk-smoke/1.0";
+    private static final String RUN_ID = Long.toString(System.currentTimeMillis(), Character.MAX_RADIX);
+    private static final SmokeEnvironment FROM_ENV = of(System.getenv());
+
+    private final String token;
+    private final String project;
+    private final URI baseUri;
+    private GitLabClient client;
+    private GitLabSdk sdk;
+
+    private SmokeEnvironment(final String token, final String project, final URI baseUri) {
+        this.token = token;
+        this.project = project;
+        this.baseUri = baseUri;
+    }
+
+    static SmokeEnvironment fromEnv() {
+        return FROM_ENV;
+    }
+
+    static SmokeEnvironment of(final Map<String, String> env) {
+        requireNonNull(env, "env");
+        final String project = env.getOrDefault(PROJECT_VARIABLE, "").strip();
+        final URI baseUri =
+                URI.create(env.getOrDefault(URL_VARIABLE, DEFAULT_URL).strip());
+        return new SmokeEnvironment(env.getOrDefault(TOKEN_VARIABLE, "").strip(), project, baseUri);
+    }
+
+    boolean configured() {
+        return !token.isBlank() && !project.isBlank();
+    }
+
+    String project() {
+        return project;
+    }
+
+    /**
+     * The namespace part of the sandbox path ({@code group} of {@code group/name}), which is a group or a user.
+     *
+     * @return the path before the last slash, or empty when the sandbox is not a path
+     */
+    Optional<String> namespace() {
+        final int slash = project.lastIndexOf('/');
+        return slash > 0 ? Optional.of(project.substring(0, slash)) : Optional.empty();
+    }
+
+    String runId() {
+        return RUN_ID;
+    }
+
+    String name(final String suffix) {
+        return "smoke-" + RUN_ID + "-" + suffix;
+    }
+
+    /** Skips the calling test class when no token or sandbox is set; refuses a sandbox that does not look like one. */
+    void requireConfigured() {
+        Assumptions.assumeTrue(configured(), TOKEN_VARIABLE + " and " + PROJECT_VARIABLE + " are not set");
+        requireSandbox(project);
+    }
+
+    static void requireSandbox(final String project) {
+        if (!project.contains("/") || !project.toLowerCase(Locale.ROOT).contains("smoke")) {
+            throw new IllegalStateException(PROJECT_VARIABLE
+                    + " must be the path of a sandbox project (group/name) whose path contains \"smoke\", but was: "
+                    + project);
+        }
+    }
+
+    synchronized GitLabSdk sdk() {
+        if (sdk == null) {
+            client = GitLabClients.create(
+                    GitLabAuthenticationProviders.personalToken(token),
+                    USER_AGENT,
+                    GitLabClientConfiguration.builder().baseUri(baseUri).build());
+            sdk = GitLabSdk.of(client);
+        }
+        return sdk;
+    }
+
+    /**
+     * The sandbox as an SDK handle. The path goes to the core as it is; the core encodes it.
+     *
+     * @return the handle
+     */
+    Project sandbox() {
+        return sdk().project(project);
+    }
+
+    @Override
+    public String toString() {
+        return "SmokeEnvironment[" + baseUri + " " + project + ", run " + RUN_ID + "]";
+    }
+}
