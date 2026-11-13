@@ -22,7 +22,7 @@ class GitLabSdkTest {
 
         final GitLabSdk sut = GitLabSdk.of(gitlab);
 
-        assertThat(sut.github()).isSameAs(gitlab);
+        assertThat(sut.gitLab()).isSameAs(gitlab);
         verifyNoInteractions(gitlab);
     }
 
@@ -54,7 +54,7 @@ class GitLabSdkTest {
 
             final GitLabSdk sut = GitLabSdk.of(GitLabCaller.of(client));
 
-            assertThat(sut.github()).isNotNull();
+            assertThat(sut.gitLab()).isNotNull();
         }
     }
 
@@ -65,7 +65,7 @@ class GitLabSdkTest {
 
             final GitLabSdk sut = GitLabSdk.of(client);
 
-            assertThat(sut.github()).isNotNull();
+            assertThat(sut.gitLab()).isNotNull();
         }
     }
 }

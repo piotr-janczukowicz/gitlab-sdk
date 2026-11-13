@@ -1,11 +1,15 @@
 package io.github.piotr_janczukowicz.gitlab.sdk;
 
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
+import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserPublic;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabCaller;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import java.io.IOException;
+import java.util.Optional;
 
 /**
  * Entry point of the object layer. It wraps an existing {@link GitLab} client, so authentication, flavor, version and
@@ -14,7 +18,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 public final class GitLabSdk {
 
     static {
-        Internals.registerSdkAccess(GitLabSdk::github);
+        Internals.registerSdkAccess(GitLabSdk::gitLab);
     }
 
     private final GitLab gitlab;
@@ -58,11 +62,67 @@ public final class GitLabSdk {
     }
 
     /**
+     * Returns a handle to a project. No request is made until {@link Project#fetch()}.
+     *
+     * @param id the numeric id or the URL-encoded path of the project, for example {@code my-group%2Fmy-project}
+     * @return the project handle
+     * @throws NullPointerException if {@code id} is {@code null}
+     * @throws IllegalArgumentException if {@code id} is blank
+     */
+    public Project project(final String id) {
+        return new Project(this, requireNotBlank(id, "id"), null);
+    }
+
+    /**
+     * Returns a handle to a group. No request is made until {@link Group#fetch()}.
+     *
+     * @param id the numeric id or the URL-encoded path of the group
+     * @return the group handle
+     * @throws NullPointerException if {@code id} is {@code null}
+     * @throws IllegalArgumentException if {@code id} is blank
+     */
+    public Group group(final String id) {
+        return new Group(this, requireNotBlank(id, "id"), null);
+    }
+
+    /**
+     * Loads a user ({@code GET /users/{id}}).
+     *
+     * @param id the numeric id of the user
+     * @return the user, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<User> user(final long id) throws IOException {
+        return gitlab.users().get(id).map(loaded -> new User(this, loaded));
+    }
+
+    /**
+     * Returns the account that the client signs in as.
+     *
+     * @return the current account
+     */
+    public Me me() {
+        return new Me(this);
+    }
+
+    /**
+     * Asks GitLab for the id of the account the client signs in as ({@code GET /user}).
+     *
+     * @return the id
+     * @throws IOException if the transport fails
+     */
+    @SuppressWarnings("PMD.LawOfDemeter")
+    long currentUserId() throws IOException {
+        final GitLabUserPublic current = gitlab.users().getUser();
+        return requireNonNull(current.id(), "id");
+    }
+
+    /**
      * Returns the wrapped client for the objects of this SDK.
      *
      * @return the client
      */
-    GitLab github() {
+    GitLab gitLab() {
         return gitlab;
     }
 }

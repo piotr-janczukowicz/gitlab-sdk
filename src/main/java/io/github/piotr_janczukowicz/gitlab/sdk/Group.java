@@ -1,0 +1,144 @@
+package io.github.piotr_janczukowicz.gitlab.sdk;
+
+import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
+import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
+
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
+import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
+import java.io.IOException;
+import java.util.Optional;
+import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
+
+/**
+ * A group, identified by its numeric id or URL-encoded path; it may be nested. A handle from
+ * {@link GitLabSdk#group(String)} holds no data from GitLab; {@link #fetch()} returns a loaded group. The object is
+ * immutable: every operation returns a new group built from GitLab's answer.
+ */
+public final class Group {
+
+    private static final String IS_GONE = " is gone";
+
+    static {
+        Internals.registerGroupAccess(group -> group.sdk.gitLab());
+    }
+
+    private final GitLabSdk sdk;
+    private final String id;
+    private final @Nullable GitLabGroupDetail response;
+
+    Group(final GitLabSdk sdk, final String id, final @Nullable GitLabGroupDetail response) {
+        this.sdk = requireNonNull(sdk, "sdk");
+        this.id = requireNotBlank(id, "id");
+        this.response = response;
+    }
+
+    /**
+     * Returns the id this object was addressed with.
+     *
+     * @return the numeric id or the URL-encoded path
+     */
+    public String id() {
+        return id;
+    }
+
+    /**
+     * Loads the group ({@code GET /groups/{id}}). This object is not changed.
+     *
+     * @return the loaded group, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Group> fetch() throws IOException {
+        return sdk.gitLab().groups().get(id).map(loaded -> new Group(sdk, id, loaded));
+    }
+
+    /**
+     * Reloads the group ({@code GET /groups/{id}}). This object is not changed.
+     *
+     * @return the reloaded group
+     * @throws IllegalStateException if GitLab no longer has the group
+     * @throws IOException if the transport fails
+     */
+    public Group refresh() throws IOException {
+        return fetch().orElseThrow(() -> new IllegalStateException("Group " + id + IS_GONE));
+    }
+
+    /**
+     * Archives the group ({@code POST /groups/{id}/archive}) and loads it again.
+     *
+     * @return the archived group as GitLab returns it afterwards
+     * @throws IllegalStateException if GitLab no longer has the group
+     * @throws IOException if the transport fails
+     */
+    public Group archive() throws IOException {
+        sdk.gitLab().groups().archive(id);
+        return refresh();
+    }
+
+    /**
+     * Unarchives the group ({@code POST /groups/{id}/unarchive}) and loads it again.
+     *
+     * @return the unarchived group as GitLab returns it afterwards
+     * @throws IllegalStateException if GitLab no longer has the group
+     * @throws IOException if the transport fails
+     */
+    public Group unarchive() throws IOException {
+        sdk.gitLab().groups().unarchive(id);
+        return refresh();
+    }
+
+    /**
+     * Deletes the group ({@code DELETE /groups/{id}}). GitLab may only mark it for deletion, depending on the instance
+     * settings.
+     *
+     * @throws IOException if the transport fails
+     */
+    public void delete() throws IOException {
+        sdk.gitLab().groups().delete(id);
+    }
+
+    /**
+     * Lists the projects of the group ({@code GET /groups/{id}/projects}). The list holds only summaries, so each
+     * project is loaded as the stream reaches it ({@code GET /projects/{id}}) and one that was deleted in the meantime
+     * is skipped. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the loaded projects
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Project> projects() throws IOException {
+        return sdk.gitLab().groups().listProjects(id, GitLabPageRequest.byPage()).stream()
+                .map(listed -> String.valueOf(requireNonNull(listed.id(), "id")))
+                .flatMap(projectId -> Lookups.find(() -> sdk.project(projectId).fetch()).stream());
+    }
+
+    /**
+     * Lists the descendant groups ({@code GET /groups/{id}/descendant_groups}). The list holds only summaries, so each
+     * group is loaded as the stream reaches it ({@code GET /groups/{id}}) and one that was deleted in the meantime is
+     * skipped. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the loaded groups
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Group> subgroups() throws IOException {
+        return sdk.gitLab().groups().listDescendantGroups(id, GitLabPageRequest.byPage()).stream()
+                .map(listed -> String.valueOf(requireNonNull(listed.id(), "id")))
+                .flatMap(groupId -> Lookups.find(() -> sdk.group(groupId).fetch()).stream());
+    }
+
+    /**
+     * Returns the complete response of a loaded group.
+     *
+     * @return the response record
+     * @throws IllegalStateException if this is a handle that was not loaded with {@link #fetch()}
+     */
+    public GitLabGroupDetail response() {
+        if (response == null) {
+            throw new IllegalStateException("Group " + id + " is not loaded; call fetch()");
+        }
+        return response;
+    }
+}

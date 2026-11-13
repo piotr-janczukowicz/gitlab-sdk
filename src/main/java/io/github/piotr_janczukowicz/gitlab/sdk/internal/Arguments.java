@@ -20,7 +20,7 @@ public final class Arguments {
     }
 
     /**
-     * Checks a varargs array of names or logins and returns it as an immutable list.
+     * Checks a varargs array of names or usernames and returns it as an immutable list.
      *
      * @param values the values, at least one
      * @param name the argument name used in the exception message
@@ -38,7 +38,7 @@ public final class Arguments {
     }
 
     /**
-     * Checks a list of names or logins that must not be empty, and returns it as an immutable list.
+     * Checks a list of names or usernames that must not be empty, and returns it as an immutable list.
      *
      * @param values the values, at least one
      * @param name the argument name used in the exception message
@@ -51,7 +51,7 @@ public final class Arguments {
     }
 
     /**
-     * Checks a list of names or logins that may be empty, and returns it as an immutable list.
+     * Checks a list of names or usernames that may be empty, and returns it as an immutable list.
      *
      * @param values the values
      * @param name the argument name used in the exception message

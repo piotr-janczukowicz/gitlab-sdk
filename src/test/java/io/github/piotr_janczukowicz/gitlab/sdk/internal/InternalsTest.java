@@ -14,11 +14,11 @@ import org.junit.jupiter.api.Test;
 class InternalsTest {
 
     @Test
-    void github_shouldReturnTheClientOfTheSdk_whenTheSdkIsCreated() {
+    void gitLab_shouldReturnTheClientOfTheSdk_whenTheSdkIsCreated() {
         final GitLab gitlab = mock(GitLab.class);
         final GitLabSdk sdk = GitLabSdk.of(gitlab);
 
-        final GitLab result = Internals.github(sdk);
+        final GitLab result = Internals.gitLab(sdk);
 
         assertThat(result).isSameAs(gitlab);
     }
@@ -31,7 +31,7 @@ class InternalsTest {
 
         Internals.registerSdkAccess(ignored -> other);
 
-        assertThat(Internals.github(sdk)).isSameAs(gitlab);
+        assertThat(Internals.gitLab(sdk)).isSameAs(gitlab);
     }
 
     @Test

@@ -4,6 +4,8 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
+import io.github.piotr_janczukowicz.gitlab.sdk.Group;
+import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 import org.jspecify.annotations.Nullable;
@@ -17,10 +19,32 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Internals {
 
+    private static final AtomicReference<@Nullable Function<Project, GitLab>> PROJECT_ACCESS = new AtomicReference<>();
+    private static final AtomicReference<@Nullable Function<Group, GitLab>> GROUP_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable Function<GitLabSdk, GitLab>> SDK_ACCESS = new AtomicReference<>();
 
     private Internals() {
         throw new UnsupportedOperationException("Utility class");
+    }
+
+    /**
+     * Registers how to reach the client of a project. Called by {@link Project} when it is initialized. Only the first
+     * registration counts, so code that calls this later cannot redirect the objects to another client.
+     *
+     * @param access the function that returns the client of a project
+     */
+    public static void registerProjectAccess(final Function<Project, GitLab> access) {
+        PROJECT_ACCESS.compareAndSet(null, access);
+    }
+
+    /**
+     * Registers how to reach the client of a group. Called by {@link Group} when it is initialized. Only the first
+     * registration counts, so code that calls this later cannot redirect the objects to another client.
+     *
+     * @param access the function that returns the client of a group
+     */
+    public static void registerGroupAccess(final Function<Group, GitLab> access) {
+        GROUP_ACCESS.compareAndSet(null, access);
     }
 
     /**
@@ -40,7 +64,29 @@ public final class Internals {
      * @return the wrapped client
      * @throws NullPointerException if the SDK access was never registered
      */
-    public static GitLab github(final GitLabSdk sdk) {
+    public static GitLab gitLab(final GitLabSdk sdk) {
         return requireNonNull(SDK_ACCESS.get(), "sdkAccess").apply(sdk);
+    }
+
+    /**
+     * Returns the client behind a project.
+     *
+     * @param project the project
+     * @return the wrapped client
+     * @throws NullPointerException if the project access was never registered
+     */
+    public static GitLab gitLab(final Project project) {
+        return requireNonNull(PROJECT_ACCESS.get(), "projectAccess").apply(project);
+    }
+
+    /**
+     * Returns the client behind a group.
+     *
+     * @param group the group
+     * @return the wrapped client
+     * @throws NullPointerException if the group access was never registered
+     */
+    public static GitLab gitLab(final Group group) {
+        return requireNonNull(GROUP_ACCESS.get(), "groupAccess").apply(group);
     }
 }
