@@ -15,6 +15,8 @@ import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasicBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitDetailBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
@@ -26,6 +28,7 @@ import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabApiException;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.util.List;
@@ -313,6 +316,31 @@ class MergeRequestTest {
         when(gitLab.mergerequests().project().listPipelines(ID, IID)).thenReturn(List.of());
 
         final List<Pipeline> result = sut.pipelines().toList();
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void commits_shouldLoadEachCommitAndSkipGoneOnes_whenListReturnsSmallerRecords() throws IOException {
+        when(gitLab.mergerequests().project().listCommits(ID, IID).stream())
+                .thenReturn(Stream.of(
+                        GitLabCommitBuilder.builder().id("aaa111").build(),
+                        GitLabCommitBuilder.builder().id("bbb222").build()));
+        when(gitLab.commits().get(ID, "aaa111")).thenReturn(Optional.empty());
+        when(gitLab.commits().get(ID, "bbb222"))
+                .thenReturn(Optional.of(
+                        GitLabCommitDetailBuilder.builder().id("bbb222").build()));
+
+        final List<Commit> result = sut.commits().toList();
+
+        assertThat(result).extracting(Commit::sha).containsExactly("bbb222");
+    }
+
+    @Test
+    void commits_shouldReturnEmptyStream_whenMergeRequestHasNoCommits() throws IOException {
+        when(gitLab.mergerequests().project().listCommits(ID, IID).stream()).thenReturn(Stream.empty());
+
+        final List<Commit> result = sut.commits().toList();
 
         assertThat(result).isEmpty();
     }

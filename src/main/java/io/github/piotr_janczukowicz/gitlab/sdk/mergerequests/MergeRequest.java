@@ -14,6 +14,7 @@ import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateReq
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateRequestsNotesPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import java.io.IOException;
@@ -255,6 +256,22 @@ public final class MergeRequest {
     public Stream<Pipeline> pipelines() throws IOException {
         return gitLab().mergerequests().project().listPipelines(project.id(), iid()).stream()
                 .map(listed -> Lookups.find(() -> project.pipeline(requireNonNull(listed.id(), "id"))))
+                .flatMap(Optional::stream);
+    }
+
+    /**
+     * Lists the commits of the merge request ({@code GET /projects/{id}/merge_requests/{merge_request_iid}/commits}).
+     * GitLab lists a summary of each commit, so each one is loaded ({@code GET
+     * /projects/{id}/repository/commits/{sha}}) as the stream reaches it, and one that is gone by then is skipped.
+     * Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the commits
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Commit> commits() throws IOException {
+        return gitLab().mergerequests().project().listCommits(project.id(), iid()).stream()
+                .map(listed -> Lookups.find(() -> project.commit(requireNonNull(listed.id(), "id"))))
                 .flatMap(Optional::stream);
     }
 

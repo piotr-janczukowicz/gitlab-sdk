@@ -3,6 +3,8 @@ package io.github.piotr_janczukowicz.gitlab.sdk;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
+import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFilter;
@@ -15,6 +17,10 @@ import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesC
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.RepositoryFile;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
@@ -332,6 +338,112 @@ public final class Project {
                 .color(requireNotBlank(color, "color"))
                 .build();
         return new Label(this, sdk.gitLab().labels().create(id, payload));
+    }
+
+    /**
+     * Loads a file of the repository at a ref ({@code GET /projects/{id}/repository/files/{file_path}?ref=...}). The
+     * path is passed to the core as it is; the core encodes it.
+     *
+     * @param path the path of the file within the repository, for example {@code src/main/App.java}
+     * @param ref the branch, tag or commit to read the file at
+     * @return the file, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<RepositoryFile> file(final String path, final String ref) throws IOException {
+        return sdk.gitLab().repositoryfiles().get(id, path, ref).map(loaded -> new RepositoryFile(this, ref, loaded));
+    }
+
+    /**
+     * Creates a file by a commit to a branch ({@code POST /projects/{id}/repository/files/{file_path}}) and loads it
+     * ({@code GET /projects/{id}/repository/files/{file_path}?ref=...}), because GitLab answers the creation with a
+     * smaller record.
+     *
+     * @param path the path of the new file within the repository
+     * @param branch the branch to commit to
+     * @param content the content, sent as UTF-8 text; may be empty
+     * @param message the commit message
+     * @return the created file, read at {@code branch}
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument other than {@code content} is blank
+     * @throws IllegalStateException if GitLab no longer has the file after creating it
+     * @throws IOException if the transport fails
+     */
+    public RepositoryFile createFile(final String path, final String branch, final String content, final String message)
+            throws IOException {
+        sdk.gitLab().repositoryfiles().create(id, path, FileForms.of(branch, content, message));
+        return file(path, branch).orElseThrow(() -> new IllegalStateException("File " + path + IS_GONE));
+    }
+
+    /**
+     * Lists the branches of the project ({@code GET /projects/{id}/repository/branches}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the branches
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Branch> branches() throws IOException {
+        return sdk.gitLab().branches().list(id).stream().map(listed -> new Branch(this, listed));
+    }
+
+    /**
+     * Loads a branch ({@code GET /projects/{id}/repository/branches/{branch}}).
+     *
+     * @param name the branch name
+     * @return the branch, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Branch> branch(final String name) throws IOException {
+        return sdk.gitLab().branches().get(id, name).map(loaded -> new Branch(this, loaded));
+    }
+
+    /**
+     * Creates a branch from a ref ({@code POST /projects/{id}/repository/branches}).
+     *
+     * @param name the name of the new branch
+     * @param ref the branch, tag or commit to create it from
+     * @return the created branch
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Branch createBranch(final String name, final String ref) throws IOException {
+        final GitLabProjectBranchesCreatePayload payload = GitLabProjectBranchesCreatePayloadBuilder.builder()
+                .branch(requireNotBlank(name, "name"))
+                .ref(requireNotBlank(ref, "ref"))
+                .build();
+        return new Branch(this, sdk.gitLab().branches().create(id, payload));
+    }
+
+    /**
+     * Lists the commits of the project ({@code GET /projects/{id}/repository/commits}). GitLab lists a summary of each
+     * commit, so each one is loaded ({@code GET /projects/{id}/repository/commits/{sha}}) as the stream reaches it, and
+     * one that is gone by then is skipped. Pages are fetched only as the stream is consumed; transport failures during
+     * iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the commits
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Commit> commits() throws IOException {
+        return sdk.gitLab().commits().list(id).stream()
+                .map(listed -> Lookups.find(() -> commit(requireNonNull(listed.id(), "id"))))
+                .flatMap(Optional::stream);
+    }
+
+    /**
+     * Loads a commit ({@code GET /projects/{id}/repository/commits/{sha}}).
+     *
+     * @param sha the commit SHA, or a branch or tag name
+     * @return the commit, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code sha} is {@code null}
+     * @throws IllegalArgumentException if {@code sha} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Commit> commit(final String sha) throws IOException {
+        return sdk.gitLab().commits().get(id, sha).map(loaded -> new Commit(this, loaded));
     }
 
     /**
