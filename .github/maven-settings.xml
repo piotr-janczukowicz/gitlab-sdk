@@ -20,6 +20,11 @@
       <username>${env.GITHUB_ACTOR}</username>
       <password>${env.PACKAGES_TOKEN}</password>
     </server>
+    <server>
+      <id>github-gitlab-rest-client</id>
+      <username>${env.GITHUB_ACTOR}</username>
+      <password>${env.PACKAGES_TOKEN}</password>
+    </server>
   </servers>
   <profiles>
     <profile>
@@ -42,6 +47,13 @@
         <repository>
           <id>github-client</id>
           <url>https://maven.pkg.github.com/piotr-janczukowicz/gitlab-client</url>
+          <snapshots>
+            <enabled>false</enabled>
+          </snapshots>
+        </repository>
+        <repository>
+          <id>github-gitlab-rest-client</id>
+          <url>https://maven.pkg.github.com/piotr-janczukowicz/gitlab-rest-client</url>
           <snapshots>
             <enabled>false</enabled>
           </snapshots>

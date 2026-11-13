@@ -1,12 +1,12 @@
 name: Publish to Maven Central
 
-# Run by hand with the tag the Release workflow created (such as v2026.3.10.0). The steps live in common-parent so that
+# Run by hand with the tag the Release workflow created (such as v19.6.0). The steps live in common-parent so that
 # every repository publishes the same way.
 on:
   workflow_dispatch:
     inputs:
       tag:
-        description: Tag to publish, such as v2026.3.10.0
+        description: Tag to publish, such as v19.6.0
         required: true
         type: string
 

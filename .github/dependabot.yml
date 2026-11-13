@@ -15,6 +15,11 @@ registries:
     url: https://maven.pkg.github.com/piotr-janczukowicz/gitlab-client
     username: ${{secrets.PACKAGES_USERNAME}}
     password: ${{secrets.PACKAGES_TOKEN}}
+  github-gitlab-rest-client:
+    type: maven-repository
+    url: https://maven.pkg.github.com/piotr-janczukowicz/gitlab-rest-client
+    username: ${{secrets.PACKAGES_USERNAME}}
+    password: ${{secrets.PACKAGES_TOKEN}}
 updates:
   - package-ecosystem: maven
     directory: /
@@ -22,6 +27,7 @@ updates:
       - github-common-parent
       - github-common-core
       - github-client
+      - github-gitlab-rest-client
     schedule:
       interval: weekly
     commit-message:
