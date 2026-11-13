@@ -78,7 +78,7 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes and discussions (threads); labels, with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
-| **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes and discussions (threads, diff comments with the core's position), the pipelines and the commits of a merge request |
+| **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes and discussions (threads, diff comments with the core's position), draft notes (create, list, load, update, publish one or all, delete), the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create, delete, signature, the tagged commit), commits (list, load, diff, cherry-pick, revert) |
 
@@ -198,6 +198,16 @@ GroupMilestone shared = group.milestones().findFirst().orElseThrow().close();
 IssueDiscussion thread = issue.startDiscussion("Can we reproduce this?");
 Note reply = thread.reply("Yes, on 1.2");
 thread = thread.resolve();
+```
+
+### Draft notes
+
+A merge request has draft notes: `mergeRequest.draftNotes()` lists yours (one request), `draftNote(id)` loads one, and `createDraftNote(note)` adds one. A `DraftNote` is changed with `update().note(text).send()`, published with `publish()` or removed with `delete()`; `mergeRequest.publishDraftNotes()` publishes all of them. A published draft note is no longer a draft, so `refresh()` then throws `IllegalStateException`. `createDraftNote` and `publishDraftNotes` have an overload for the core's payload (a reply, a diff `position`, a reviewer state), so a literal `null` needs a cast. Building the `position` is not covered.
+
+```java
+DraftNote draft = mergeRequest.createDraftNote("This loop looks off");
+draft = draft.update().note("This loop is O(n^2)").send();
+mergeRequest.publishDraftNotes();
 ```
 
 ## When the SDK does not cover a call

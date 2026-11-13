@@ -37,9 +37,11 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Object | Methods |
 |---|---|
-| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `startDiscussion(payload)` (a diff comment: the core's payload carries the `position`; overloaded, so a literal `null` needs a cast), `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
+| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `startDiscussion(payload)` (a diff comment: the core's payload carries the `position`; overloaded, so a literal `null` needs a cast), `draftNotes()` (one request, a stream over the core's list), `draftNote(id)`, `createDraftNote(note)`, `createDraftNote(payload)`, `publishDraftNotes()` (an empty bulk-publish payload), `publishDraftNotes(payload)` (both pairs are overloaded, so a literal `null` needs a cast), `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
 | `MergeRequestUpdate` | `title(...)`, `description(...)`, `targetBranch(...)`, `labels(names)`, `send()` |
 | `MergeRequestNote` | `mergeRequest()`, `id()`, `body()`, `update(body)`, `delete()`, `refresh()`, `response()` |
+| `DraftNote` | `mergeRequest()`, `id()`, `note()`, `isResolvingDiscussion()` (a missing flag is `false`), `update()`, `publish()`, `delete()`, `refresh()`, `response()`. After `publish()` it is no longer a draft: `refresh()` throws `IllegalStateException` |
+| `DraftNoteUpdate` | `note(text)`, `send()` |
 | `Approvals` | `mergeRequest()`, `approved()`, `approvalsLeft()`, `approvalsRequired()`, `userHasApproved()`, `response()` |
 
 ## `ci`
@@ -151,6 +153,7 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
 - **Releases.** Group releases, the typed latest-release getter (the core only has `void` permalink calls), release asset
   sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release (they stay
   reachable through `createRelease(payload)`) are not covered.
+- **Draft notes.** Building a draft-note `position` (the core's payload record) and clearing a position are not covered.
 - **Discussions.** Commit, snippet and epic discussions, editing or deleting a reply through the discussion-note endpoints (use the `Note` objects of `notes()`), and building a diff `position` (the core's payload record) are not covered.
 - **Milestones.** Burndown events (the core's calls return nothing), clearing the dates or the description, and the milestone filters of issues and merge requests are not covered. Group milestones have no `promote()`.
 - **Labels.** Clearing the `description` or `priority` of a label with `null`, a group label priority (GitLab has none), and the label counts beyond what the group filter asks for (`withCounts` is a filter option; the counts stay in `response()`) are not covered.

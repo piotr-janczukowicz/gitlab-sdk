@@ -8,6 +8,10 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateRequestsDiscussionsPayload;
 import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateRequestsDiscussionsPayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNotesBulkPublishPayload;
+import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNotesBulkPublishPayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNotesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabProjectDraftNotesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
@@ -331,6 +335,88 @@ public final class MergeRequest {
                 gitLab().discussions()
                         .project()
                         .createRequestsDiscussions(project.id(), iid(), requireNonNull(payload, "payload")));
+    }
+
+    /**
+     * Lists your draft notes on the merge request ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}/draft_notes}). GitLab answers with one list in a single
+     * request, so the stream is made over that list and fetches nothing more.
+     *
+     * @return the draft notes
+     * @throws IOException if the transport fails
+     */
+    public Stream<DraftNote> draftNotes() throws IOException {
+        return gitLab().draftnotes().list(project.id(), iid()).stream().map(draft -> new DraftNote(this, draft));
+    }
+
+    /**
+     * Looks up a draft note of the merge request ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}/draft_notes/{draft_note_id}}).
+     *
+     * @param id the draft note id
+     * @return the draft note, or empty when GitLab answers 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<DraftNote> draftNote(final long id) throws IOException {
+        return gitLab().draftnotes().get(project.id(), iid(), id).map(draft -> new DraftNote(this, draft));
+    }
+
+    /**
+     * Creates a draft note on the merge request ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/draft_notes}). Calling it with a literal {@code null} needs a
+     * cast, because {@link #createDraftNote(GitLabProjectDraftNotesCreatePayload)} is an overload.
+     *
+     * @param note the text in Markdown
+     * @return the created draft note
+     * @throws NullPointerException if {@code note} is {@code null}
+     * @throws IllegalArgumentException if {@code note} is blank
+     * @throws IOException if the transport fails
+     */
+    public DraftNote createDraftNote(final String note) throws IOException {
+        return createDraftNote(GitLabProjectDraftNotesCreatePayloadBuilder.builder()
+                .note(requireNotBlank(note, "note"))
+                .build());
+    }
+
+    /**
+     * Creates a draft note from the core's payload, which also carries the discussion to reply to, the commit, whether
+     * to resolve the discussion and a {@code position} ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/draft_notes}). The SDK adds no wrapper for the position.
+     *
+     * @param payload the core payload
+     * @return the created draft note
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public DraftNote createDraftNote(final GitLabProjectDraftNotesCreatePayload payload) throws IOException {
+        return new DraftNote(
+                this, gitLab().draftnotes().create(project.id(), iid(), requireNonNull(payload, "payload")));
+    }
+
+    /**
+     * Publishes all your draft notes on the merge request with GitLab's defaults: an empty payload ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/draft_notes/bulk_publish}). The draft notes no longer exist as
+     * drafts afterwards.
+     *
+     * @throws IOException if the transport fails
+     */
+    public void publishDraftNotes() throws IOException {
+        publishDraftNotes(
+                GitLabProjectDraftNotesBulkPublishPayloadBuilder.builder().build());
+    }
+
+    /**
+     * Publishes all your draft notes on the merge request from the core's payload, which can carry a reviewer state, a
+     * summary note and whether it is internal ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/draft_notes/bulk_publish}). This method is an overload of
+     * {@link #publishDraftNotes()}, so a literal {@code null} needs a cast.
+     *
+     * @param payload the core payload
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public void publishDraftNotes(final GitLabProjectDraftNotesBulkPublishPayload payload) throws IOException {
+        gitLab().draftnotes().bulkPublish(project.id(), iid(), requireNonNull(payload, "payload"));
     }
 
     /**

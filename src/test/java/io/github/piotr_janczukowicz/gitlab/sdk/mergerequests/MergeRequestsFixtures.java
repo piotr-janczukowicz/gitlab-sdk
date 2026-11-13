@@ -8,6 +8,8 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasicBui
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabNote;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabNoteBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabDraftNote;
+import io.github.piotr_janczukowicz.gitlab.api.draftnotes.GitLabDraftNoteBuilder;
 
 /** Builds the core records for the tests of the merge request, note and approval objects. */
 final class MergeRequestsFixtures {
@@ -37,5 +39,9 @@ final class MergeRequestsFixtures {
 
     static GitLabNote note(final long id, final String body) {
         return GitLabNoteBuilder.builder().id(id).body(body).build();
+    }
+
+    static GitLabDraftNote draftNote(final long id, final String note) {
+        return GitLabDraftNoteBuilder.builder().id(id).note(note).build();
     }
 }
