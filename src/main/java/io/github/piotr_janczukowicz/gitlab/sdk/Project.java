@@ -38,6 +38,9 @@ import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectPr
 import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectProtectedBranchesCreatePushAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreateAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsListFilter;
@@ -63,6 +66,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
+import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
@@ -80,6 +84,9 @@ public final class Project {
 
     private static final String IS_GONE = " is gone";
     private static final String NAME = "name";
+    private static final String TAG_NAME = "tagName";
+    private static final String FILTER = "filter";
+    private static final String REF = "ref";
 
     static {
         Internals.registerProjectAccess(project -> project.sdk.gitLab());
@@ -542,7 +549,7 @@ public final class Project {
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<Pipeline> pipelines(final GitLabProjectPipelinesListProjectFilter filter) throws IOException {
-        return loaded(sdk.gitLab().pipelines().listProject(id, requireNonNull(filter, "filter")).stream());
+        return loaded(sdk.gitLab().pipelines().listProject(id, requireNonNull(filter, FILTER)).stream());
     }
 
     /**
@@ -568,7 +575,7 @@ public final class Project {
      */
     public Pipeline createPipeline(final String ref) throws IOException {
         return createPipeline(GitLabProjectPipelinesCreatePayloadBuilder.builder()
-                .ref(requireNotBlank(ref, "ref"))
+                .ref(requireNotBlank(ref, REF))
                 .build());
     }
 
@@ -609,7 +616,7 @@ public final class Project {
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<Job> jobs(final GitLabProjectJobsListJobsFilter filter) throws IOException {
-        return sdk.gitLab().jobs().project().listJobs(id, requireNonNull(filter, "filter")).stream()
+        return sdk.gitLab().jobs().project().listJobs(id, requireNonNull(filter, FILTER)).stream()
                 .map(listed -> new Job(this, listed));
     }
 
@@ -719,7 +726,7 @@ public final class Project {
     public Branch createBranch(final String name, final String ref) throws IOException {
         final GitLabProjectBranchesCreatePayload payload = GitLabProjectBranchesCreatePayloadBuilder.builder()
                 .branch(requireNotBlank(name, NAME))
-                .ref(requireNotBlank(ref, "ref"))
+                .ref(requireNotBlank(ref, REF))
                 .build();
         return new Branch(this, sdk.gitLab().branches().create(id, payload));
     }
@@ -773,7 +780,7 @@ public final class Project {
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<Tag> tags(final GitLabProjectTagsListFilter filter) throws IOException {
-        return sdk.gitLab().tags().list(id, requireNonNull(filter, "filter")).stream()
+        return sdk.gitLab().tags().list(id, requireNonNull(filter, FILTER)).stream()
                 .map(listed -> new Tag(this, listed));
     }
 
@@ -818,10 +825,97 @@ public final class Project {
     public Tag createTag(final String name, final String ref, final @Nullable String message) throws IOException {
         final GitLabProjectTagsCreatePayload payload = GitLabProjectTagsCreatePayloadBuilder.builder()
                 .tagName(requireNotBlank(name, NAME))
-                .ref(requireNotBlank(ref, "ref"))
+                .ref(requireNotBlank(ref, REF))
                 .message(message)
                 .build();
         return new Tag(this, sdk.gitLab().tags().create(id, payload));
+    }
+
+    /**
+     * Lists the releases of the project ({@code GET /projects/{id}/releases}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the releases
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Release> releases() throws IOException {
+        return sdk.gitLab().releases().list(id).stream().map(listed -> new Release(this, listed));
+    }
+
+    /**
+     * Lists the releases of the project that match a filter ({@code GET /projects/{id}/releases}). Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (sort, order)
+     * @return the releases
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Release> releases(final GitLabProjectReleasesListFilter filter) throws IOException {
+        return sdk.gitLab().releases().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new Release(this, listed));
+    }
+
+    /**
+     * Loads the release of a tag ({@code GET /projects/{id}/releases/{tag_name}}).
+     *
+     * @param tagName the tag name, which may contain slashes; the core encodes it
+     * @return the release, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code tagName} is {@code null}
+     * @throws IllegalArgumentException if {@code tagName} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Release> release(final String tagName) throws IOException {
+        return sdk.gitLab()
+                .releases()
+                .get(id, requireNotBlank(tagName, TAG_NAME))
+                .map(loaded -> new Release(this, loaded));
+    }
+
+    /**
+     * Creates a release for an existing tag ({@code POST /projects/{id}/releases}).
+     *
+     * @param tagName the name of the existing tag, which may contain slashes
+     * @return the created release
+     * @throws NullPointerException if {@code tagName} is {@code null}
+     * @throws IllegalArgumentException if {@code tagName} is blank
+     * @throws IOException if the transport fails
+     */
+    public Release createRelease(final String tagName) throws IOException {
+        return createRelease(GitLabProjectReleasesCreatePayloadBuilder.builder()
+                .tagName(requireNotBlank(tagName, TAG_NAME))
+                .build());
+    }
+
+    /**
+     * Creates a release and the tag it is made for ({@code POST /projects/{id}/releases}); GitLab creates the tag from
+     * the ref when it does not exist yet.
+     *
+     * @param tagName the name of the tag, which may contain slashes
+     * @param ref the branch, tag or commit the new tag is created from
+     * @return the created release
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Release createRelease(final String tagName, final String ref) throws IOException {
+        return createRelease(GitLabProjectReleasesCreatePayloadBuilder.builder()
+                .tagName(requireNotBlank(tagName, TAG_NAME))
+                .ref(requireNotBlank(ref, REF))
+                .build());
+    }
+
+    /**
+     * Creates a release from the core's payload ({@code POST /projects/{id}/releases}), for the fields the SDK does not
+     * wrap, such as the name, the description, the milestones, the assets and the release time.
+     *
+     * @param payload the request body
+     * @return the created release
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Release createRelease(final GitLabProjectReleasesCreatePayload payload) throws IOException {
+        return new Release(this, sdk.gitLab().releases().create(id, requireNonNull(payload, "payload")));
     }
 
     /**

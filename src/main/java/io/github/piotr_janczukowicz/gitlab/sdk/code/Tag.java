@@ -8,6 +8,7 @@ import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTag;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTagSignature;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Optional;
@@ -101,6 +102,17 @@ public final class Tag {
         final GitLabCommit commit = response.commit();
         final String sha = commit == null ? null : commit.id();
         return sha == null ? Optional.empty() : project.commit(sha);
+    }
+
+    /**
+     * Loads the release of the tag ({@code GET /projects/{id}/releases/{tag_name}}, one extra request) with the name of
+     * the tag.
+     *
+     * @return the release, or empty when the tag has none (GitLab answers HTTP 404)
+     * @throws IOException if the transport fails
+     */
+    public Optional<Release> release() throws IOException {
+        return project.release(name());
     }
 
     /**

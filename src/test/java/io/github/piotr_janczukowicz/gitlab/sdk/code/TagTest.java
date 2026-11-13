@@ -13,12 +13,15 @@ import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitDetail;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabRelease;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabReleaseBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTag;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTagBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTagSignature;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabTagSignatureBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
+import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.time.Instant;
@@ -151,5 +154,29 @@ class TagTest {
         sut.delete();
 
         verify(gitLab.tags()).delete(ID, NAME);
+    }
+
+    @Test
+    void release_shouldLoadReleaseByTagName_whenGitLabHasOne() throws IOException {
+        final GitLabRelease loaded =
+                GitLabReleaseBuilder.builder().tagName(NAME).build();
+        when(gitLab.releases().get(ID, NAME)).thenReturn(Optional.of(loaded));
+
+        final Optional<Release> result = sut.release();
+
+        assertSoftly(softly -> {
+            softly.assertThat(result).isPresent();
+            softly.assertThat(result.orElseThrow().response()).isSameAs(loaded);
+            softly.assertThat(result.orElseThrow().project()).isSameAs(project);
+        });
+    }
+
+    @Test
+    void release_shouldBeEmpty_whenGitLabAnswers404() throws IOException {
+        when(gitLab.releases().get(ID, NAME)).thenReturn(Optional.empty());
+
+        final Optional<Release> result = sut.release();
+
+        assertThat(result).isEmpty();
     }
 }

@@ -73,6 +73,7 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Webhooks** | list, load, create (by URL or a core payload), update (URL, name, description, token, SSL verification, events), test, delete the webhooks of a project; the same for a group (Premium) |
 | **Deploy keys and tokens** | list, load, add, update, enable and delete the deploy keys of a project (GitLab has no group-level deploy keys in its API); list, load, create and delete the deploy tokens of a project or group, with a typed `DeployTokenScope` |
 | **Protected branches and tags** | list, load, protect (default rules, or who may push and merge or create), allow force pushes, require code owner approval and unprotect the protected branches and the protected tags of a project; the protected branches of a group (Premium); a typed `ProtectedAccess` with the raw level numbers as an escape hatch |
+| **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
@@ -82,7 +83,7 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 Not covered: project and group fields beyond the common typed ones, project import and export, and creating a project
 for another user (`createUser`); member roles; webhook URL variables, custom headers, delivery logs and resending an
 event; group-level deploy keys (GitLab has none); protected-branch rules of a user, a group, a deploy key or a member role
-(they stay in `response()`). The same goes for every area outside the table, such as releases, milestones, snippets, packages, the container registry and the administration of an instance. Use
+(they stay in `response()`). The same goes for every area outside the table, such as group releases, milestones, snippets, packages, the container registry and the administration of an instance. Use
 `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
 [Live smoke tests](docs/guide/smoke-tests.md).
 
@@ -157,6 +158,22 @@ ProtectedBranch main = project.protectBranch("main", ProtectedAccess.MAINTAINER,
 main = main.allowForcePush(true);                                       // the answer of GitLab is the new object
 project.protectTag("v*", ProtectedAccess.MAINTAINER);
 group.protectBranch("release/*");                                       // Premium
+```
+
+### Releases
+
+A release is addressed by the name of its tag, which may contain slashes (`v1.0/rc`). `createRelease(tag)` makes a
+release for an existing tag, `createRelease(tag, ref)` lets GitLab create the tag from a ref, and
+`createRelease(payload)` takes the core's payload for the name, description, milestones, assets and release time.
+`delete()` removes the release, not the tag. Group releases, release asset sources and the typed latest-release getter
+are not covered; the `milestoneIds` and `assets` of a release stay reachable through the payload overload.
+
+```java
+Release release = project.createRelease("v1.0", "main");
+release = release.update().name("One point oh").description("Notes").send();
+ReleaseLink link = release.addLink("binary", "https://dl.example/app.zip");
+link = link.update().type(ReleaseLinkType.PACKAGE).send();
+Optional<Release> tagged = project.tag("v1.0").orElseThrow().release();
 ```
 
 ## When the SDK does not cover a call
@@ -288,7 +305,7 @@ The options are described in the `gitlab-rest-client` documentation:
 ## Packages
 
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The other
-objects are grouped by area in the sub-packages `issues`, `mergerequests`, `ci`, `code`, `members`, `webhooks`, `deploy` and `protection`.
+objects are grouped by area in the sub-packages `issues`, `mergerequests`, `ci`, `code`, `members`, `webhooks`, `deploy`, `protection` and `releases`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

@@ -11,5 +11,6 @@ module io.github.piotr_janczukowicz.gitlabsdk {
     exports io.github.piotr_janczukowicz.gitlab.sdk.members;
     exports io.github.piotr_janczukowicz.gitlab.sdk.mergerequests;
     exports io.github.piotr_janczukowicz.gitlab.sdk.protection;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.releases;
     exports io.github.piotr_janczukowicz.gitlab.sdk.webhooks;
 }
