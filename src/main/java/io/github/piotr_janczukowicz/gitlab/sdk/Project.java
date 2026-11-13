@@ -26,6 +26,9 @@ import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesC
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsSharePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsTransferPayload;
@@ -63,6 +66,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.Member;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.milestones.Milestone;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
@@ -916,6 +920,71 @@ public final class Project {
      */
     public Release createRelease(final GitLabProjectReleasesCreatePayload payload) throws IOException {
         return new Release(this, sdk.gitLab().releases().create(id, requireNonNull(payload, "payload")));
+    }
+
+    /**
+     * Lists the milestones of the project ({@code GET /projects/{id}/milestones}). Pages are fetched only as the stream
+     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the milestones
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Milestone> milestones() throws IOException {
+        return sdk.gitLab().projectmilestones().list(id).stream().map(listed -> new Milestone(this, listed));
+    }
+
+    /**
+     * Lists the milestones of the project that match a filter ({@code GET /projects/{id}/milestones}). Pages are
+     * fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (state, iids, title, search, dates, sort, parent milestones)
+     * @return the milestones
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Milestone> milestones(final GitLabProjectProjectMilestonesListFilter filter) throws IOException {
+        return sdk.gitLab().projectmilestones().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new Milestone(this, listed));
+    }
+
+    /**
+     * Loads a milestone ({@code GET /projects/{id}/milestones/{milestone_id}}).
+     *
+     * @param milestoneId the id of the milestone (not its iid)
+     * @return the milestone, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Milestone> milestone(final long milestoneId) throws IOException {
+        return sdk.gitLab().projectmilestones().get(id, milestoneId).map(loaded -> new Milestone(this, loaded));
+    }
+
+    /**
+     * Creates a milestone with a title ({@code POST /projects/{id}/milestones}).
+     *
+     * @param title the title
+     * @return the created milestone
+     * @throws NullPointerException if {@code title} is {@code null}
+     * @throws IllegalArgumentException if {@code title} is blank
+     * @throws IOException if the transport fails
+     */
+    public Milestone createMilestone(final String title) throws IOException {
+        return createMilestone(GitLabProjectProjectMilestonesCreatePayloadBuilder.builder()
+                .title(requireNotBlank(title, "title"))
+                .build());
+    }
+
+    /**
+     * Creates a milestone from the core's payload ({@code POST /projects/{id}/milestones}), for the fields the SDK does
+     * not wrap, such as the description and the dates.
+     *
+     * @param payload the request body
+     * @return the created milestone
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Milestone createMilestone(final GitLabProjectProjectMilestonesCreatePayload payload) throws IOException {
+        return new Milestone(this, sdk.gitLab().projectmilestones().create(id, requireNonNull(payload, "payload")));
     }
 
     /**

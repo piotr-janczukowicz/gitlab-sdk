@@ -9,6 +9,9 @@ import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTok
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreateMergeAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePushAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsSharePayload;
@@ -26,6 +29,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
+import io.github.piotr_janczukowicz.gitlab.sdk.milestones.GroupMilestone;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.GroupProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
@@ -47,6 +51,7 @@ public final class Group {
 
     static {
         Internals.registerGroupAccess(group -> group.sdk.gitLab());
+        Internals.registerGroupProjectAccess((group, projectId) -> group.sdk.project(projectId));
     }
 
     private final GitLabSdk sdk;
@@ -489,6 +494,58 @@ public final class Group {
                                 requireNonNull(merge, "merge").value()));
         return new GroupProtectedBranch(
                 this, sdk.gitLab().grouplevelprotectedbranches().create(id, builder.build()));
+    }
+
+    /**
+     * Lists the milestones of the group ({@code GET /groups/{id}/milestones}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the milestones
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupMilestone> milestones() throws IOException {
+        return sdk.gitLab().groupmilestones().list(id).stream().map(listed -> new GroupMilestone(this, listed));
+    }
+
+    /**
+     * Lists the milestones of the group that match a filter ({@code GET /groups/{id}/milestones}). Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (state, iids, title, search, dates, sort, parent milestones, descendants)
+     * @return the milestones
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupMilestone> milestones(final GitLabGroupGroupMilestonesListFilter filter) throws IOException {
+        return sdk.gitLab().groupmilestones().list(id, requireNonNull(filter, "filter")).stream()
+                .map(listed -> new GroupMilestone(this, listed));
+    }
+
+    /**
+     * Loads a milestone ({@code GET /groups/{id}/milestones/{milestone_id}}).
+     *
+     * @param milestoneId the id of the milestone (not its iid)
+     * @return the milestone, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupMilestone> milestone(final long milestoneId) throws IOException {
+        return sdk.gitLab().groupmilestones().get(id, milestoneId).map(loaded -> new GroupMilestone(this, loaded));
+    }
+
+    /**
+     * Creates a milestone with a title ({@code POST /groups/{id}/milestones}).
+     *
+     * @param title the title
+     * @return the created milestone
+     * @throws NullPointerException if {@code title} is {@code null}
+     * @throws IllegalArgumentException if {@code title} is blank
+     * @throws IOException if the transport fails
+     */
+    public GroupMilestone createMilestone(final String title) throws IOException {
+        final GitLabGroupGroupMilestonesCreatePayload payload = GitLabGroupGroupMilestonesCreatePayloadBuilder.builder()
+                .title(requireNotBlank(title, "title"))
+                .build();
+        return new GroupMilestone(this, sdk.gitLab().groupmilestones().create(id, payload));
     }
 
     private GroupMember createMember(

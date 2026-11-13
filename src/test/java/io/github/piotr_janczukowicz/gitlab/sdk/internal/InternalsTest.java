@@ -6,6 +6,7 @@ import static org.mockito.Mockito.mock;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
+import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.lang.reflect.Constructor;
 import org.junit.jupiter.api.Test;
@@ -42,5 +43,14 @@ class InternalsTest {
         final Throwable thrown = catchThrowable(constructor::newInstance);
 
         assertThat(thrown).hasCauseInstanceOf(UnsupportedOperationException.class);
+    }
+
+    @Test
+    void project_shouldReturnHandleOfTheSdkOfTheGroup_whenGroupIsGiven() {
+        final GitLabSdk sdk = GitLabSdk.of(mock(GitLab.class));
+
+        final Project result = Internals.project(sdk.group("my-group"), "42");
+
+        assertThat(result.id()).isEqualTo("42");
     }
 }

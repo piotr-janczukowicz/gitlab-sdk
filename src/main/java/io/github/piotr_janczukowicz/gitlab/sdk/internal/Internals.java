@@ -28,6 +28,8 @@ public final class Internals {
     private static final AtomicReference<@Nullable Function<GitLabSdk, GitLab>> SDK_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable BiFunction<Project, String, Project>> SIBLING_ACCESS =
             new AtomicReference<>();
+    private static final AtomicReference<@Nullable BiFunction<Group, String, Project>> GROUP_PROJECT_ACCESS =
+            new AtomicReference<>();
     private static final AtomicReference<@Nullable UnaryOperator<Member>> ALL_MEMBERS_ACCESS = new AtomicReference<>();
     private static final AtomicReference<@Nullable UnaryOperator<GroupMember>> ALL_GROUP_MEMBERS_ACCESS =
             new AtomicReference<>();
@@ -57,6 +59,16 @@ public final class Internals {
     }
 
     /**
+     * Registers how to make a handle to a project of the same SDK as a group. Called by {@link Group} when it is
+     * initialized. Only the first registration counts.
+     *
+     * @param access the function that returns a handle to the project with the given id, on the SDK of a group
+     */
+    public static void registerGroupProjectAccess(final BiFunction<Group, String, Project> access) {
+        GROUP_PROJECT_ACCESS.compareAndSet(null, access);
+    }
+
+    /**
      * Returns a handle to another project on the same SDK as a project, for example the fork a pipeline ran in. No
      * request is made.
      *
@@ -67,6 +79,19 @@ public final class Internals {
      */
     public static Project project(final Project project, final String id) {
         return requireNonNull(SIBLING_ACCESS.get(), "siblingAccess").apply(project, id);
+    }
+
+    /**
+     * Returns a handle to a project on the same SDK as a group, for example a project an item of a group milestone
+     * belongs to. No request is made.
+     *
+     * @param group a group of the SDK
+     * @param id the numeric id or plain full path of the project
+     * @return the handle
+     * @throws NullPointerException if the access was never registered
+     */
+    public static Project project(final Group group, final String id) {
+        return requireNonNull(GROUP_PROJECT_ACCESS.get(), "groupProjectAccess").apply(group, id);
     }
 
     /**

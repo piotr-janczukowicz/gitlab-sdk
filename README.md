@@ -74,6 +74,7 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Deploy keys and tokens** | list, load, add, update, enable and delete the deploy keys of a project (GitLab has no group-level deploy keys in its API); list, load, create and delete the deploy tokens of a project or group, with a typed `DeployTokenScope` |
 | **Protected branches and tags** | list, load, protect (default rules, or who may push and merge or create), allow force pushes, require code owner approval and unprotect the protected branches and the protected tags of a project; the protected branches of a group (Premium); a typed `ProtectedAccess` with the raw level numbers as an escape hatch |
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
+| **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
@@ -81,9 +82,9 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create, delete, signature, the tagged commit), commits (list, load, diff, cherry-pick, revert) |
 
 Not covered: project and group fields beyond the common typed ones, project import and export, and creating a project
-for another user (`createUser`); member roles; webhook URL variables, custom headers, delivery logs and resending an
+for another user (`createUser`); milestone burndown events and clearing a milestone date or description; member roles; webhook URL variables, custom headers, delivery logs and resending an
 event; group-level deploy keys (GitLab has none); protected-branch rules of a user, a group, a deploy key or a member role
-(they stay in `response()`). The same goes for every area outside the table, such as group releases, milestones, snippets, packages, the container registry and the administration of an instance. Use
+(they stay in `response()`). The same goes for every area outside the table, such as group releases, snippets, packages, the container registry and the administration of an instance. Use
 `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
 [Live smoke tests](docs/guide/smoke-tests.md).
 
@@ -174,6 +175,18 @@ release = release.update().name("One point oh").description("Notes").send();
 ReleaseLink link = release.addLink("binary", "https://dl.example/app.zip");
 link = link.update().type(ReleaseLinkType.PACKAGE).send();
 Optional<Release> tagged = project.tag("v1.0").orElseThrow().release();
+```
+
+### Milestones
+
+A milestone is addressed by its id (not its `iid`). Dates are `LocalDate`s: `dueDate()` and `startDate()` are empty when GitLab sends none, and the update builder takes `LocalDate`s. `close()` and `reopen()` change the state. `issues()` and `mergeRequests()` load each item as the stream reaches it, through the project the item belongs to (the items of a group milestone come from different projects). Burndown events and clearing a date or the description are not covered: the core's payload fields are plain optional values, so the SDK offers no way to clear them.
+
+```java
+Milestone milestone = project.createMilestone("v1.0");
+milestone = milestone.update().dueDate(LocalDate.of(2026, 12, 31)).send();
+long open = milestone.issues().count();
+milestone.promote();
+GroupMilestone shared = group.milestones().findFirst().orElseThrow().close();
 ```
 
 ## When the SDK does not cover a call
@@ -305,7 +318,7 @@ The options are described in the `gitlab-rest-client` documentation:
 ## Packages
 
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The other
-objects are grouped by area in the sub-packages `issues`, `mergerequests`, `ci`, `code`, `members`, `webhooks`, `deploy`, `protection` and `releases`.
+objects are grouped by area in the sub-packages `issues`, `mergerequests`, `ci`, `code`, `members`, `webhooks`, `deploy`, `protection`, `releases` and `milestones`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.
