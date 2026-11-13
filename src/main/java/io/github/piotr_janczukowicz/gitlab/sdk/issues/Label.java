@@ -104,7 +104,7 @@ public final class Label {
             throw new IllegalStateException("Label " + name() + " of project " + project.id()
                     + " was promoted, but no group could be derived from the project's namespace");
         }
-        return new GroupLabel(Internals.group(project, groupId), promoted);
+        return new GroupLabel(Internals.sdk(project).group(groupId), promoted);
     }
 
     /**

@@ -94,9 +94,7 @@ public final class Project {
     private static final String REF = "ref";
 
     static {
-        Internals.registerProjectAccess(project -> project.sdk.gitLab());
-        Internals.registerSiblingAccess((project, otherId) -> project.sdk.project(otherId));
-        Internals.registerProjectGroupAccess((project, groupId) -> project.sdk.group(groupId));
+        Internals.registerProjectAccess(project -> project.sdk);
     }
 
     private final GitLabSdk sdk;

@@ -254,7 +254,7 @@ public final class Milestone {
                 || project.id().equals(String.valueOf(listedIn))) {
             return project;
         }
-        return Internals.project(project, String.valueOf(listedIn));
+        return Internals.sdk(project).project(String.valueOf(listedIn));
     }
 
     private GitLab gitLab() {

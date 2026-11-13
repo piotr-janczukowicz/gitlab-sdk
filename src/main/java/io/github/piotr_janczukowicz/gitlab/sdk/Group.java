@@ -55,8 +55,7 @@ public final class Group {
     private static final String FILTER = "filter";
 
     static {
-        Internals.registerGroupAccess(group -> group.sdk.gitLab());
-        Internals.registerGroupProjectAccess((group, projectId) -> group.sdk.project(projectId));
+        Internals.registerGroupAccess(group -> group.sdk);
     }
 
     private final GitLabSdk sdk;

@@ -240,7 +240,7 @@ public final class GroupMilestone {
         if (projectId == null) {
             return Optional.empty();
         }
-        return Internals.project(group, String.valueOf(projectId)).issue(requireNonNull(iid, "iid"));
+        return Internals.sdk(group).project(String.valueOf(projectId)).issue(requireNonNull(iid, "iid"));
     }
 
     private Optional<MergeRequest> loadMergeRequest(final @Nullable Long projectId, final @Nullable Long iid)
@@ -248,7 +248,7 @@ public final class GroupMilestone {
         if (projectId == null) {
             return Optional.empty();
         }
-        return Internals.project(group, String.valueOf(projectId)).mergeRequest(requireNonNull(iid, "iid"));
+        return Internals.sdk(group).project(String.valueOf(projectId)).mergeRequest(requireNonNull(iid, "iid"));
     }
 
     private GitLab gitLab() {

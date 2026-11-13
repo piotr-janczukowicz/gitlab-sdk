@@ -537,7 +537,7 @@ public final class MergeRequest {
                 || project.id().equals(String.valueOf(ranIn))) {
             return project;
         }
-        return Internals.project(project, String.valueOf(ranIn));
+        return Internals.sdk(project).project(String.valueOf(ranIn));
     }
 
     private GitLab gitLab() {
