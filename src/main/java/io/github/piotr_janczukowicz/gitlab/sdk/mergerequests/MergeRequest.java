@@ -6,6 +6,8 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
+import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateRequestsDiscussionsPayload;
+import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateRequestsDiscussionsPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
@@ -18,6 +20,7 @@ import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateReq
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
+import io.github.piotr_janczukowicz.gitlab.sdk.discussions.MergeRequestDiscussion;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import java.io.IOException;
@@ -263,6 +266,71 @@ public final class MergeRequest {
     public Stream<MergeRequestNote> notes() throws IOException {
         return gitLab().notes().project().listRequestsNotes(project.id(), iid()).stream()
                 .map(note -> new MergeRequestNote(this, note));
+    }
+
+    /**
+     * Lists the discussions (threads) of the merge request ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}/discussions}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the discussions
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<MergeRequestDiscussion> discussions() throws IOException {
+        return gitLab().discussions().project().listRequestsDiscussions(project.id(), iid()).stream()
+                .map(discussion -> new MergeRequestDiscussion(this, discussion));
+    }
+
+    /**
+     * Looks up a discussion of the merge request ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}/discussions/{discussion_id}}).
+     *
+     * @param id the discussion id
+     * @return the discussion, or empty when GitLab answers 404
+     * @throws NullPointerException if {@code id} is {@code null}
+     * @throws IllegalArgumentException if {@code id} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<MergeRequestDiscussion> discussion(final String id) throws IOException {
+        return gitLab().discussions()
+                .project()
+                .getRequestsDiscussions(project.id(), iid(), requireNotBlank(id, "id"))
+                .map(discussion -> new MergeRequestDiscussion(this, discussion));
+    }
+
+    /**
+     * Starts a discussion on the merge request ({@code POST
+     * /projects/{id}/merge_requests/{merge_request_iid}/discussions}).
+     *
+     * @param body the text of the first note in Markdown
+     * @return the created discussion
+     * @throws NullPointerException if {@code body} is {@code null}
+     * @throws IllegalArgumentException if {@code body} is blank
+     * @throws IOException if the transport fails
+     */
+    public MergeRequestDiscussion startDiscussion(final String body) throws IOException {
+        return startDiscussion(GitLabProjectDiscussionsCreateRequestsDiscussionsPayloadBuilder.builder()
+                .body(requireNotBlank(body, "body"))
+                .build());
+    }
+
+    /**
+     * Starts a discussion on the merge request from the core's payload, which carries the {@code position} of a diff
+     * comment ({@code POST /projects/{id}/merge_requests/{merge_request_iid}/discussions}). The SDK adds no wrapper for
+     * the position.
+     *
+     * @param payload the core payload with body, optional creation time and optional position
+     * @return the created discussion
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public MergeRequestDiscussion startDiscussion(
+            final GitLabProjectDiscussionsCreateRequestsDiscussionsPayload payload) throws IOException {
+        return new MergeRequestDiscussion(
+                this,
+                gitLab().discussions()
+                        .project()
+                        .createRequestsDiscussions(project.id(), iid(), requireNonNull(payload, "payload")));
     }
 
     /**

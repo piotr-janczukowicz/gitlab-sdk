@@ -25,7 +25,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Object | Methods |
 |---|---|
-| `Issue` | `project()`, `iid()`, `title()`, `description()`, `state()` (`IssueState`: `OPENED`, `CLOSED`), `labels()`, `update()`, `close()`, `reopen()`, `comment(body)`, `notes()`, `delete()`, `refresh()`, `response()` |
+| `Issue` | `project()`, `iid()`, `title()`, `description()`, `state()` (`IssueState`: `OPENED`, `CLOSED`), `labels()`, `update()`, `close()`, `reopen()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `delete()`, `refresh()`, `response()` |
 | `IssueUpdate` | `title(...)`, `description(...)`, `clearDescription()`, `labels(names)`, `assignees(userIds)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `Note` | `issue()`, `id()`, `body()`, `update(body)`, `delete()`, `refresh()`, `response()` |
 | `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends `GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a failed GET promotes nothing; a project in a user namespace fails with the core's exception), `delete()`, `refresh()`, `response()` |
@@ -37,7 +37,7 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 
 | Object | Methods |
 |---|---|
-| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
+| `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `startDiscussion(payload)` (a diff comment: the core's payload carries the `position`; overloaded, so a literal `null` needs a cast), `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `delete()`, `refresh()`, `response()` |
 | `MergeRequestUpdate` | `title(...)`, `description(...)`, `targetBranch(...)`, `labels(names)`, `send()` |
 | `MergeRequestNote` | `mergeRequest()`, `id()`, `body()`, `update(body)`, `delete()`, `refresh()`, `response()` |
 | `Approvals` | `mergeRequest()`, `approved()`, `approvalsLeft()`, `approvalsRequired()`, `userHasApproved()`, `response()` |
@@ -68,6 +68,17 @@ lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `lo
 An empty `update().send()` of a release or a link throws `IllegalStateException` and makes no request. Fields cannot be
 cleared through `ReleaseUpdate`; `milestones(List.of())` is sent as an empty list, and that GitLab then removes the
 milestones is not confirmed by the core's documentation.
+
+## `discussions`
+
+| Object | Methods |
+|---|---|
+| `IssueDiscussion`, `MergeRequestDiscussion` | `issue()` or `mergeRequest()`, `id()`, `isIndividualNote()`, `isResolvable()`, `isResolved()` (a missing flag is `false`), `notes()` (an unmodifiable list of `Note` or `MergeRequestNote`, taken from the response with no request), `reply(body)` (returns the new note), `resolve()`, `unresolve()` (each returns the discussion GitLab answers with, no extra request), `refresh()` (`IllegalStateException` when gone), `response()` |
+
+Listed, loaded and updated discussions share one record, so none of them needs an extra request. Replying to a discussion
+that is gone, and resolving one that cannot be resolved (an individual note), pass the core's exception through. A blank
+body makes no request. GitLab can resolve merge request threads and resolvable issue threads only, and has no request to
+delete a discussion.
 
 ## `milestones`
 
@@ -141,6 +152,7 @@ of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()`, `prote
 - **Releases.** Group releases, the typed latest-release getter (the core only has `void` permalink calls), release asset
   sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release (they stay
   reachable through `createRelease(payload)`) are not covered.
+- **Discussions.** Commit, snippet and epic discussions, editing or deleting a reply through the discussion-note endpoints (use the `Note` objects of `notes()`), and building a diff `position` (the core's payload record) are not covered.
 - **Milestones.** Burndown events (the core's calls return nothing), clearing the dates or the description, and the milestone filters of issues and merge requests are not covered. Group milestones have no `promote()`.
 - **Labels.** Clearing the `description` or `priority` of a label with `null`, a group label priority (GitLab has none), and the label counts beyond what the group filter asks for (`withCounts` is a filter option; the counts stay in `response()`) are not covered.
 - **Members.** Member roles (Ultimate) are not covered (see above).

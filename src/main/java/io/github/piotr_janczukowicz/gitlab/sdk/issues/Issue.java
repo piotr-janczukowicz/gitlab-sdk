@@ -4,6 +4,8 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateIssuesDiscussionsPayload;
+import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateIssuesDiscussionsPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdatePayloadBuilder;
@@ -11,6 +13,7 @@ import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdateS
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateIssuesNotesPayload;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateIssuesNotesPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
+import io.github.piotr_janczukowicz.gitlab.sdk.discussions.IssueDiscussion;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import java.io.IOException;
 import java.util.List;
@@ -156,6 +159,53 @@ public final class Issue {
     public Stream<Note> notes() throws IOException {
         return gitLab().notes().project().listIssuesNotes(project.id(), iid()).stream()
                 .map(note -> new Note(this, note));
+    }
+
+    /**
+     * Lists the discussions (threads) of the issue ({@code GET /projects/{id}/issues/{issue_iid}/discussions}). Pages
+     * are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the discussions
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<IssueDiscussion> discussions() throws IOException {
+        return gitLab().discussions().project().listIssuesDiscussions(project.id(), iid()).stream()
+                .map(discussion -> new IssueDiscussion(this, discussion));
+    }
+
+    /**
+     * Looks up a discussion of the issue ({@code GET /projects/{id}/issues/{issue_iid}/discussions/{discussion_id}}).
+     *
+     * @param id the discussion id
+     * @return the discussion, or empty when GitLab answers 404
+     * @throws NullPointerException if {@code id} is {@code null}
+     * @throws IllegalArgumentException if {@code id} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<IssueDiscussion> discussion(final String id) throws IOException {
+        return gitLab().discussions()
+                .project()
+                .getIssuesDiscussions(project.id(), iid(), requireNotBlank(id, "id"))
+                .map(discussion -> new IssueDiscussion(this, discussion));
+    }
+
+    /**
+     * Starts a discussion on the issue ({@code POST /projects/{id}/issues/{issue_iid}/discussions}).
+     *
+     * @param body the text of the first note in Markdown
+     * @return the created discussion
+     * @throws NullPointerException if {@code body} is {@code null}
+     * @throws IllegalArgumentException if {@code body} is blank
+     * @throws IOException if the transport fails
+     */
+    public IssueDiscussion startDiscussion(final String body) throws IOException {
+        final GitLabProjectDiscussionsCreateIssuesDiscussionsPayload payload =
+                GitLabProjectDiscussionsCreateIssuesDiscussionsPayloadBuilder.builder()
+                        .body(requireNotBlank(body, "body"))
+                        .build();
+        return new IssueDiscussion(
+                this, gitLab().discussions().project().createIssuesDiscussions(project.id(), iid(), payload));
     }
 
     /**

@@ -76,9 +76,9 @@ Each area below is an object you reach from `sdk` or from a `Project`. The
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
 | **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
 | **Users** | load a user by id, the profile of the signed-in account |
-| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes; labels, with promotion of a project label to a group label |
+| **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes and discussions (threads); labels, with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
-| **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, the pipelines and the commits of a merge request |
+| **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes and discussions (threads, diff comments with the core's position), the pipelines and the commits of a merge request |
 | **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create, delete, signature, the tagged commit), commits (list, load, diff, cherry-pick, revert) |
 
@@ -188,6 +188,16 @@ milestone = milestone.update().dueDate(LocalDate.of(2026, 12, 31)).send();
 long open = milestone.issues().count();
 milestone.promote();
 GroupMilestone shared = group.milestones().findFirst().orElseThrow().close();
+```
+
+### Discussions
+
+`issue.discussions()` and `mergeRequest.discussions()` list the threads lazily; `discussion(id)` loads one and `startDiscussion(body)` opens one. A discussion carries its notes (`Note` or `MergeRequestNote`, so editing or deleting a reply uses those objects), and `reply(body)`, `resolve()` and `unresolve()` change the thread. `resolve()` returns the discussion GitLab answers with; GitLab only resolves merge request threads and resolvable issue threads, and its refusal passes through. A diff comment is started with `mergeRequest.startDiscussion(payload)`, where the core's payload carries the `position`. Commit, snippet and epic discussions, and building the `position`, are not covered.
+
+```java
+IssueDiscussion thread = issue.startDiscussion("Can we reproduce this?");
+Note reply = thread.reply("Yes, on 1.2");
+thread = thread.resolve();
 ```
 
 ## When the SDK does not cover a call
