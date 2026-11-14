@@ -395,9 +395,9 @@ stay available on the core client, which is described by the same OpenAPI descri
 Not deprecated, checked against the same docs: project and group wikis, the snippet endpoints, the project dependency
 list, and project and group audit events with keyset paging.
 
-## Out of scope for Phase D
+## Out of scope
 
-These are not deprecated; the SDK leaves them out for scope, and the core client serves them: dependency list exports
-(the core's call only creates the export and discards the body), the instance audit events (an administrator API),
-snippet repository storage moves, user-agent details and the instance-wide and public snippet lists (administrator or
-instance-wide), wiki page notes, and snippet notes, discussions and reactions.
+These are not deprecated; the SDK leaves them out as out of scope, and the core client serves them: dependency list
+exports (the core's call only creates the export and discards the body), the instance audit events (an administrator
+API), snippet repository storage moves, user-agent details and the instance-wide and public snippet lists (administrator
+or instance-wide), wiki page notes, and snippet notes, discussions and reactions.

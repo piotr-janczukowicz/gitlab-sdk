@@ -580,9 +580,9 @@ All objects behave the same way, so you learn them once:
   `Wiki`, a `ProjectSnippets`, a `PersonalSnippets`, a `Dependencies` and an `AuditEvents` are area handles (one
   accessor per owner: `project.wiki()`, `group.wiki()`, `project.snippets()`, `sdk.snippets()`,
   `project.dependencies()`, `project.auditEvents()`, `group.auditEvents()`; the accessor and the `forProject(...)`,
-  `forGroup(...)` and `forSdk(...)` factories make no request) with neither `response()` nor parent navigation; wiki pages return their wiki from `wiki()`, a `Snippet` and a
-  `Dependency` return their project from `project()`, and an `AuditEvent` returns its `AuditEvents` from
-  `auditEvents()`.
+  `forGroup(...)` and `forSdk(...)` factories make no request) with neither `response()` nor parent navigation;
+  wiki pages return their wiki from `wiki()`, a `Snippet` and a `Dependency` return their project from `project()`, and
+  an `AuditEvent` returns its `AuditEvents` from `auditEvents()`.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
   `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
   project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
@@ -624,10 +624,10 @@ All objects behave the same way, so you learn them once:
   project updates, which sends one); whether GitLab then clears the value is not verified against a live instance.
 - **No deprecated GitLab operation or parameter** is offered: the SDK has no epics, vulnerabilities or vulnerability
   findings, never sends the `content` and `file_name` parameters of a snippet, and never pages audit events by offset.
-  [What the SDK covers](docs/guide/coverage.md#deliberately-not-offered-deprecated-by-gitlab) gives the reasons. -
-  `IOException` and the client's `GitLabApiException` pass through unchanged. - A call that needs a tier your instance
-  lacks fails in the core's tier guard when you configured the tier on the   client; the SDK adds no tier logic of its
-  own.
+  [What the SDK covers](docs/guide/coverage.md#deliberately-not-offered-deprecated-by-gitlab) gives the reasons.
+- `IOException` and the client's `GitLabApiException` pass through unchanged.
+- A call that needs a tier your instance lacks fails in the core's tier guard when you configured the tier on the
+  client; the SDK adds no tier logic of its own.
 
 ## Good practices
 
