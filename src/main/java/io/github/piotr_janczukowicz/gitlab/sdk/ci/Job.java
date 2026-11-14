@@ -189,6 +189,7 @@ public final class Job {
      * @param target the file to write
      * @return {@code target}
      * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IllegalArgumentException if {@code target} has no parent directory
      * @throws IOException if the transport fails or the file cannot be written
      */
     public Path downloadArtifacts(final Path target) throws IOException {
@@ -211,8 +212,9 @@ public final class Job {
     }
 
     /**
-     * Lists the root of the artifacts of the job ({@code GET /projects/{id}/jobs/{job_id}/artifacts/tree}). Pages are
-     * fetched only as the stream is consumed. The entries are the core's records.
+     * Lists the root of the artifacts of the job ({@code GET /projects/{id}/jobs/{job_id}/artifacts/tree}). The core
+     * fetches the first page eagerly when this method is called, so a failure of that request is thrown here; later
+     * pages are fetched as the stream is consumed. The entries are the core's records, and no filter is sent.
      *
      * @return the entries
      * @throws IOException if the transport fails
@@ -223,7 +225,8 @@ public final class Job {
 
     /**
      * Lists a directory of the artifacts of the job ({@code GET
-     * /projects/{id}/jobs/{job_id}/artifacts/tree?path=...&recursive=...}). Pages are fetched only as the stream is
+     * /projects/{id}/jobs/{job_id}/artifacts/tree?path=...&recursive=...}). The core fetches the first page eagerly
+     * when this method is called, so a failure of that request is thrown here; later pages are fetched as the stream is
      * consumed. Use {@link #artifactTree()} for the root.
      *
      * @param path the directory within the artifacts; not blank

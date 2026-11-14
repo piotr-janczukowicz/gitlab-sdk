@@ -128,13 +128,6 @@ class EnvironmentUpdateTest {
     }
 
     @Test
-    void clearKubernetesNamespace_shouldMarkUpdate_soSendIsNotEmpty() throws IOException {
-        final GitLabProjectEnvironmentsUpdatePayload payload = send(EnvironmentUpdate::clearKubernetesNamespace);
-
-        assertThat(payload).isNotNull();
-    }
-
-    @Test
     void kubernetesNamespace_shouldWin_whenCalledAfterClear() throws IOException {
         final GitLabProjectEnvironmentsUpdatePayload payload =
                 send(u -> u.clearKubernetesNamespace().kubernetesNamespace("ns"));

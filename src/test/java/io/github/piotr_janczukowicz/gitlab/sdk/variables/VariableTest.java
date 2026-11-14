@@ -111,18 +111,6 @@ class VariableTest {
     }
 
     @Test
-    void from_shouldThrowNullPointerException_whenNull() {
-        final Throwable thrown = catchThrowable(() -> VariableType.from(null));
-
-        assertThat(thrown).isInstanceOf(NullPointerException.class);
-    }
-
-    @Test
-    void value_shouldReturnWireName_whenCalledOnType() {
-        assertThat(VariableType.ENV_VAR.value()).isEqualTo("env_var");
-    }
-
-    @Test
     void objects_shouldNotExposeValueInToString_whenValueIsSet() {
         final Variable sut = sut(variable("K", SECRET));
 

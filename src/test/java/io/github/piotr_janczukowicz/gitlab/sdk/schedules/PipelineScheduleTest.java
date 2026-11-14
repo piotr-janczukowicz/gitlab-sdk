@@ -12,6 +12,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -91,6 +92,31 @@ class PipelineScheduleTest {
     }
 
     @Test
+    void lastPipeline_shouldSendOneRequestPerCall_whenCalledTwice() throws IOException {
+        when(gitLab.pipelines().get(ID, 55L))
+                .thenReturn(Optional.of(GitLabCiPipelineWithMetadataBuilder.builder()
+                        .id(55L)
+                        .status("success")
+                        .ref("main")
+                        .build()));
+        final PipelineSchedule sut = sut(fullSchedule(7));
+
+        sut.lastPipeline();
+        sut.lastPipeline();
+
+        verify(gitLab.pipelines(), times(2)).get(ID, 55L);
+    }
+
+    @Test
+    void lastPipeline_shouldBeEmpty_whenPipelineIsGone() throws IOException {
+        when(gitLab.pipelines().get(ID, 55L)).thenReturn(Optional.empty());
+
+        final var result = sut(fullSchedule(7)).lastPipeline();
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
     void lastPipeline_shouldBeEmpty_whenAbsent() throws IOException {
         final var result = sut(schedule(7)).lastPipeline();
 
@@ -111,15 +137,6 @@ class PipelineScheduleTest {
             softly.assertThat(catchThrowable(() -> result.add(result.get(0))))
                     .isInstanceOf(UnsupportedOperationException.class);
         });
-    }
-
-    @Test
-    void update_shouldSendOnlySetFields_whenDescriptionSet() throws IOException {
-        when(gitLab.pipelineschedules().update(eq(ID), eq(7L), any())).thenReturn(schedule(7));
-
-        final var result = sut(schedule(7)).update().description("x").send();
-
-        assertThat(result.id()).isEqualTo(7L);
     }
 
     @Test

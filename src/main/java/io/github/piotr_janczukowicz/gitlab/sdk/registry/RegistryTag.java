@@ -92,6 +92,7 @@ public final class RegistryTag {
      * Deletes the tag ({@code DELETE /projects/{id}/registry/repositories/{repository_id}/tags/{tag_name}}). The name
      * is passed to the core unchanged, so a name with a colon or a slash is fine.
      *
+     * @throws IllegalStateException if the repository response names no project id
      * @throws IOException if the transport fails
      */
     public void delete() throws IOException {

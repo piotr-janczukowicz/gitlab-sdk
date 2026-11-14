@@ -116,6 +116,21 @@ class DeploymentTest {
     }
 
     @Test
+    void refresh_shouldLoadTheDeployment_whenChainedAfterUpdateStatus() throws IOException {
+        when(gitLab.deployments().update(eq(ID), eq(DEPLOYMENT_ID), any(GitLabProjectDeploymentsUpdatePayload.class)))
+                .thenReturn(deployment(DEPLOYMENT_ID, "success"));
+        when(gitLab.deployments().get(ID, DEPLOYMENT_ID)).thenReturn(Optional.of(deployment(DEPLOYMENT_ID, "failed")));
+
+        final Deployment result = sut.updateStatus(DeploymentStatus.SUCCESS).refresh();
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.id()).isEqualTo(DEPLOYMENT_ID);
+            softly.assertThat(result.status()).isEqualTo(DeploymentStatus.FAILED);
+        });
+        verify(gitLab.deployments()).get(ID, DEPLOYMENT_ID);
+    }
+
+    @Test
     void updateStatus_shouldRejectUnsupportedStatus_withoutCoreCall() {
         final Throwable created = catchThrowable(() -> sut.updateStatus(DeploymentStatus.CREATED));
         final Throwable skipped = catchThrowable(() -> sut.updateStatus(DeploymentStatus.SKIPPED));

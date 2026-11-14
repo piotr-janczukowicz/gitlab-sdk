@@ -250,7 +250,10 @@ ProjectPackage pkg = project.projectPackage(5).orElseThrow();
 pkg.files().forEach(file -> System.out.println(file.fileName()));
 Path saved = pkg.files().findFirst().orElseThrow().download(Path.of("build", "lib.tgz"));
 RegistryRepository repo = project.registryRepositories().findFirst().orElseThrow();
-repo.tag("v1.0").ifPresent(RegistryTag::delete);
+Optional<RegistryTag> tag = repo.tag("v1.0");
+if (tag.isPresent()) {
+    tag.get().delete();
+}
 ```
 
 ### Deploy keys and tokens

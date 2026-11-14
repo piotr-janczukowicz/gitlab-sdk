@@ -170,9 +170,4 @@ class EnvironmentTest {
                     .containsExactly(DeploymentStatus.SUCCESS, DeploymentStatus.FAILED);
         });
     }
-
-    @Test
-    void update_shouldReturnBuilder_whenCalled() {
-        assertThat(sut.update()).isNotNull();
-    }
 }

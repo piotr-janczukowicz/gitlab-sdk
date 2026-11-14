@@ -80,8 +80,10 @@ public final class PackageFile {
      * @param target the file to write
      * @return {@code target}
      * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IllegalArgumentException if {@code target} has no parent directory
      * @throws IllegalStateException if the package response names no project id
-     * @throws IOException if the transport fails or the file cannot be written
+     * @throws IOException if the transport fails or the file cannot be written, among others a
+     *     {@link java.nio.file.FileAlreadyExistsException} when {@code target} is an existing directory
      */
     public Path download(final Path target) throws IOException {
         final Path checked = requireNonNull(target, "target");

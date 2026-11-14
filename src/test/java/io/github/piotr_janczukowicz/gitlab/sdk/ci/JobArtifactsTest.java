@@ -120,6 +120,17 @@ class JobArtifactsTest {
     }
 
     @Test
+    void artifactTree_shouldSendNoFilter_whenCalledForTheRoot() throws IOException {
+        when(gitLab.jobsartifacts().listTree(ID, JOB_ID).stream()).thenReturn(Stream.of(entry("a")));
+
+        final List<GitLabCiJobArtifactEntry> result = sut.artifactTree().toList();
+
+        assertThat(result).extracting(GitLabCiJobArtifactEntry::name).containsExactly("a");
+        verify(gitLab.jobsartifacts(), never())
+                .listTree(any(), anyLong(), any(GitLabProjectJobsArtifactsListTreeFilter.class));
+    }
+
+    @Test
     void artifactTree_shouldSendPathAndRecursive_whenGiven() throws IOException {
         final GitLabProjectJobsArtifactsListTreeFilter filter =
                 GitLabProjectJobsArtifactsListTreeFilterBuilder.builder()

@@ -705,14 +705,16 @@ public final class Project {
      * such as {@code feature/x}) and the job name reach the core unchanged; the core encodes them. The client's own
      * authentication is used; the SDK offers no job-token parameter. The body is first written to a temporary file in
      * the directory of {@code target} and moved onto it (replacing an existing file) only when received completely, so
-     * {@code target} never holds a partial download; the temporary file is deleted on failure. The directory must
-     * exist. Artifacts may contain secrets; the SDK writes only where the caller says.
+     * {@code target} never holds a partial download; the temporary file is deleted on failure and nothing is created
+     * for an unsuccessful response. The directory must exist. Where the file system has POSIX permissions the file is
+     * created owner-only. Artifacts may contain secrets; the SDK writes only where the caller says.
      *
      * @param ref the branch or tag name
      * @param jobName the name of the job
      * @param target the file to write
      * @return {@code target}
-     * @throws IllegalArgumentException if {@code ref} or {@code jobName} is blank
+     * @throws IllegalArgumentException if {@code ref} or {@code jobName} is blank, or {@code target} has no parent
+     *     directory
      * @throws NullPointerException if {@code target} is {@code null}
      * @throws IOException if the transport fails or the file cannot be written
      */

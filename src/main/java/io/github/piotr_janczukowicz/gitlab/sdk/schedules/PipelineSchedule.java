@@ -142,8 +142,9 @@ public final class PipelineSchedule {
     }
 
     /**
-     * Returns the variables of the schedule, built from the response; no request is made. The values are secrets, do
-     * not log them.
+     * Returns the variables of the schedule, built from the response; no request is made. The list does not reflect
+     * variables added, changed or deleted since this object was loaded: call {@link #refresh()} for the current ones.
+     * The values are secrets, do not log them.
      *
      * @return the variables, as an immutable list
      */

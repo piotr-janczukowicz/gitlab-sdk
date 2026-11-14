@@ -13,6 +13,7 @@ import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -146,5 +147,29 @@ class PackageFileTest {
         wrap(file(FILE_ID)).delete();
 
         verify(gitLab.packages()).deletePackageFile(ID, PACKAGE_ID, FILE_ID);
+    }
+
+    @Test
+    void download_shouldThrowIllegalStateException_whenPackageHasNoProjectId() {
+        final PackageFile sut = new PackageFile(new ProjectPackage(sdk, pkg(PACKAGE_ID)), file(FILE_ID));
+
+        final Throwable toPath = catchThrowable(() -> sut.download(Path.of("lib.tgz")));
+        final Throwable toStream = catchThrowable(() -> sut.download(new ByteArrayOutputStream()));
+
+        assertSoftly(softly -> {
+            softly.assertThat(toPath).isInstanceOf(IllegalStateException.class);
+            softly.assertThat(toStream).isInstanceOf(IllegalStateException.class);
+        });
+        verifyNoInteractions(gitLab.packages());
+    }
+
+    @Test
+    void delete_shouldThrowIllegalStateException_whenPackageHasNoProjectId() {
+        final PackageFile sut = new PackageFile(new ProjectPackage(sdk, pkg(PACKAGE_ID)), file(FILE_ID));
+
+        final Throwable thrown = catchThrowable(sut::delete);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        verifyNoInteractions(gitLab.packages());
     }
 }

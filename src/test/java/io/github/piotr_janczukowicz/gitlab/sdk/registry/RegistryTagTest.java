@@ -9,6 +9,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -96,5 +97,16 @@ class RegistryTagTest {
         wrap(details("release/1:rc")).delete();
 
         verify(gitLab.containerregistry()).deleteTagByTagName(ID, REPOSITORY_ID, "release/1:rc");
+    }
+
+    @Test
+    void delete_shouldThrowIllegalStateException_whenRepositoryHasNoProjectId() {
+        final RegistryTag sut =
+                new RegistryTag(new RegistryRepository(GitLabSdk.of(gitLab), repository(REPOSITORY_ID)), details("v1"));
+
+        final Throwable thrown = catchThrowable(sut::delete);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        verifyNoInteractions(gitLab);
     }
 }
