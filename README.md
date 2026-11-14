@@ -74,6 +74,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Webhooks** | list, load, create (by URL or a core payload), update (URL, name, description, token, SSL verification, events), test, delete the webhooks of a project; the same for a group (Premium) |
 | **CI/CD variables** | list, load, create (by key and value, or a core payload), update (value, protected, masked, raw, type, environment scope, description) and delete the variables of a project or group; on a project the lookup, update and delete name the environment scope, with a typed `VariableType` |
 | **Environments and deployments** | list (with the core's filter), load, create, update (URL, tier, description, Kubernetes namespace, Flux path, cluster agent, each clearable where the core allows), stop, delete the environments of a project, with a typed `EnvironmentTier`; list, load, create, update the status of, approve, reject and delete the deployments of a project or of an environment, with a typed `DeploymentStatus`; the merge requests of a deployment |
+| **Pipeline schedules and triggers** | list, load, create, update (description, ref, cron, time zone, active), take over, run now and delete the pipeline schedules of a project, with their variables (add, load, update, delete); list, load, create (with an optional expiry), update and delete the pipeline triggers of a project |
 | **Deploy keys and tokens** | list, load, add, update, enable and delete the deploy keys of a project (GitLab has no group-level deploy keys in its API); list, load, create and delete the deploy tokens of a project or group, with a typed `DeployTokenScope` |
 | **Protected branches and tags** | list, load, protect (default rules, or who may push and merge or create), allow force pushes, require code owner approval and unprotect the protected branches and the protected tags of a project; the protected branches of a group (Premium); a typed `ProtectedAccess` with the raw level numbers as an escape hatch |
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
@@ -91,7 +92,7 @@ event; group-level deploy keys (GitLab has none); protected-branch rules of a us
 role (they stay in `response()`); group releases, the typed latest-release getter and release asset sources; milestone
 burndown events; snippet, commit and epic discussions and the snippet and epic-note reactions; editing or deleting a
 reply through the discussion endpoints (use the `Note` objects); building a diff `position`; clearing a milestone date
-or a draft-note position (the SDK cannot send `null` for them); and the priority of a label; instance-level and pipeline variables, and `maskedAndHidden` on update (on create it goes through the payload overload); group variables of one key in different environment scopes cannot be told apart; protected environments (Premium), deleting review apps and stopping stale environments.
+or a draft-note position (the SDK cannot send `null` for them); and the priority of a label; instance-level and pipeline variables, and `maskedAndHidden` on update (on create it goes through the payload overload); group variables of one key in different environment scopes cannot be told apart; protected environments (Premium), deleting review apps and stopping stale environments; the inputs of a pipeline schedule, the list of its pipelines and firing a trigger.
 The same goes for every area outside the table, such as snippets, packages, the container registry and the
 administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance
 yet; see [Live smoke tests](docs/guide/smoke-tests.md).
@@ -172,6 +173,22 @@ env = env.update().tier(EnvironmentTier.STAGING).clearKubernetesNamespace().send
 Deployment d = project.createDeployment("staging", sha, "main", DeploymentStatus.RUNNING);
 d = d.updateStatus(DeploymentStatus.SUCCESS);
 env.stop();
+```
+
+### Pipeline schedules and triggers
+
+`project.createPipelineSchedule("nightly", "main", "0 1 * * *")` sends a description, a ref and a cron expression as
+given; the time zone and the active flag are set with `update()`. GitLab lists a smaller record than a single load, so
+each listed schedule is loaded again and one that is gone is skipped. The variables of a schedule come from its own
+response (GitLab has no call that lists them), and `lastPipeline()` loads the pipeline through the project, one
+request per call. `play()` starts a pipeline now. A trigger's `token()` is a secret.
+
+```java
+PipelineSchedule schedule = project.createPipelineSchedule("nightly", "main", "0 1 * * *");
+schedule = schedule.update().cronTimezone("Europe/Warsaw").active(true).send();
+schedule.addVariable("DEPLOY_ENV", "staging");
+PipelineTrigger trigger = project.createPipelineTrigger("deploy hook");
+String token = trigger.token();                                         // secret, do not log it
 ```
 
 ### Deploy keys and tokens
@@ -359,7 +376,7 @@ All objects behave the same way, so you learn them once:
   requests; a transport failure during iteration is an `UncheckedIOException`.
 - **Several fields at once** go through `update()`: `issue.update().title("New").labels(List.of("bug")).send()` sends
   one request with only the fields you set. `send()` with nothing set throws `IllegalStateException`. Projects, groups,
-  members, webhooks, variables, environments, deploy keys, issues, merge requests, labels, group labels, milestones, releases, release links and
+  members, webhooks, variables, environments, pipeline schedules and triggers, deploy keys, issues, merge requests, labels, group labels, milestones, releases, release links and
   draft notes have an `update()`.
 - **Clearing a field** is a separate `clear...()` method where the core can send JSON `null` (the core's `OptionalNull`), such as `environment.update().clearKubernetesNamespace()`; a `clear...()` call counts as a change, and for one field the last call wins.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
@@ -420,7 +437,7 @@ All objects behave the same way, so you learn them once:
   `read_api` covers the reads. A project or group access token covers that project or group only.
 - **Keep secrets out of logs.** `response()` of a job, of a pipeline and of a project can carry URLs and variables of
   your instance; log what you need, not the whole record. The secret of a new deploy token (`token()`, and the `token()`
-  of its `response()`) and the token you set on a webhook (`update().token(...)`), and the value of a CI/CD variable (`Variable.value()`, `update().value(...)`) are credentials: store them in a
+  of its `response()`), the token of a pipeline trigger (`PipelineTrigger.token()`), and the token you set on a webhook (`update().token(...)`), and the value of a CI/CD variable (`Variable.value()`, `ScheduleVariable.value()`, `update().value(...)`) are credentials: store them in a
   secret store and never log them.
 - **Try an integration on a throwaway project first.** The [live smoke tests](docs/guide/smoke-tests.md) show how.
 
@@ -460,7 +477,7 @@ The options are described in the `gitlab-rest-client` documentation:
 
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
 other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
-`code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables` and `environments`.
+`code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments` and `schedules`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

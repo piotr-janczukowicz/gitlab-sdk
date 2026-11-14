@@ -32,6 +32,11 @@ import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeR
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
+import io.github.piotr_janczukowicz.gitlab.api.pipelineschedules.GitLabCiPipelineSchedule;
+import io.github.piotr_janczukowicz.gitlab.api.pipelineschedules.GitLabProjectPipelineSchedulesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.pipelineschedules.GitLabProjectPipelineSchedulesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.pipelinetriggers.GitLabProjectPipelineTriggersCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.pipelinetriggers.GitLabProjectPipelineTriggersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProjectProjectLevelVariablesCreatePayload;
@@ -86,10 +91,13 @@ import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
+import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineSchedule;
+import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineTrigger;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
+import java.time.Instant;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -1541,6 +1549,126 @@ public final class Project {
                                         .build()));
     }
 
+    /**
+     * Lists the pipeline schedules of the project ({@code GET /projects/{id}/pipeline_schedules}). GitLab lists a
+     * summary of each schedule, so each one is loaded ({@code GET /projects/{id}/pipeline_schedules/{id}}) as the
+     * stream reaches it, and one that is gone by then is skipped. Pages are fetched only as the stream is consumed;
+     * transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the schedules
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<PipelineSchedule> pipelineSchedules() throws IOException {
+        return sdk.gitLab().pipelineschedules().list(id).stream()
+                .map(this::loadedSchedule)
+                .flatMap(Optional::stream);
+    }
+
+    /**
+     * Loads a pipeline schedule ({@code GET /projects/{id}/pipeline_schedules/{pipeline_schedule_id}}).
+     *
+     * @param scheduleId the id of the schedule
+     * @return the schedule, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<PipelineSchedule> pipelineSchedule(final long scheduleId) throws IOException {
+        return sdk.gitLab().pipelineschedules().get(id, scheduleId).map(loaded -> new PipelineSchedule(this, loaded));
+    }
+
+    /**
+     * Creates a pipeline schedule ({@code POST /projects/{id}/pipeline_schedules}). The cron expression is sent as
+     * given; set the time zone afterwards with {@link PipelineSchedule#update()}, or use
+     * {@link #createPipelineSchedule(GitLabProjectPipelineSchedulesCreatePayload)}.
+     *
+     * @param description the description
+     * @param ref the branch or tag to run the schedule for
+     * @param cron the cron expression
+     * @return the new schedule
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public PipelineSchedule createPipelineSchedule(final String description, final String ref, final String cron)
+            throws IOException {
+        return createPipelineSchedule(GitLabProjectPipelineSchedulesCreatePayloadBuilder.builder()
+                .description(requireNotBlank(description, "description"))
+                .ref(requireNotBlank(ref, REF))
+                .cron(requireNotBlank(cron, "cron"))
+                .build());
+    }
+
+    /**
+     * Creates a pipeline schedule from the core's payload ({@code POST /projects/{id}/pipeline_schedules}), for the
+     * fields the SDK does not wrap, such as the time zone, the active flag and the inputs.
+     *
+     * @param payload the request body
+     * @return the new schedule
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public PipelineSchedule createPipelineSchedule(final GitLabProjectPipelineSchedulesCreatePayload payload)
+            throws IOException {
+        final GitLabProjectPipelineSchedulesCreatePayload checked = requireNonNull(payload, PAYLOAD);
+        return new PipelineSchedule(this, sdk.gitLab().pipelineschedules().create(id, checked));
+    }
+
+    /**
+     * Lists the pipeline triggers of the project ({@code GET /projects/{id}/triggers}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}. The tokens are
+     * secrets, do not log them.
+     *
+     * @return the triggers
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<PipelineTrigger> pipelineTriggers() throws IOException {
+        return sdk.gitLab().pipelinetriggers().list(id).stream().map(listed -> new PipelineTrigger(this, listed));
+    }
+
+    /**
+     * Loads a pipeline trigger ({@code GET /projects/{id}/triggers/{trigger_id}}).
+     *
+     * @param triggerId the id of the trigger
+     * @return the trigger, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<PipelineTrigger> pipelineTrigger(final long triggerId) throws IOException {
+        return sdk.gitLab().pipelinetriggers().get(id, triggerId).map(loaded -> new PipelineTrigger(this, loaded));
+    }
+
+    /**
+     * Creates a pipeline trigger that does not expire ({@code POST /projects/{id}/triggers}). The token in the answer
+     * is secret, do not log it.
+     *
+     * @param description the description
+     * @return the new trigger
+     * @throws NullPointerException if {@code description} is {@code null}
+     * @throws IllegalArgumentException if {@code description} is blank
+     * @throws IOException if the transport fails
+     */
+    public PipelineTrigger createPipelineTrigger(final String description) throws IOException {
+        return createTrigger(GitLabProjectPipelineTriggersCreatePayloadBuilder.builder()
+                .description(requireNotBlank(description, "description"))
+                .build());
+    }
+
+    /**
+     * Creates a pipeline trigger that expires ({@code POST /projects/{id}/triggers}). The token in the answer is
+     * secret, do not log it.
+     *
+     * @param description the description
+     * @param expiresAt the time the trigger expires
+     * @return the new trigger
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code description} is blank
+     * @throws IOException if the transport fails
+     */
+    public PipelineTrigger createPipelineTrigger(final String description, final Instant expiresAt) throws IOException {
+        return createTrigger(GitLabProjectPipelineTriggersCreatePayloadBuilder.builder()
+                .description(requireNotBlank(description, "description"))
+                .expiresAt(requireNonNull(expiresAt, "expiresAt"))
+                .build());
+    }
+
     private DeployKey createDeployKey(
             final GitLabProjectDeployKeysCreatePayloadBuilder builder, final String title, final String key)
             throws IOException {
@@ -1563,6 +1691,14 @@ public final class Project {
     private Stream<Deployment> loadedDeployments(final Stream<GitLabDeployment> listed) {
         return listed.map(item -> Lookups.find(() -> deployment(requireNonNull(item.id(), "id"))))
                 .flatMap(Optional::stream);
+    }
+
+    private PipelineTrigger createTrigger(final GitLabProjectPipelineTriggersCreatePayload payload) throws IOException {
+        return new PipelineTrigger(this, sdk.gitLab().pipelinetriggers().create(id, payload));
+    }
+
+    private Optional<PipelineSchedule> loadedSchedule(final GitLabCiPipelineSchedule listed) {
+        return Lookups.find(() -> pipelineSchedule(requireNonNull(listed.id(), "id")));
     }
 
     private Member createMember(final @Nullable String userId, final @Nullable String username, final AccessLevel level)
