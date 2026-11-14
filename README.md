@@ -76,6 +76,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Environments and deployments** | list (with the core's filter), load, create, update (URL, tier, description, Kubernetes namespace, Flux path, cluster agent, each clearable where the core allows), stop, delete the environments of a project, with a typed `EnvironmentTier`; list, load, create, update the status of, approve, reject and delete the deployments of a project or of an environment, with a typed `DeploymentStatus`; the merge requests of a deployment |
 | **Pipeline schedules and triggers** | list, load, create, update (description, ref, cron, time zone, active), take over, run now and delete the pipeline schedules of a project, with their variables (add, load, update, delete); list, load, create (with an optional expiry), update and delete the pipeline triggers of a project |
 | **Runners** | list the runners of a project or group (with the core's filter), load a runner by id, enable an existing runner in a project, disable it for a project, update (description, paused, active, tags, run untagged, locked, maximum timeout, maintenance note), delete, list its managers and jobs, and reset the registration token of a project or group or the authentication token of a runner |
+| **Job artifacts** | download the artifacts archive of a job, or of the latest successful job of a name on a ref, to a path or a stream; list the artifact tree of a job; keep and delete the artifacts of a job |
 | **Packages** | list the packages of a project (with the core's filter) or of a group, load one by id, list its files, download a file to a path or a stream, delete a file or a package, with a typed `PackageType` and the raw status |
 | **Container registry** | list the repositories of a project (with or without their tags) or of a group, reload one, list its tags (each loaded in full), load a tag, delete a tag, a repository, or tags in bulk by regular expression |
 | **Deploy keys and tokens** | list, load, add, update, enable and delete the deploy keys of a project (GitLab has no group-level deploy keys in its API); list, load, create and delete the deploy tokens of a project or group, with a typed `DeployTokenScope` |
@@ -95,10 +96,20 @@ event; group-level deploy keys (GitLab has none); protected-branch rules of a us
 role (they stay in `response()`); group releases, the typed latest-release getter and release asset sources; milestone
 burndown events; snippet, commit and epic discussions and the snippet and epic-note reactions; editing or deleting a
 reply through the discussion endpoints (use the `Note` objects); building a diff `position`; clearing a milestone date
-or a draft-note position (the SDK cannot send `null` for them); and the priority of a label; instance-level and pipeline variables, and `maskedAndHidden` on update (on create it goes through the payload overload); group variables of one key in different environment scopes cannot be told apart; protected environments (Premium), deleting review apps and stopping stale environments; the inputs of a pipeline schedule, the list of its pipelines and firing a trigger; runner registration and verification, the instance-level runner administration, runner creation through the authenticated user, and getting or deleting a runner through a group; the package ecosystems' own endpoints (Maven, npm, NuGet and the others), the package and container registry protection rules, the registry event endpoint and the instance-level package and registry lists.
-The same goes for every area outside the table, such as snippets and the
-administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance
-yet; see [Live smoke tests](docs/guide/smoke-tests.md).
+or a draft-note position (the SDK cannot send `null` for them); and the priority of a label.
+
+Not covered in the CI/CD areas: instance-level variables and runners, and pipeline variables; `maskedAndHidden` on a
+variable update (on create it goes through the payload overload); protected environments (Premium), deleting review
+apps, stopping stale environments, the auto-stop setting on an environment update, and the tag flag of a deployment;
+the inputs of a pipeline schedule, the list of its pipelines and firing a trigger; runner registration and
+verification, runner creation through the authenticated user, and getting or deleting a runner through a group;
+reading a single file out of the artifacts and a job-token parameter on the artifact calls; the package ecosystems' own
+endpoints (Maven, npm, NuGet and the others), the package and container registry protection rules, the registry event
+endpoint and the instance-level package and registry lists.
+
+The same goes for every area outside the table, such as snippets and the administration of an instance. Use
+`gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
+[Live smoke tests](docs/guide/smoke-tests.md).
 
 Two things to know about the project and group calls: a project or group you transfer is addressed by its numeric id
 afterwards, because its path changed, and `project.fork(...)` returns at once while GitLab creates the fork
@@ -150,8 +161,9 @@ pick one; either overload rejects `null` with a `NullPointerException`.
 `maskedAndHidden` go through `createVariable(payload)`. A variable is addressed by its key and its environment scope:
 `project.variable("KEY", "production")` narrows the lookup, and a `Variable` loaded that way refreshes, updates and
 deletes itself in that scope. `update().environmentScope("staging")` sets a new scope; the old one is still the target.
-`value()` is an `Optional` (a hidden variable has none) and is a secret. A group has no scope targeting in the core, so
-`GroupVariable` works by key alone and same-key group variables of different scopes cannot be told apart.
+`value()` is an `Optional` (a hidden variable has none) and is a secret; no `toString()` of the SDK prints it. The
+core's group API has no scope targeting, so `GroupVariable` works by key alone and same-key group variables of
+different scopes cannot be told apart.
 
 ```java
 Variable v = project.createVariable("DEPLOY_ENV", "staging");
@@ -165,10 +177,10 @@ v.delete();
 `project.createEnvironment("staging")` sends a name; the URL, the tier and the auto-stop setting go through
 `createEnvironment(payload)`. `update()` changes the fields it sets, and the `clear...()` methods
 (`clearKubernetesNamespace()`, `clearFluxResourcePath()`, `clearClusterAgent()`) send JSON `null` through the core's
-`OptionalNull`; the last call for a field wins. `environment.deployments()` filters by the environment name and loads each
-deployment again, because GitLab lists a summary. GitLab accepts only `RUNNING`, `SUCCESS`, `FAILED` and `CANCELED` when you
-create a deployment or set its status; any other `DeploymentStatus` throws `IllegalArgumentException` before a request.
-`approve` and `reject` need Premium. Protected environments are not wrapped.
+`OptionalNull`; the last call for a field wins. `environment.deployments()` filters by the environment name and loads
+each deployment again, because GitLab lists a summary. GitLab accepts only `RUNNING`, `SUCCESS`, `FAILED` and `CANCELED`
+when you create a deployment or set its status; any other `DeploymentStatus` throws `IllegalArgumentException` before a
+request. `approve` and `reject` need Premium.
 
 ```java
 Environment env = project.createEnvironment("staging");
@@ -183,8 +195,9 @@ env.stop();
 `project.createPipelineSchedule("nightly", "main", "0 1 * * *")` sends a description, a ref and a cron expression as
 given; the time zone and the active flag are set with `update()`. GitLab lists a smaller record than a single load, so
 each listed schedule is loaded again and one that is gone is skipped. The variables of a schedule come from its own
-response (GitLab has no call that lists them), and `lastPipeline()` loads the pipeline through the project, one
-request per call. `play()` starts a pipeline now. A trigger's `token()` is a secret.
+response (GitLab has no call that lists them), so `variables()` does not reflect changes made since: use `refresh()`.
+`lastPipeline()` loads the pipeline through the project, one request per call. `play()` starts a pipeline now. A
+trigger's `token()` is a secret.
 
 ```java
 PipelineSchedule schedule = project.createPipelineSchedule("nightly", "main", "0 1 * * *");
@@ -196,18 +209,18 @@ String token = trigger.token();                                         // secre
 
 ### Runners
 
-`sdk.runner(7)` loads a runner by its global id. `project.runners()` and `group.runners()` list the runners, and
-GitLab lists a smaller record than a single load, so each listed runner is loaded again (one request per item) and one
-that is gone is skipped. `project.enableRunner(id)` enables an existing runner in the project, and
-`runner.disable(project)` stops the project from using it; `runner.delete()` removes it everywhere. `tagList()` returns
-the tags of the response and `update().tags(...)` takes a list. Nothing here has been run against a live GitLab. The registration token of a project or group and the authentication token of a runner come back as a
-`RegistrationToken`, whose `token()` is a secret and whose `toString()` never prints it.
+`sdk.runner(7)` loads a runner by its global id. `project.runners()` and `group.runners()` list the runners, and GitLab
+lists a smaller record than a single load, so each listed runner is loaded again (one request per item) and one that is
+gone is skipped. `project.enableRunner(id)` enables an existing runner in the project, and `runner.disable(project)`
+stops the project from using it; `runner.delete()` removes it everywhere. `tagList()` returns the tags of the response
+and `update().tags(...)` takes a list. The registration token of a project or group and the authentication token of a
+runner come back as a `RegistrationToken`, whose `token()` is a secret and whose `toString()` never prints it.
 
 ```java
 Runner runner = project.enableRunner(7);
 runner = runner.update().paused(true).tags(List.of("docker", "linux")).send();
 runner.disable(project);
-String token = project.resetRunnerRegistrationToken().token();           // secret, do not log it
+String token = project.resetRunnerRegistrationToken().token();         // secret, do not log it
 ```
 
 ### Job artifacts
@@ -216,13 +229,12 @@ String token = project.resetRunnerRegistrationToken().token();           // secr
 file next to the target and moved onto it only when it is complete, so the target never holds a partial download (the
 directory must exist, and an existing file is replaced). `job.downloadArtifacts(out)` copies it into your
 `OutputStream`, which the SDK never closes and which may hold a partial body when the transfer fails.
-`project.downloadArtifacts(ref, jobName, path)` (and the stream form) fetches the artifacts of the latest successful job of that
-name on a ref; a ref such as `feature/x` is passed on unchanged. `job.artifactTree()` and `job.artifactTree(path,
-recursive)` list the artifacts lazily as the core's `GitLabCiJobArtifactEntry` records, `job.keepArtifacts()` returns the
-job GitLab answers with, and `job.deleteArtifacts()` deletes them. The calls use the client's own authentication; there
-is no job-token parameter. Artifacts may contain secrets: the SDK writes only where you say, so choose the target
-accordingly. Reading a single file out of the artifacts is not covered, because the core's calls discard the body; the
-artifact upload of the runner protocol is not covered either. Nothing here has been run against a live GitLab.
+`project.downloadArtifacts(ref, jobName, path)` (and the stream form) fetches the artifacts of the latest successful job
+of that name on a ref; a ref such as `feature/x` is passed on unchanged. `job.artifactTree()` and
+`job.artifactTree(path, recursive)` list the artifacts as the core's `GitLabCiJobArtifactEntry` records, the first page
+when you call and the later ones as you consume the stream. `job.keepArtifacts()` returns the job GitLab answers with,
+and `job.deleteArtifacts()` deletes them. The calls use the client's own authentication. Artifacts may contain secrets:
+the SDK writes only where you say, so choose the target accordingly.
 
 ```java
 Path archive = job.downloadArtifacts(Path.of("build", "artifacts.zip"));
@@ -234,16 +246,18 @@ long bytes = project.downloadArtifacts("main", "build", out);
 ### Packages and the container registry
 
 `project.packages()` and `group.packages()` list packages (the filter overloads take the core's filters), and
-`project.projectPackage(id)` loads one. A package from a project list answers `project()` with that project and no
-request; a package from a group list loads the project named by its `project_id`, one request. `package.type()` is a
-strict `PackageType` and `typeName()` the raw name; the status is the raw string. `package.files()` lists the files lazily,
-and `file.download(path)` or `file.download(out)` write a file: the path form never leaves a partial file, the stream
-form is never closed by the SDK. Package files and images can contain secrets: the SDK writes only where you say.
-`project.registryRepositories()` (or `registryRepositories(true)` to ask for the tags) and `group.registryRepositories()`
-list repositories; `repository.tags()` loads each listed tag again, because the list holds a smaller record (one request
-per tag; a tag that is gone is skipped). A tag name with a colon or a slash is passed to the core unchanged.
-`repository.deleteTags(filter)` deletes by regular expression through the core's filter: check the expression, a deleted
-tag cannot be recovered. Nothing here has been run against a live GitLab.
+`project.projectPackage(id)` loads one. The object is `ProjectPackage`, because `Package` would shadow
+`java.lang.Package`. `package.type()` is a strict `PackageType` and `typeName()` the raw name; the status is the raw
+string. `package.files()` lists the files lazily, and `file.download(path)` or `file.download(out)` write a file: the
+path form never leaves a partial file, the stream form is never closed by the SDK. Package files and images can
+contain secrets: the SDK writes only where you say. `project.registryRepositories()` (or
+`registryRepositories(true)` to ask for the tags) and `group.registryRepositories()` list repositories;
+`repository.tags()` loads each listed tag again, because the list holds a smaller record (one request per tag; a tag
+that is gone is skipped). A tag name with a colon or a slash is passed to the core unchanged.
+`repository.deleteTags(filter)` deletes by regular expression through the core's filter: check the expression, a
+deleted tag cannot be recovered. A package or repository from a project list answers `project()` with that project and
+no request; one from a group list loads the project named by its `project_id`, one request (see
+[Conventions](#conventions)).
 
 ```java
 ProjectPackage pkg = project.projectPackage(5).orElseThrow();
@@ -441,16 +455,19 @@ All objects behave the same way, so you learn them once:
   requests; a transport failure during iteration is an `UncheckedIOException`.
 - **Several fields at once** go through `update()`: `issue.update().title("New").labels(List.of("bug")).send()` sends
   one request with only the fields you set. `send()` with nothing set throws `IllegalStateException`. Projects, groups,
-  members, webhooks, variables, environments, pipeline schedules and triggers, runners, deploy keys, issues, merge requests, labels, group labels, milestones, releases, release links and
-  draft notes have an `update()`.
-- **Clearing a field** is a separate `clear...()` method where the core can send JSON `null` (the core's `OptionalNull`), such as `environment.update().clearKubernetesNamespace()`; a `clear...()` call counts as a change, and for one field the last call wins.
+  members, webhooks, variables, environments, pipeline schedules and triggers, runners, deploy keys, issues, merge
+  requests, labels, group labels, milestones, releases, release links and draft notes have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
-- A `ProjectPackage` and a `RegistryRepository` navigate through the `project_id` of their response: from a project list `project()` is that project without a request, from a group list it loads the project (one request); a response without a project id makes `project()` and the calls that need the project throw `IllegalStateException`.
-- A `Runner` has **no parent navigation** either: one class serves instance, group and project runners, and a runner can be enabled in several projects, so it has no `project()` or `group()`; `update()`, `delete()` and the other calls use the global runner id.
-- A `Reaction` is the one object **without parent navigation**: one class serves issues, issue notes, merge requests and
-  merge request notes, so it has no `issue()` or `mergeRequest()`; `refresh()` and `delete()` use the owner it was made
-  on.
+- A `ProjectPackage` and a `RegistryRepository` load their project through the `project_id` of their response: from a
+  project list `project()` is that project without a request, from a group list it loads the project (one request). A
+  response without a project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`,
+  and the `download` and `delete` of their files and tags) throw `IllegalStateException`.
+- A `Reaction` and a `Runner` are the objects **without parent navigation**. One class serves issues, issue notes,
+  merge requests and merge request notes, so a `Reaction` has no `issue()` or `mergeRequest()`; `refresh()` and
+  `delete()` use the owner it was made on. One class serves instance, group and project runners, and a runner can be
+  enabled in several projects, so a `Runner` has no `project()` or `group()`; `update()`, `delete()` and the other calls
+  use the global runner id.
 - **Dates** are `LocalDate`s where GitLab means a date (milestone `dueDate()` and `startDate()`, member `expiresAt()`),
   and a milestone date is sent as `yyyy-MM-dd`. A milestone date is empty when GitLab sends none or a blank one, and a
   value that is not an ISO date throws `IllegalStateException`.
@@ -466,15 +483,18 @@ All objects behave the same way, so you learn them once:
   `IllegalArgumentException` for a value this SDK does not know yet. `pipeline.statusName()` and `job.statusName()`
   return the raw value GitLab sent, for that case.
 - **Raw escape hatches** stand next to the typed accessors and never fail on a value the SDK does not know:
-  `statusName()` (pipelines, jobs), `stateName()` (milestones), `typeName()` (release links),
-  `accessLevelValue()` (members), `scopeNames()` (deploy tokens) and the
+  `statusName()` (pipelines, jobs, deployments), `stateName()` (milestones), `typeName()` (release links, variables,
+  schedule variables, runners, packages), `tierName()` (environments), `accessLevelValue()` (members),
+  `scopeNames()` (deploy tokens) and the
   `*AccessValues()` methods (`pushAccessValues()`, `mergeAccessValues()`, `createAccessValues()` of protected branches
   and tags).
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
-- Where the core's payloads distinguish an omitted field from a cleared one, the update builders use its tri-state
-  `OptionalNull` to send `null` (`clearExpiresAt()` on member updates). Elsewhere `null` cannot be sent, so a milestone
-  date or a draft-note position cannot be cleared.
+- **Clearing a field** is a separate `clear...()` method where the core's payloads distinguish an omitted field from a
+  cleared one: the update builders use its tri-state `OptionalNull` to send JSON `null` (`clearExpiresAt()` on member
+  updates, `clearKubernetesNamespace()`, `clearFluxResourcePath()` and `clearClusterAgent()` on environment updates).
+  A `clear...()` call counts as a change, and for one field the last call wins. Elsewhere `null` cannot be sent, so a
+  milestone date or a draft-note position cannot be cleared. That GitLab then clears the value is not verified live.
 - **An empty string is sent as given** (`description("")` on an update builder, and `clearDescription()` on issue and
   project updates, which sends one); whether GitLab then clears the value is not verified against a live instance.
 - `IOException` and the client's `GitLabApiException` pass through unchanged.
@@ -503,9 +523,13 @@ All objects behave the same way, so you learn them once:
 - **Give the token what the call needs.** A personal access token with the `api` scope covers everything the SDK does;
   `read_api` covers the reads. A project or group access token covers that project or group only.
 - **Keep secrets out of logs.** `response()` of a job, of a pipeline and of a project can carry URLs and variables of
-  your instance; log what you need, not the whole record. The secret of a new deploy token (`token()`, and the `token()`
-  of its `response()`), the token of a pipeline trigger (`PipelineTrigger.token()`), the runner registration and authentication tokens (`RegistrationToken.token()`), and the token you set on a webhook (`update().token(...)`), and the value of a CI/CD variable (`Variable.value()`, `ScheduleVariable.value()`, `update().value(...)`) are credentials; package files and container images can carry credentials too: store them in a
-  secret store and never log them.
+  your instance; log what you need, not the whole record. These are credentials: the secret of a new deploy token
+  (`token()`, and the `token()` of its `response()`), the token you set on a webhook (`update().token(...)`), the token
+  of a pipeline trigger (`PipelineTrigger.token()`), the registration and authentication tokens of runners
+  (`RegistrationToken.token()`), and the value of a CI/CD variable (`Variable.value()`, `GroupVariable.value()`,
+  `ScheduleVariable.value()`, `update().value(...)`). The artifacts of a job, the files of a package and the images of
+  the container registry can carry credentials too. Store secrets in a secret store and never log them; the SDK's own
+  `toString()` methods never print a secret value.
 - **Try an integration on a throwaway project first.** The [live smoke tests](docs/guide/smoke-tests.md) show how.
 
 ## Configure the client
@@ -544,7 +568,8 @@ The options are described in the `gitlab-rest-client` documentation:
 
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
 other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
-`code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`, `schedules`, `runners`, `packages` and `registry`.
+`code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`,
+`schedules`, `runners`, `packages` and `registry`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

@@ -18,14 +18,14 @@ project that holds nothing else, whose path contains `smoke`. The tests refuse a
 | `SMOKE_GITLAB_PROJECT` | The path of the sandbox project, `group/name`; the path must contain `smoke` |
 | `SMOKE_GITLAB_URL` | The instance root; default `https://gitlab.com` |
 | `SMOKE_GITLAB_USER_ID` | Optional. The numeric id of a second user who may be added to and removed from the sandbox; without it the add, change and remove of a member is skipped |
-| `SMOKE_GITLAB_GROUP` | Optional. The path of a sandbox group, which must contain `smoke` like the project path; without it `GroupLabelsSmokeIT` is skipped. The token's user must be allowed to create labels in it |
+| `SMOKE_GITLAB_GROUP` | Optional. The path of a sandbox group, which must contain `smoke` like the project path; without it `GroupLabelsSmokeIT` and the group test of `VariablesSmokeIT` are skipped. The token's user must be allowed to create labels and variables in it |
 
 ```bash
 export SMOKE_GITLAB_TOKEN=glpat-...
 export SMOKE_GITLAB_PROJECT=my-group/my-project-smoke
 export SMOKE_GITLAB_URL=https://gitlab.example.com   # optional, https://gitlab.com is the default
 export SMOKE_GITLAB_USER_ID=1234                     # optional, a second user for the member test
-export SMOKE_GITLAB_GROUP=my-group-smoke             # optional, a sandbox group for the group label test
+export SMOKE_GITLAB_GROUP=my-group-smoke             # optional, a sandbox group for the group tests
 ```
 
 ## Run
@@ -36,7 +36,7 @@ mvn -Psmoke verify -Dit.test=CodeSmokeIT
 ```
 
 Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is skipped, not failed. Without
-`SMOKE_GITLAB_GROUP`, only `GroupLabelsSmokeIT` is skipped.
+`SMOKE_GITLAB_GROUP`, only `GroupLabelsSmokeIT` and the group test of `VariablesSmokeIT` are skipped.
 
 ## What is covered
 
@@ -57,9 +57,15 @@ Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is sk
 | `WebhooksSmokeIT` | create a webhook with the URL `https://example.com/smoke-<runId>`, update its name and replace its events with pipeline events only (push switched off), reload, list, delete, 404 on a missing hook. `Webhook.test(...)` is **not** run live, because it makes GitLab send a real HTTP request to the hook URL. Group webhooks (Premium) are not run live |
 | `DeploySmokeIT` | add a deploy key (a fixed public key made for the tests, titled `smoke-<runId>`), update its title and push flag, reload, list, delete; create a deploy token with `READ_REPOSITORY`, check that the secret is present and absent from `toString()` (it is never printed), reload, list, delete; 404 on a missing key. Needs a Maintainer. GitLab accepts a key only once, so a run that failed to delete the key blocks the next run until you remove the key by hand |
 | `ProtectionSmokeIT` | create the branch `smoke-<runId>/protected` from the default branch (skipped when the sandbox has none), protect it for Maintainers, allow force pushes, reload, list, unprotect, delete the branch; protect the tag pattern `smoke-<runId>-*` for Maintainers, reload, list, unprotect; 404 on a branch and a tag that are not protected. Needs the Maintainer role. Group protected branches (Premium) are not run live |
+| `VariablesSmokeIT` | create a project variable `SMOKE_<RUNID>`, update its value, reload, move it to a NEW environment scope `smoke-<runId>-scope`, then create a second variable of the same key in the scope `*` and update, load and delete it, checking that the first one is untouched (this is the scope targeting); delete the first one. Asserts that no `toString()` of the SDK objects prints a value. With `SMOKE_GITLAB_GROUP`: create, update, reload, list and delete a group variable `SMOKE_<RUNID>_G`, otherwise that test is skipped. Masked and hidden variables are not run live |
+| `EnvironmentsSmokeIT` | create an environment `smoke-<runId>-env`, update its tier, description and Kubernetes namespace, clear the namespace, reload, list, stop, delete it. A second environment `smoke-<runId>-deploy-env` gets two deployments of the newest commit of the default branch (skipped when the sandbox has no default branch or no commit): create one as running and set it to success, create one as success, list, load, delete the older one; the other goes with the environment. Approving and rejecting a deployment (Premium) are not run live |
+| `SchedulesSmokeIT` | create a pipeline schedule `smoke-<runId>-schedule` on the default branch (skipped when it has none) that fires once a year, switch it off and set its time zone, add a schedule variable and update it, load, reload, list, delete the variable and the schedule, read `lastPipeline()` (empty); create a pipeline trigger `smoke-<runId>-trigger`, check that its token is present and absent from `toString()`, update its description, reload, list, delete. `play()`, `takeOwnership()` and firing a trigger are not run live, because they start a pipeline or change the owner |
+| `RunnersSmokeIT` | reads only, skipped when the sandbox project has no runner: list the runners of the sandbox, load one with `sdk.runner(id)`, refresh it, read `tagList()`, `type()`, `typeName()`, the status, the managers and the jobs. Registering, updating, enabling, disabling and deleting a runner and resetting a token are not run live |
+| `ArtifactsSmokeIT` | reads only, skipped when none of the latest 50 jobs of the sandbox has artifacts: list the artifact tree (the root and one directory, recursively), download the archive to a temporary file that is deleted afterwards. Keeping and deleting artifacts are not run live |
+| `PackagesAndRegistrySmokeIT` | reads only, each test skipped when the sandbox has no package or no registry repository: list the packages, load and reload one, list its files; list the repositories, reload one, list its tags and load the first. Downloading a package file and every delete are not run live |
 
-Every resource a test creates is named `smoke-<runId>-...` and is removed in a `finally` block, so a failed run leaves
-nothing behind. Issues are deleted outright. Cleanup relies on the same SDK calls that the tests exercise, so a failure
+Every resource a test creates is named `smoke-<runId>-...` (a variable key is `SMOKE_<RUNID>`) and is removed in a
+`finally` block, so a failed run leaves nothing behind. Issues are deleted outright. Cleanup relies on the same SDK calls that the tests exercise, so a failure
 in `delete()` can leave a `smoke-` resource in the sandbox; remove it by hand. GitLab may keep a deleted resource for a
 short time before it disappears.
 
@@ -87,6 +93,13 @@ questions are open until a run:
 | Draft-note publish effects and the 404 after a publish | Publishing a draft note, or all of them, is not run live. That GitLab then answers 404 for the draft note (the SDK's `refresh()` throws `IllegalStateException` on it) is an assumption, as are the notes the publish creates |
 | Tag and release creation permissions | Creating a tag or a release needs a role that may do so (Developer or Maintainer, depending on the protected-tag rules of the project); a token of a lower role fails with 403 in `TagsAndReleasesSmokeIT` |
 | Group label promotion from a project in a user namespace | `Label.promote()` finds the group from the project's namespace; for a project in a user namespace the SDK sends the promotion and GitLab's rejection passes through. Only a project directly in the sandbox group is run live, and even that has not run yet |
+| Same-key variable scope targeting on update and delete | An update and a delete of a project variable send the variable's own scope as `filter[environment_scope]`; whether GitLab then touches only that variable when several share the key is checked first by `VariablesSmokeIT`. The core's group API has no scope filter at all, so group variables of one key in different scopes stay indistinguishable |
+| Hidden and masked variable values | A hidden variable has no `value()` in the SDK (`Optional`), and masking needs a value that GitLab accepts as maskable; neither is run live, because `VariablesSmokeIT` creates plain variables only. What GitLab answers for a masked or hidden variable, and for `maskedAndHidden`, is unchecked |
+| Clearing environment fields | `clearKubernetesNamespace()`, `clearFluxResourcePath()` and `clearClusterAgent()` send JSON `null`; that GitLab accepts it and then returns no value is checked first by `EnvironmentsSmokeIT` for the Kubernetes namespace only. The other two are unchecked |
+| Deployment status transitions | GitLab accepts only `running`, `success`, `failed` and `canceled` on create and update; which transitions it allows (running to success is run live; others are not), and that it refuses to delete the latest deployment of an environment (the test deletes the older of two), are unchecked until `EnvironmentsSmokeIT` runs |
+| Runner `tag_list` as a JSON array and the other patched runner fields | The core patches its OpenAPI description of the runner records (the `tag_list` array, the registration and detail types, the ids). `RunnersSmokeIT` is where that patch meets a real response: `tagList()`, `type()` and the typed detail fields must parse. It is skipped when the sandbox has no runner, so a sandbox without a runner leaves it unchecked |
+| Artifact download permissions | Downloading the artifacts of a job needs access to the job's artifacts (a project that restricts them, or a token of a role that cannot read them, answers 403 or 404), and the download writes an owner-only file; `ArtifactsSmokeIT` is skipped when the sandbox has no job with artifacts |
+| Package and registry list shapes | The package and container registry lists, the group lists with the `project_id`, the files and the tag details are only unit-tested against records built from the OpenAPI description; `PackagesAndRegistrySmokeIT` is the first check, and it is skipped when the sandbox has no package or repository |
 
 ## Reading a failure
 
