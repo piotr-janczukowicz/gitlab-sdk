@@ -100,12 +100,14 @@ event; group-level deploy keys (GitLab has none); protected-branch rules of a us
 role (they stay in `response()`); group releases, the typed latest-release getter and release asset sources; milestone
 burndown events; snippet, commit and epic discussions and the snippet and epic-note reactions; editing or deleting a
 reply through the discussion endpoints (use the `Note` objects); building a diff `position`; clearing a milestone date
-or a draft-note position (the SDK cannot send `null` for them); the priority of a label; and, for snippets, the
-deprecated `content` and `file_name` parameters, the instance-wide and public snippet lists, repository storage moves
-and user-agent details; for dependencies, the dependency list exports, and the vulnerabilities, vulnerability findings
-and epics REST APIs, which the GitLab docs mark as deprecated (or being deprecated) and the SDK deliberately does
-not offer. For audit events, the instance audit events (an administrator API) are not covered, and offset paging,
-which GitLab deprecates, is deliberately not offered: lists walk by keyset, newest first.
+or a draft-note position (the SDK cannot send `null` for them); the priority of a label. Search is not covered: the
+core's search calls return nothing, so it is deferred to a future GraphQL project. Left out of the new areas as out of
+scope: wiki page notes, snippet notes, discussions and reactions, the instance-wide and public snippet lists, repository
+storage moves and user-agent details of snippets, the dependency list exports, and the instance audit events (an
+administrator API). Deliberately not offered, because GitLab deprecates them: epics, the vulnerabilities and
+vulnerability findings REST APIs, the snippet `content` and `file_name` parameters, and offset paging of audit events
+(lists walk by keyset, newest first); see [the
+reasons](docs/guide/coverage.md#deliberately-not-offered-deprecated-by-gitlab).
 
 Not covered in the CI/CD areas: instance-level variables and runners, and pipeline variables; `maskedAndHidden` on a
 variable update (on create it goes through the payload overload); protected environments (Premium), deleting review
@@ -433,17 +435,16 @@ reaction.delete();
 `project.wiki()` and `group.wiki()` return a `Wiki` without a request; a group wiki needs Premium (GitLab is expected
 to answer 403 or 404 on a lower tier). `wiki.all()` lists the pages: GitLab lists every page in one response without
 its content, so each page is loaded again as the stream reaches it (one request per page, and a page that is gone is
-skipped).
-`wiki.find(slug)` loads one page, empty on a 404, also when the wiki is not available. A slug is passed as GitLab
-returns it, not URL-encoded: `dir/page` stays as it is and the core encodes it. GitLab derives the slug from the title,
-so `page.update().title(...).send()` targets the old slug and returns the page with its new one (expected; unverified
+skipped). `wiki.find(slug)` loads one page, empty when GitLab answers 404 (expected in some cases where the wiki is not
+available); a 403 or the core's `GitLabTierException` passes through. A slug is passed as GitLab returns it, not
+URL-encoded: `dir/page` stays as it is and the core encodes it. GitLab derives the slug from the title, so
+`page.update().title(...).send()` targets the old slug and returns the page with its new one (expected; unverified
 live). An update needs the title or the content: `send()` with only `format(...)` set throws `IllegalStateException`
-before a request. `content()`,
-`format()` (a strict `WikiFormat`; `formatName()` gives the raw name) and `encoding()` are `Optional`, and
-`frontMatter()` is an immutable copy of the parsed front matter, empty when there is none.
+before a request. `content()`, `format()` (a strict `WikiFormat`; `formatName()` gives the raw name) and `encoding()`
+are `Optional`, and `frontMatter()` is an immutable copy of the parsed front matter, empty when there is none.
 `wiki.uploadAttachment(fileName, bytes)` (or with a branch) uploads a file and returns the core's
-`GitLabWikiAttachment`, whose `link().markdown()` goes into a page; GitLab offers no call that removes an upload.
-Page content can hold anything the user wrote, so no SDK `toString()` prints it.
+`GitLabWikiAttachment`, whose `link().markdown()` goes into a page; GitLab offers no call that removes an upload. Page
+content can hold anything the user wrote, so no SDK `toString()` prints it.
 
 ```java
 Wiki wiki = project.wiki();
@@ -458,16 +459,16 @@ page.delete();
 
 `project.snippets()` returns the `ProjectSnippets` of a project and `sdk.snippets()` the `PersonalSnippets` of the
 signed-in user, both without a request. `all()` lists them (`GET /snippets` for the personal ones: the user's own
-snippets), `find(id)` loads one (empty on a 404; a personal `find` loads any snippet the user can see), and
-`create(title, visibility, filePath, content)` creates a snippet with one file; `create(payload)` passes the core's
-payload through for several files or a description. The SDK always sends files as the `files` array, never the
-`content` and `file_name` parameters, which GitLab deprecates. A `Snippet` (project) and a `PersonalSnippet` give
-`title()`, `description()`, `visibility()` (a strict `SnippetVisibility`; `visibilityName()` gives the raw name),
-`author()`, `webUrl()` and `files()` (a `SnippetFile` per entry: `path()` and `rawUrl()`; empty for a legacy
-single-file snippet). `content()` reads the snippet and `fileContent(ref, path)` one file as text (binary content comes
-back decoded as UTF-8; a 404 is the core's `GitLabNotFoundException`, not empty). `update()` collects the title,
-description, visibility and file changes (`addFile`, `updateFile`, `deleteFile`, `moveFile(previousPath, path)`), sent
-in call order by `send()`. A `Snippet` returns its project from `project()`; a `PersonalSnippet` has no parent
+snippets), `find(id)` loads one (empty when GitLab answers 404, a 403 passes through; a personal `find` is expected to
+load any snippet the user can see), and `create(title, visibility, filePath, content)` creates a snippet with one file;
+`create(payload)` passes the core's payload through for several files or a description. The SDK always sends files as
+the `files` array, never the `content` and `file_name` parameters, which GitLab deprecates. A `Snippet` (project) and a
+`PersonalSnippet` give `title()`, `description()`, `visibility()` (a strict `SnippetVisibility`; `visibilityName()`
+gives the raw name), `author()`, `webUrl()` and `files()` (a `SnippetFile` per entry: `path()` and `rawUrl()`; empty for
+a legacy single-file snippet). `content()` reads the snippet and `fileContent(ref, path)` one file as text (binary
+content comes back decoded as UTF-8; a 404 is the core's `GitLabNotFoundException`, not empty). `update()` collects the
+title, description, visibility and file changes (`addFile`, `updateFile`, `deleteFile`, `moveFile(previousPath, path)`),
+sent in call order by `send()`. A `Snippet` returns its project from `project()`; a `PersonalSnippet` has no parent
 navigation. Snippet content can hold anything the user wrote, so no SDK `toString()` prints it.
 
 ```java
@@ -558,13 +559,16 @@ All objects behave the same way, so you learn them once:
   afterwards. Issues and merge requests are addressed by their `iid`, the number within
   the project.
 - A **lookup** (`project.issue(42)`, `sdk.user(7)`, `project.file("README.md", "main")`) returns an `Optional`, empty
-  when GitLab answers 404.
+  when GitLab answers 404. A lookup in a Premium or Ultimate area (`wiki.find(slug)`, `auditEvents.find(id)`) is empty
+  when GitLab answers 404 (expected in some cases where the feature is not available); a 403 or the core's
+  `GitLabTierException` passes through.
 - A **list** is a lazy, single-use `Stream`. Pages are fetched as you consume it, so `limit(...)` stops further
   requests; a transport failure during iteration is an `UncheckedIOException`.
 - **Several fields at once** go through `update()`: `issue.update().title("New").labels(List.of("bug")).send()` sends
   one request with only the fields you set. `send()` with nothing set throws `IllegalStateException`. Projects, groups,
   members, webhooks, variables, environments, pipeline schedules and triggers, runners, deploy keys, issues, merge
-  requests, labels, group labels, milestones, releases, release links and draft notes have an `update()`.
+  requests, labels, group labels, milestones, releases, release links, draft notes, wiki pages, snippets and personal
+  snippets have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
 - A `ProjectPackage` and a `RegistryRepository` find their project through the `project_id` of their response: from a
@@ -573,8 +577,10 @@ All objects behave the same way, so you learn them once:
   project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`, and the
   `download` and `delete` of their files and tags) throw `IllegalStateException`.
 - A `Reaction`, a `Runner`, a `RunnerToken` and a `PersonalSnippet` are the objects **without parent navigation**. A
-  `Wiki`, a `ProjectSnippets`, a `PersonalSnippets`, a `Dependencies` and an `AuditEvents` are area handles with
-  neither `response()` nor parent navigation; wiki pages return their wiki from `wiki()`, a `Snippet` and a
+  `Wiki`, a `ProjectSnippets`, a `PersonalSnippets`, a `Dependencies` and an `AuditEvents` are area handles (one
+  accessor per owner: `project.wiki()`, `group.wiki()`, `project.snippets()`, `sdk.snippets()`,
+  `project.dependencies()`, `project.auditEvents()`, `group.auditEvents()`; the accessor and the `forProject(...)`,
+  `forGroup(...)` and `forSdk(...)` factories make no request) with neither `response()` nor parent navigation; wiki pages return their wiki from `wiki()`, a `Snippet` and a
   `Dependency` return their project from `project()`, and an `AuditEvent` returns its `AuditEvents` from
   `auditEvents()`.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
@@ -590,7 +596,8 @@ All objects behave the same way, so you learn them once:
   and a milestone date is sent as `yyyy-MM-dd`. A milestone date is empty when GitLab sends none or a blank one, and a
   value that is not an ISO date throws `IllegalStateException`.
 - `refresh()` reloads an object and throws `IllegalStateException` when it is gone. Access requests (`AccessRequest`,
-  `GroupAccessRequest`) and `ProjectGroupLink` have no `refresh()`: the API has no lookup of a single one.
+  `GroupAccessRequest`), `ProjectGroupLink`, `AuditEvent` and `Dependency` have no `refresh()`: the API has no lookup of
+  a single access request or dependency, and an audit event does not change.
 - Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, the forks of a
   project, the projects and subgroups of a group, and the issues and merge requests of a milestone), the SDK loads each
   item with one more request as the stream reaches it. The Javadoc says so, and `limit(...)` bounds the cost. An item
@@ -615,9 +622,12 @@ All objects behave the same way, so you learn them once:
   milestone date or a draft-note position cannot be cleared. That GitLab then clears the value is not verified live.
 - **An empty string is sent as given** (`description("")` on an update builder, and `clearDescription()` on issue and
   project updates, which sends one); whether GitLab then clears the value is not verified against a live instance.
-- `IOException` and the client's `GitLabApiException` pass through unchanged.
-- A call that needs a tier your instance lacks fails in the core's tier guard when you configured the tier on the
-  client; the SDK adds no tier logic of its own.
+- **No deprecated GitLab operation or parameter** is offered: the SDK has no epics, vulnerabilities or vulnerability
+  findings, never sends the `content` and `file_name` parameters of a snippet, and never pages audit events by offset.
+  [What the SDK covers](docs/guide/coverage.md#deliberately-not-offered-deprecated-by-gitlab) gives the reasons. -
+  `IOException` and the client's `GitLabApiException` pass through unchanged. - A call that needs a tier your instance
+  lacks fails in the core's tier guard when you configured the tier on the   client; the SDK adds no tier logic of its
+  own.
 
 ## Good practices
 

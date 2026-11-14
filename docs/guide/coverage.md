@@ -2,13 +2,12 @@
 
 Every object of the SDK, with the methods it has, by package. The [README](../../README.md) gives the short overview.
 Every object also has `response()`, which returns the complete `gitlab-rest-client` record it is built from, and
-navigates to its parent (`issue.project()`, `note.issue()`, `job.project()`, `file.projectPackage()` and so on),
-except a `Reaction`, a `Runner`, a `RunnerToken` and a `PersonalSnippet`, which have none. A `Wiki`, a
-`ProjectSnippets`, a `PersonalSnippets`, a `Dependencies` and an `AuditEvents` are area handles, not loaded objects:
-they have neither `response()` nor parent navigation; wiki pages navigate to their wiki with `wiki()`, a `Snippet` and
-a `Dependency` to their project with `project()`, and an `AuditEvent` to its `AuditEvents` with `auditEvents()`. A
-lookup returns an `Optional`, a list is a lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a
-`long`.
+navigates to its parent (`issue.project()`, `note.issue()`, `job.project()`, `file.projectPackage()` and so on), except
+a `Reaction`, a `Runner`, a `RunnerToken` and a `PersonalSnippet`, which have none. A `Wiki`, a `ProjectSnippets`, a
+`PersonalSnippets`, a `Dependencies` and an `AuditEvents` are area handles, not loaded objects: they have neither
+`response()` nor parent navigation; wiki pages navigate to their wiki with `wiki()`, a `Snippet` and a `Dependency` to
+their project with `project()`, and an `AuditEvent` to its `AuditEvents` with `auditEvents()`. A lookup returns an
+`Optional`, a list is a lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `long`.
 
 ## Root package: `io.github.piotr_janczukowicz.gitlab.sdk`
 
@@ -237,7 +236,7 @@ the SDK reads tag metadata only.
 
 | Object | Methods |
 |---|---|
-| `Wiki` | From `project.wiki()` or `group.wiki()` (Premium), or `Wiki.forProject(project)` and `Wiki.forGroup(group)`; none makes a request. `all()` (one list request, then each page loaded again as the stream reaches it; gone ones are skipped), `find(slug)` (empty on a 404, also when the wiki is not available), `create(title, content)`, `create(title, content, format)`, `uploadAttachment(fileName, bytes)` and `uploadAttachment(fileName, bytes, branch)` (the form part `file` as `application/octet-stream`; the core's `GitLabWikiAttachment` record is passed through) |
+| `Wiki` | From `project.wiki()` or `group.wiki()` (Premium), or `Wiki.forProject(project)` and `Wiki.forGroup(group)`; none makes a request. `all()` (one list request, then each page loaded again as the stream reaches it; gone ones are skipped), `find(slug)` (empty when GitLab answers 404, expected in some cases where the wiki is not available; a 403 or the core's `GitLabTierException` passes through), `create(title, content)`, `create(title, content, format)`, `uploadAttachment(fileName, bytes)` and `uploadAttachment(fileName, bytes, branch)` (the form part `file` as `application/octet-stream`; the core's `GitLabWikiAttachment` record is passed through) |
 | `WikiPage` | `slug()` (as GitLab returns it, not URL-encoded), `title()`, `content()`, `format()` (an `Optional<WikiFormat>`; an unknown format throws `IllegalArgumentException`), `formatName()` (the raw name), `encoding()`, `frontMatter()` (an immutable copy, nested maps and lists included; empty when absent), `wiki()`, `refresh()`, `update()`, `delete()`, `response()` |
 | `WikiPageUpdate` | `title(...)` (GitLab is expected to give the page a new slug; the request names the old one), `content(...)`, `format(WikiFormat)`, `send()` (an empty update, or one with only the format set, throws `IllegalStateException` before a request; GitLab needs the title or the content) |
 | `WikiFormat` | `MARKDOWN`, `RDOC`, `ASCIIDOC`, `ORG` |
@@ -252,14 +251,14 @@ answer 403 or 404 on a lower tier, and a client configured with a lower tier ref
 
 | Object | Methods |
 |---|---|
-| `ProjectSnippets` | From `project.snippets()` or `ProjectSnippets.forProject(project)`; neither makes a request. `all()` (the listed snippets are complete, so none is loaded again), `find(id)` (empty on a 404, also when snippets are not available), `create(title, visibility, filePath, content)` (one file, sent as a one-entry `files` array; a blank title or path, or a `null` visibility or content, throws before a request), `create(payload)` (the core's `GitLabProjectProjectSnippetsCreatePayload`, sent unchanged) |
+| `ProjectSnippets` | From `project.snippets()` or `ProjectSnippets.forProject(project)`; neither makes a request. `all()` (the listed snippets are complete, so none is loaded again), `find(id)` (empty when GitLab answers 404, expected in some cases where snippets are not available; a 403 or the core's `GitLabTierException` passes through), `create(title, visibility, filePath, content)` (one file, sent as a one-entry `files` array; a blank title or path, or a `null` visibility or content, throws before a request), `create(payload)` (the core's `GitLabProjectProjectSnippetsCreatePayload`, sent unchanged) |
 | `Snippet` | `id()`, `title()`, `description()`, `visibility()` (an `Optional<SnippetVisibility>`; an unknown visibility throws `IllegalArgumentException`), `visibilityName()` (the raw name), `author()` (the core's `GitLabUserBasic`), `webUrl()`, `files()` (a `SnippetFile` per `files` entry; empty when GitLab sends no `files`, as for a legacy single-file snippet; an entry without a path is skipped), `content()` (`GET .../snippets/{snippet_id}/raw` as text), `fileContent(ref, path)` (`GET .../files/{ref}/{file_path}/raw` as text; ref and path reach the core unchanged), `project()`, `refresh()`, `update()`, `delete()`, `response()` |
 | `SnippetUpdate` | `title(...)`, `description(...)`, `visibility(SnippetVisibility)`, `addFile(path, content)`, `updateFile(path, content)`, `deleteFile(path)`, `moveFile(previousPath, path)` (sends `previous_path` and no content; a blank path throws before a request), `send()` (the file changes in call order as the `files` array; an empty update throws `IllegalStateException` before a request) |
-| `PersonalSnippets` | From `sdk.snippets()` or `PersonalSnippets.forSdk(sdk)`; neither makes a request. `all()` (`GET /snippets`: the signed-in user's snippets; each listed `GitLabSnippet` is copied into a `GitLabPersonalSnippet`, which has the same fields, without a request), `find(id)` (`GET /snippets/{id}`: any snippet the user can see; empty on a 404), `create(title, visibility, filePath, content)` and `create(payload)` (the core's `GitLabCodeSnippetsCreatePayload`) as for a project |
+| `PersonalSnippets` | From `sdk.snippets()` or `PersonalSnippets.forSdk(sdk)`; neither makes a request. `all()` (`GET /snippets`: the signed-in user's snippets; each listed `GitLabSnippet` is copied into a `GitLabPersonalSnippet`, which has the same fields, without a request), `find(id)` (`GET /snippets/{id}`: GitLab is expected to return any snippet the user can see; empty when GitLab answers 404, a 403 passes through), `create(title, visibility, filePath, content)` and `create(payload)` (the core's `GitLabCodeSnippetsCreatePayload`) as for a project |
 | `PersonalSnippet` | As `Snippet`, without `project()`: `id()`, `title()`, `description()`, `visibility()`, `visibilityName()`, `author()`, `webUrl()`, `files()`, `content()`, `fileContent(ref, path)` (the core declares this snippet id as text, so the SDK passes `String.valueOf(id())`), `refresh()`, `update()`, `delete()` (the core's optional answer is discarded), `response()` (a `GitLabPersonalSnippet`) |
 | `PersonalSnippetUpdate` | As `SnippetUpdate`, sent with `PUT /snippets/{id}` |
 | `SnippetFile` | `path()`, `rawUrl()` (an `Optional`) |
-| `SnippetVisibility` | `PRIVATE`, `INTERNAL` (not available on GitLab.com), `PUBLIC` |
+| `SnippetVisibility` | `PRIVATE`, `INTERNAL` (GitLab.com disables internal visibility for new snippets, per the GitLab docs), `PUBLIC` |
 
 The SDK sends the files of a snippet only as the `files` array: the `content` and `file_name` parameters of create and
 update are deprecated by GitLab and never sent (`create(payload)` passes the core's payload through unchanged). The raw
@@ -294,6 +293,10 @@ and never sent, so the only order is newest first. The details can hold names, e
 
 ## What is not covered
 
+- **Search.** The core's search calls (`search().instance()`, `group()` and `project()`) return nothing, because the
+  OpenAPI description declares no response body and the result type depends on the `scope` parameter, so the SDK has
+  no search. It is deferred to a future GraphQL project; use the core client meanwhile for what it can do. AI search
+  (`getSemantic`) is out of scope.
 - **Single artifact files and job tokens.** Reading one file out of the artifacts (the core's `call...` methods
   discard the body), a job-token parameter on the artifact calls (the client's own authentication is used), and the
   artifact upload and authorization of the runner protocol are not covered; use the core.
@@ -356,7 +359,7 @@ and never sent, so the only order is newest first. The details can hold names, e
   registry protection rules, the registry event endpoint (`createContainerRegistryEventEvent`), the instance-level
   package and registry lists, and a filter on the group registry list (the core has none) are not covered; use the core
   client. `deleteTags(filter)` passes the core's filter record through.
-- **Wikis.** Wiki page notes (out of scope for Phase D), the `front_matter` title on create and update, a page
+- **Wikis.** Wiki page notes (out of scope), the `front_matter` title on create and update, a page
   `version` and `render_html` on a load, `with_content` on the list (the SDK loads each page instead), and removing an
   uploaded attachment (GitLab has no call for it) are not covered; use the core client for all but the last.
 - **Snippets.** The `content` and `file_name` parameters of create and update (deprecated by GitLab in favor of
@@ -374,3 +377,27 @@ and never sent, so the only order is newest first. The details can hold names, e
   only keyset order the GitLab REST docs list for audit events; an oldest-first walk is not available.
 - **Live verification.** No area has been run against a real GitLab instance yet; see
   [Live smoke tests](smoke-tests.md).
+
+## Deliberately not offered: deprecated by GitLab
+
+The SDK offers no deprecated GitLab operation or parameter. Each item below is marked deprecated, or in the process of
+being deprecated, by the GitLab REST documentation (checked when the SDK was written; GitLab may change its pages). They
+stay available on the core client, which is described by the same OpenAPI description.
+
+| Item | Why it is left out | GitLab docs |
+|---|---|---|
+| Epics, with epic issues, epic links and linked epics | The page says that the REST API is deprecated in GitLab 17.0 and planned for removal in API v5; the replacement is the Work Items API (GraphQL) | <https://docs.gitlab.com/api/epics/> |
+| Vulnerabilities: list, load, confirm, resolve, dismiss, revert | The pages say that the API is in the process of being deprecated and considered unstable, and point to the GraphQL API | <https://docs.gitlab.com/api/project_vulnerabilities/>, <https://docs.gitlab.com/api/vulnerabilities/> |
+| Vulnerability findings | The same notice as for vulnerabilities; the core's record also types about 15 properties as `String` | <https://docs.gitlab.com/api/vulnerability_findings/> |
+| The snippet `content` and `file_name` parameters of create and update | Marked "Deprecated: Use `files` instead"; the SDK sends the `files` array only | <https://docs.gitlab.com/api/snippets/>, <https://docs.gitlab.com/api/project_snippets/> |
+| Offset paging of audit events | Deprecated in GitLab 17.8, removal planned for 19.0; the SDK walks by keyset (`order_by=id`, `sort=desc`), so events come newest first | <https://docs.gitlab.com/api/audit_events/> |
+
+Not deprecated, checked against the same docs: project and group wikis, the snippet endpoints, the project dependency
+list, and project and group audit events with keyset paging.
+
+## Out of scope for Phase D
+
+These are not deprecated; the SDK leaves them out for scope, and the core client serves them: dependency list exports
+(the core's call only creates the export and discards the body), the instance audit events (an administrator API),
+snippet repository storage moves, user-agent details and the instance-wide and public snippet lists (administrator or
+instance-wide), wiki page notes, and snippet notes, discussions and reactions.

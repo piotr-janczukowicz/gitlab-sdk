@@ -74,11 +74,11 @@ Every resource a test creates is named `smoke-<runId>-...` (a variable key is `S
 calls that the tests exercise, so a failure in `delete()` can leave a `smoke-` resource in the sandbox; remove it by
 hand. GitLab may keep a deleted resource for a short time before it disappears.
 
-A disabled feature or a 403 skips, never fails: the first call of an area that may be switched off for the sandbox
-or refused to the token (packages, the container registry, environments, CI/CD variables, schedules and triggers,
-runners and their managers and jobs, job artifacts, project and group wikis, project and personal snippets, project
-dependencies, project and group audit events) goes through `SmokeSkips.probe(...)`, which turns GitLab's 403 or 404
-into a skipped test. The calls under test do not, so a wrong request still fails.
+A disabled feature or a 403 skips, never fails: the first call of an area that may be switched off for the sandbox or
+refused to the token (packages, the container registry, environments, CI/CD variables, schedules and triggers, runners
+and their managers and jobs, job artifacts, project and group wikis, project and personal snippets, project
+dependencies, project and group audit events) goes through `SmokeSkips.probe(...)`, which turns GitLab's 403 or 404 into
+a skipped test. The calls under test do not, so a wrong request still fails.
 
 ## Not yet verified live
 

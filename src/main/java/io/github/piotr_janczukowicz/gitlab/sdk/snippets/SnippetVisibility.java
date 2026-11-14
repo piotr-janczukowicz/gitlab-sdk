@@ -4,13 +4,13 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
 /**
  * Who can see a snippet: the three levels GitLab documents for creating and updating a project or personal snippet.
- * GitLab.com does not offer {@link #INTERNAL}. A visibility in a response that is not listed here makes
- * {@code visibility()} throw; {@code visibilityName()} gives the raw name.
+ * GitLab.com disables internal visibility for new snippets (per the GitLab docs). A visibility in a response that is
+ * not listed here makes {@code visibility()} throw; {@code visibilityName()} gives the raw name.
  */
 public enum SnippetVisibility {
     /** Private: the most restricted level. */
     PRIVATE("private"),
-    /** Every signed-in user; not available on GitLab.com. */
+    /** Every signed-in user; GitLab.com disables it for new snippets (per the GitLab docs). */
     INTERNAL("internal"),
     /** Everyone. */
     PUBLIC("public");

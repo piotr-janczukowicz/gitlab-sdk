@@ -27,9 +27,9 @@ class SnippetsJsonTest {
 
     /**
      * A legacy single-file project snippet, shaped after the REST docs example of {@code GET
-     * /projects/:id/snippets/:snippet_id} (snippet 2, title {@code test}, {@code file_name} {@code add.rb}, no
-     * {@code files} and no {@code visibility}). The page could only be read as a summary, so the values follow the docs
-     * but the text is not a verbatim copy.
+     * /projects/:id/snippets/:snippet_id} (values after the docs example, the id changed: title {@code test},
+     * {@code file_name} {@code add.rb}, no {@code files} and no {@code visibility}). The page could only be read as a
+     * summary, so the values follow the docs but the text is not a verbatim copy.
      */
     private static final String LEGACY = """
             {

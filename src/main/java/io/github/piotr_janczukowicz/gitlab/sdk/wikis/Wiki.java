@@ -78,7 +78,8 @@ public final class Wiki {
      * Loads one page ({@code GET /projects/{id}/wikis/{slug}}).
      *
      * @param slug the slug as GitLab returns it, not URL-encoded, such as {@code dir/page}
-     * @return the page, or empty when GitLab answers HTTP 404; empty also when the wiki is not available
+     * @return the page, or empty when GitLab answers HTTP 404 (expected in some cases where the wiki is not available);
+     *     a 403 or the core's {@code GitLabTierException} passes through
      * @throws NullPointerException if {@code slug} is {@code null}
      * @throws IllegalArgumentException if {@code slug} is blank
      * @throws IOException if the transport fails

@@ -57,7 +57,8 @@ public final class ProjectSnippets {
      * Loads one snippet ({@code GET /projects/{id}/snippets/{snippet_id}}).
      *
      * @param id the id of the snippet
-     * @return the snippet, or empty when GitLab answers HTTP 404; empty also when snippets are not available
+     * @return the snippet, or empty when GitLab answers HTTP 404 (expected in some cases where snippets are not
+     *     available); a 403 or the core's {@code GitLabTierException} passes through
      * @throws IOException if the transport fails
      */
     public Optional<Snippet> find(final long id) throws IOException {

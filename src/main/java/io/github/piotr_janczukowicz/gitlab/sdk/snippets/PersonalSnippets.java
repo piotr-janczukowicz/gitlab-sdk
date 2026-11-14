@@ -54,10 +54,11 @@ public final class PersonalSnippets {
     }
 
     /**
-     * Loads one snippet ({@code GET /snippets/{id}}): any snippet the signed-in user can see, not only their own.
+     * Loads one snippet ({@code GET /snippets/{id}}): GitLab is expected to return any snippet the signed-in user can
+     * see, not only their own.
      *
      * @param id the id of the snippet
-     * @return the snippet, or empty when GitLab answers HTTP 404
+     * @return the snippet, or empty when GitLab answers HTTP 404; a 403 passes through
      * @throws IOException if the transport fails
      */
     public Optional<PersonalSnippet> find(final long id) throws IOException {
