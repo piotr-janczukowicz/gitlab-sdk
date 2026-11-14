@@ -208,6 +208,27 @@ runner.disable(project);
 String token = project.resetRunnerRegistrationToken().token();           // secret, do not log it
 ```
 
+### Job artifacts
+
+`job.downloadArtifacts(path)` writes the artifacts archive of a job to a file: GitLab's body is written to a temporary
+file next to the target and moved onto it only when it is complete, so the target never holds a partial download (the
+directory must exist, and an existing file is replaced). `job.downloadArtifacts(out)` copies it into your
+`OutputStream`, which the SDK never closes and which may hold a partial body when the transfer fails.
+`project.downloadArtifacts(ref, jobName, path)` (and the stream form) fetches the artifacts of the latest successful job of that
+name on a ref; a ref such as `feature/x` is passed on unchanged. `job.artifactTree()` and `job.artifactTree(path,
+recursive)` list the artifacts lazily as the core's `GitLabCiJobArtifactEntry` records, `job.keepArtifacts()` returns the
+job GitLab answers with, and `job.deleteArtifacts()` deletes them. The calls use the client's own authentication; there
+is no job-token parameter. Artifacts may contain secrets: the SDK writes only where you say, so choose the target
+accordingly. Reading a single file out of the artifacts is not covered, because the core's calls discard the body; the
+artifact upload of the runner protocol is not covered either. Nothing here has been run against a live GitLab.
+
+```java
+Path archive = job.downloadArtifacts(Path.of("build", "artifacts.zip"));
+job.artifactTree("reports", true).forEach(entry -> System.out.println(entry.path()));
+Job kept = job.keepArtifacts();
+long bytes = project.downloadArtifacts("main", "build", out);
+```
+
 ### Deploy keys and tokens
 
 A project has deploy keys and deploy tokens; a group has deploy tokens only, because GitLab's API has no group-level

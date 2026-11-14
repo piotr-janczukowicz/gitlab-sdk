@@ -102,6 +102,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Path;
 import java.time.Instant;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -691,6 +693,49 @@ public final class Project {
      */
     public Optional<Job> job(final long jobId) throws IOException {
         return sdk.gitLab().jobs().project().get(id, jobId).map(loaded -> new Job(this, loaded));
+    }
+
+    /**
+     * Downloads the artifacts archive of the latest successful job of that name on a ref into a file ({@code GET
+     * /projects/{id}/jobs/artifacts/{ref_name}/download?job=...}). The ref (a branch or tag name, possibly with a slash
+     * such as {@code feature/x}) and the job name reach the core unchanged; the core encodes them. The client's own
+     * authentication is used; the SDK offers no job-token parameter. The body is first written to a temporary file in
+     * the directory of {@code target} and moved onto it (replacing an existing file) only when received completely, so
+     * {@code target} never holds a partial download; the temporary file is deleted on failure. The directory must
+     * exist. Artifacts may contain secrets; the SDK writes only where the caller says.
+     *
+     * @param ref the branch or tag name
+     * @param jobName the name of the job
+     * @param target the file to write
+     * @return {@code target}
+     * @throws IllegalArgumentException if {@code ref} or {@code jobName} is blank
+     * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IOException if the transport fails or the file cannot be written
+     */
+    public Path downloadArtifacts(final String ref, final String jobName, final Path target) throws IOException {
+        requireNotBlank(ref, "ref");
+        requireNotBlank(jobName, "jobName");
+        return sdk.gitLab().jobs().project().getArtifactsDownload(id, ref, jobName, requireNonNull(target, "target"));
+    }
+
+    /**
+     * Downloads the artifacts archive of the latest successful job of that name on a ref into a stream ({@code GET
+     * /projects/{id}/jobs/artifacts/{ref_name}/download?job=...}). The ref and the job name reach the core unchanged.
+     * The client's own authentication is used; the SDK offers no job-token parameter. The stream is the caller's: the
+     * SDK never closes it, and it may hold a partial body when the transfer fails. Artifacts may contain secrets.
+     *
+     * @param ref the branch or tag name
+     * @param jobName the name of the job
+     * @param out the stream to write to
+     * @return the number of bytes written
+     * @throws IllegalArgumentException if {@code ref} or {@code jobName} is blank
+     * @throws NullPointerException if {@code out} is {@code null}
+     * @throws IOException if the transport fails or the stream cannot be written
+     */
+    public long downloadArtifacts(final String ref, final String jobName, final OutputStream out) throws IOException {
+        requireNotBlank(ref, "ref");
+        requireNotBlank(jobName, "jobName");
+        return sdk.gitLab().jobs().project().getArtifactsDownload(id, ref, jobName, requireNonNull(out, "out"));
     }
 
     /**

@@ -27,7 +27,10 @@ import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesL
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -230,5 +233,60 @@ class ProjectCiTest {
         final List<Job> result = sut.jobs().toList();
 
         assertThat(result).isEmpty();
+    }
+
+    @Test
+    void downloadArtifacts_shouldSendRefAndJobName_whenTargetGiven() throws IOException {
+        final Path target = Path.of("artifacts.zip");
+        when(gitLab.jobs().project().getArtifactsDownload(ID, "main", "build", target))
+                .thenReturn(target);
+
+        final Path result = sut.downloadArtifacts("main", "build", target);
+
+        assertThat(result).isSameAs(target);
+    }
+
+    @Test
+    void downloadArtifacts_shouldPassRefWithSlashUnchanged_whenRefIsABranchPath() throws IOException {
+        final OutputStream out = new ByteArrayOutputStream();
+        when(gitLab.jobs().project().getArtifactsDownload(ID, "feature/x", "build job", out))
+                .thenReturn(7L);
+
+        final long written = sut.downloadArtifacts("feature/x", "build job", out);
+
+        assertThat(written).isEqualTo(7L);
+    }
+
+    @Test
+    void downloadArtifacts_shouldThrowIllegalArgumentException_whenRefOrJobNameIsBlank() throws IOException {
+        final Path target = Path.of("artifacts.zip");
+        final OutputStream out = new ByteArrayOutputStream();
+
+        final List<Throwable> thrown = List.of(
+                catchThrowable(() -> sut.downloadArtifacts(" ", "build", target)),
+                catchThrowable(() -> sut.downloadArtifacts("main", "", target)),
+                catchThrowable(() -> sut.downloadArtifacts(" ", "build", out)),
+                catchThrowable(() -> sut.downloadArtifacts("main", " ", out)));
+
+        assertSoftly(softly -> {
+            softly.assertThat(thrown)
+                    .allSatisfy(t -> softly.assertThat(t).isInstanceOf(IllegalArgumentException.class));
+            softly.assertThat(thrown).hasSize(4);
+        });
+        verify(gitLab.jobs().project(), never()).getArtifactsDownload(any(), any(), any(), any(Path.class));
+        verify(gitLab.jobs().project(), never()).getArtifactsDownload(any(), any(), any(), any(OutputStream.class));
+    }
+
+    @Test
+    void downloadArtifacts_shouldThrowNullPointerException_whenTargetOrStreamIsNull() throws IOException {
+        final Throwable pathNull = catchThrowable(() -> sut.downloadArtifacts("main", "build", (Path) null));
+        final Throwable streamNull = catchThrowable(() -> sut.downloadArtifacts("main", "build", (OutputStream) null));
+
+        assertSoftly(softly -> {
+            softly.assertThat(pathNull).isInstanceOf(NullPointerException.class);
+            softly.assertThat(streamNull).isInstanceOf(NullPointerException.class);
+        });
+        verify(gitLab.jobs().project(), never()).getArtifactsDownload(any(), any(), any(), any(Path.class));
+        verify(gitLab.jobs().project(), never()).getArtifactsDownload(any(), any(), any(), any(OutputStream.class));
     }
 }

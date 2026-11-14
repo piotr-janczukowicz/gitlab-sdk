@@ -1,6 +1,7 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.ci;
 
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
+import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiJob;
@@ -8,10 +9,15 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsCancelPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsPlayPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.jobs.GitLabProjectJobsRetryPayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.jobsartifacts.GitLabCiJobArtifactEntry;
+import io.github.piotr_janczukowicz.gitlab.api.jobsartifacts.GitLabProjectJobsArtifactsListTreeFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Path;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * A job of a {@link Project}, as GitLab returned it. The object is immutable: it keeps the data of the moment it was
@@ -169,6 +175,97 @@ public final class Job {
      */
     public Job erase() throws IOException {
         return new Job(project, gitLab().jobs().project().erase(project.id(), id()));
+    }
+
+    /**
+     * Downloads the artifacts archive of the job into a file ({@code GET /projects/{id}/jobs/{job_id}/artifacts}). The
+     * client's own authentication is used; the SDK offers no job-token parameter. The body is first written to a
+     * temporary file in the directory of {@code target} and moved onto {@code target} (replacing an existing file) only
+     * when it was received completely, so {@code target} never holds a partial download; the temporary file is deleted
+     * on failure and nothing is created for an unsuccessful response. The directory of {@code target} must exist. Where
+     * the file system has POSIX permissions the file is created owner-only. Artifacts may contain secrets; the SDK
+     * writes only where the caller says.
+     *
+     * @param target the file to write
+     * @return {@code target}
+     * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IOException if the transport fails or the file cannot be written
+     */
+    public Path downloadArtifacts(final Path target) throws IOException {
+        return gitLab().jobsartifacts().get(project.id(), id(), requireNonNull(target, "target"));
+    }
+
+    /**
+     * Downloads the artifacts archive of the job into a stream ({@code GET /projects/{id}/jobs/{job_id}/artifacts}).
+     * The client's own authentication is used; the SDK offers no job-token parameter. The body is copied without
+     * buffering it. The stream is the caller's: the SDK never closes it. When the transfer fails the stream may hold a
+     * partial body. Artifacts may contain secrets; the SDK writes only where the caller says.
+     *
+     * @param out the stream to write to
+     * @return the number of bytes written
+     * @throws NullPointerException if {@code out} is {@code null}
+     * @throws IOException if the transport fails or the stream cannot be written
+     */
+    public long downloadArtifacts(final OutputStream out) throws IOException {
+        return gitLab().jobsartifacts().get(project.id(), id(), requireNonNull(out, "out"));
+    }
+
+    /**
+     * Lists the root of the artifacts of the job ({@code GET /projects/{id}/jobs/{job_id}/artifacts/tree}). Pages are
+     * fetched only as the stream is consumed. The entries are the core's records.
+     *
+     * @return the entries
+     * @throws IOException if the transport fails
+     */
+    public Stream<GitLabCiJobArtifactEntry> artifactTree() throws IOException {
+        return gitLab().jobsartifacts().listTree(project.id(), id()).stream();
+    }
+
+    /**
+     * Lists a directory of the artifacts of the job ({@code GET
+     * /projects/{id}/jobs/{job_id}/artifacts/tree?path=...&recursive=...}). Pages are fetched only as the stream is
+     * consumed. Use {@link #artifactTree()} for the root.
+     *
+     * @param path the directory within the artifacts; not blank
+     * @param recursive whether to list nested directories too
+     * @return the entries
+     * @throws IllegalArgumentException if {@code path} is blank
+     * @throws IOException if the transport fails
+     */
+    public Stream<GitLabCiJobArtifactEntry> artifactTree(final String path, final boolean recursive)
+            throws IOException {
+        requireNotBlank(path, "path");
+        return gitLab()
+                .jobsartifacts()
+                .listTree(
+                        project.id(),
+                        id(),
+                        GitLabProjectJobsArtifactsListTreeFilterBuilder.builder()
+                                .path(path)
+                                .recursive(recursive)
+                                .build())
+                .stream();
+    }
+
+    /**
+     * Keeps the artifacts of the job, which otherwise expire ({@code POST
+     * /projects/{id}/jobs/{job_id}/artifacts/keep}). This object is not changed.
+     *
+     * @return the job as GitLab returned it after the change
+     * @throws IOException if the transport fails
+     */
+    public Job keepArtifacts() throws IOException {
+        return new Job(project, gitLab().jobsartifacts().keep(project.id(), id()));
+    }
+
+    /**
+     * Deletes the artifacts of the job ({@code DELETE /projects/{id}/jobs/{job_id}/artifacts}). The job and its trace
+     * stay; see {@link #erase()} to remove those too.
+     *
+     * @throws IOException if the transport fails
+     */
+    public void deleteArtifacts() throws IOException {
+        gitLab().jobsartifacts().delete(project.id(), id());
     }
 
     /**
