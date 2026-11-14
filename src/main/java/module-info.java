@@ -1,3 +1,4 @@
+/** The GitLab SDK: an object layer over the GitLab REST client. */
 module io.github.piotr_janczukowicz.gitlabsdk {
     requires transitive io.github.piotr_janczukowicz.gitlabrestclient;
     requires common.core;

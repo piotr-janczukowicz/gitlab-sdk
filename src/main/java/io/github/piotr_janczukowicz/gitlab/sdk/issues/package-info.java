@@ -1,3 +1,4 @@
+/** Issues of a project, their notes, and the labels of a project or a group. */
 @NullMarked
 package io.github.piotr_janczukowicz.gitlab.sdk.issues;
 

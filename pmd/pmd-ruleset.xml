@@ -4,6 +4,8 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://pmd.sourceforge.net/ruleset/2.0.0 https://pmd.sourceforge.io/ruleset_2_0_0.xsd">
   <description>PMD rules for gitlab-sdk: the shared model ruleset of common-build-config, without the complexity and coupling rules</description>
+  <!-- PMD 7 reports the module Javadoc as DanglingJavadoc; module-info.java has nothing else to check. -->
+  <exclude-pattern>.*module-info\.java</exclude-pattern>
   <rule ref="pmd-model-ruleset.xml">
     <exclude name="CouplingBetweenObjects"/>
     <exclude name="CyclomaticComplexity"/>
