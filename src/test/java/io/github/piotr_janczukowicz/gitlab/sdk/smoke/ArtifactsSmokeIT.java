@@ -20,9 +20,10 @@ import org.junit.jupiter.api.Test;
 /**
  * Reads only, on a job of the sandbox that already has artifacts; skipped when there is none, and when the first read
  * of the artifacts answers 403 or 404 (the project restricts them, or the token may not read them; see
- * {@link SmokeSkips}). The download is skipped when GitLab reports no size or more than {@value #MAX_DOWNLOAD_BYTES}
- * bytes, and goes to a temporary directory that the test empties and deletes on every path. Keeping and deleting
- * artifacts are not run live, because they would change or lose the artifacts of a real job.
+ * {@link SmokeSkips}); only that tree read is probed, so a refused download itself fails the test. The download is
+ * skipped when GitLab reports no size or more than {@value #MAX_DOWNLOAD_BYTES} bytes, and goes to a temporary
+ * directory that the test empties and deletes on every path. Keeping and deleting artifacts are not run live, because
+ * they would change or lose the artifacts of a real job.
  */
 @Tag("smoke")
 class ArtifactsSmokeIT {

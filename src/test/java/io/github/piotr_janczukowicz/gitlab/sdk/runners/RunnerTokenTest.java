@@ -13,7 +13,7 @@ import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class RegistrationTokenTest {
+class RunnerTokenTest {
 
     @Test
     void accessors_shouldReadResponse_whenAllSet() {

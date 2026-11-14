@@ -9,7 +9,8 @@ import java.util.Optional;
 /**
  * A runner token that GitLab returned after a reset: the registration token of a project or group, or the
  * authentication token of a {@link Runner}. GitLab returns the secret only in this answer, so {@link #token()} is the
- * only place the SDK exposes it. The secret is never part of {@link #toString()}.
+ * only place the SDK exposes it (apart from the {@code runners_token} of a project or group response). The secret is
+ * never part of {@link #toString()}.
  */
 public final class RunnerToken {
 
