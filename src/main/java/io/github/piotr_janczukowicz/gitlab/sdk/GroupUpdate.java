@@ -65,7 +65,7 @@ public final class GroupUpdate {
      * @throws NullPointerException if {@code visibility} is {@code null}
      */
     public GroupUpdate visibility(final Visibility visibility) {
-        return put("visibility", requireNonNull(visibility, "visibility").wireValue());
+        return put("visibility", requireNonNull(visibility, "visibility").value());
     }
 
     /**

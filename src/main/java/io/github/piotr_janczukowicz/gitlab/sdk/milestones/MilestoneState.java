@@ -2,6 +2,8 @@ package io.github.piotr_janczukowicz.gitlab.sdk.milestones;
 
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
+import java.util.Locale;
+
 /**
  * The state of a {@link Milestone} or {@link GroupMilestone}: GitLab knows exactly these two. A state in a response
  * that is not listed here makes {@code state()} throw; {@code stateName()} gives the raw name.
@@ -11,6 +13,15 @@ public enum MilestoneState {
     ACTIVE,
     /** The milestone is closed. */
     CLOSED;
+
+    /**
+     * Returns the name of the state as GitLab spells it, such as {@code active}.
+     *
+     * @return the name GitLab uses
+     */
+    public String value() {
+        return name().toLowerCase(Locale.ROOT);
+    }
 
     /**
      * Maps the state GitLab returned.

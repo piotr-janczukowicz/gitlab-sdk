@@ -86,10 +86,21 @@ public final class Issue {
      * Returns the issue state.
      *
      * @return the state
-     * @throws IllegalArgumentException if GitLab returns a state other than {@code opened} or {@code closed}
+     * @throws IllegalArgumentException if GitLab returns a state other than {@code opened} or {@code closed};
+     *     {@link #stateName()} still returns it
      */
     public IssueState state() {
-        return IssueState.from(requireNonNull(response.state(), "state"));
+        return IssueState.from(stateName());
+    }
+
+    /**
+     * Returns the state exactly as GitLab spelled it, such as {@code opened}. Use it when {@link #state()} throws
+     * {@link IllegalArgumentException} because GitLab returned a state this SDK does not know yet.
+     *
+     * @return the raw state name
+     */
+    public String stateName() {
+        return requireNonNull(response.state(), "state");
     }
 
     /**

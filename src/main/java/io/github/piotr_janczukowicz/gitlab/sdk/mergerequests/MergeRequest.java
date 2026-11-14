@@ -99,10 +99,20 @@ public final class MergeRequest {
      *
      * @return the state
      * @throws IllegalArgumentException if GitLab returns a state other than {@code opened}, {@code closed},
-     *     {@code locked} or {@code merged}
+     *     {@code locked} or {@code merged}; {@link #stateName()} still returns it
      */
     public MergeRequestState state() {
-        return MergeRequestState.from(requireNonNull(response.state(), "state"));
+        return MergeRequestState.from(stateName());
+    }
+
+    /**
+     * Returns the state exactly as GitLab spelled it, such as {@code opened}. Use it when {@link #state()} throws
+     * {@link IllegalArgumentException} because GitLab returned a state this SDK does not know yet.
+     *
+     * @return the raw state name
+     */
+    public String stateName() {
+        return requireNonNull(response.state(), "state");
     }
 
     /**

@@ -2,6 +2,8 @@ package io.github.piotr_janczukowicz.gitlab.sdk.ci;
 
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
+import java.util.Locale;
+
 /**
  * The status of a {@link Job}: exactly the thirteen statuses the core documents for it. A status the core does not know
  * is rejected, not mapped to a fallback.
@@ -33,6 +35,15 @@ public enum JobStatus {
     MANUAL,
     /** The job is scheduled; GitLab calls this status {@code scheduled}. */
     SCHEDULED;
+
+    /**
+     * Returns the name of the status as GitLab spells it, such as {@code waiting_for_resource}.
+     *
+     * @return the name GitLab uses
+     */
+    public String value() {
+        return name().toLowerCase(Locale.ROOT);
+    }
 
     /**
      * Maps the status GitLab returned.

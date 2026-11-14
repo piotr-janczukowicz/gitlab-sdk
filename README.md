@@ -613,14 +613,15 @@ All objects behave the same way, so you learn them once:
 - A field that GitLab may leave out is an `Optional` (`issue.description()`, `mergeRequest.targetBranch()`,
   `releaseLink.type()`).
 - A **state or status** is an enum (`issue.state()`, `pipeline.status()`, `job.status()`) and throws
-  `IllegalArgumentException` for a value this SDK does not know yet. `pipeline.statusName()` and `job.statusName()`
-  return the raw value GitLab sent, for that case.
+  `IllegalArgumentException` for a value this SDK does not know yet. `issue.stateName()`, `pipeline.statusName()` and
+  `job.statusName()` return the raw value GitLab sent, for that case. Each such enum has `value()`, the name as GitLab
+  spells it, and `from(String)`.
 - **Raw escape hatches** stand next to the typed accessors and never fail on a value the SDK does not know:
-  `statusName()` (pipelines, jobs, deployments), `stateName()` (milestones), `typeName()` (release links, variables,
-  schedule variables, runners, packages), `tierName()` (environments), `formatName()` (wiki pages),
-  `visibilityName()` (snippets and personal snippets), `accessLevelValue()` (members), `scopeNames()` (deploy tokens)
-  and the `*AccessValues()` methods (`pushAccessValues()`, `mergeAccessValues()`, `createAccessValues()` of protected
-  branches and tags).
+  `statusName()` (pipelines, jobs, deployments), `stateName()` (issues, merge requests, milestones), `typeName()`
+  (release links, variables, schedule variables, runners, packages), `tierName()` (environments), `formatName()` (wiki
+  pages), `visibilityName()` (snippets and personal snippets), `accessLevelValue()` (members), `scopeNames()` (deploy
+  tokens) and the `*AccessValues()` methods (`pushAccessValues()`, `mergeAccessValues()`, `createAccessValues()` of
+  protected branches and tags).
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
 - **Clearing a field** is a separate `clear...()` method where the core's payloads distinguish an omitted field from a

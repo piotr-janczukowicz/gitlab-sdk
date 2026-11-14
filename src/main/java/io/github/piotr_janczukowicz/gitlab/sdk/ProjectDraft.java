@@ -61,7 +61,7 @@ public final class ProjectDraft {
      * @throws NullPointerException if {@code visibility} is {@code null}
      */
     public ProjectDraft visibility(final Visibility visibility) {
-        form.put("visibility", requireNonNull(visibility, "visibility").wireValue());
+        form.put("visibility", requireNonNull(visibility, "visibility").value());
         return this;
     }
 

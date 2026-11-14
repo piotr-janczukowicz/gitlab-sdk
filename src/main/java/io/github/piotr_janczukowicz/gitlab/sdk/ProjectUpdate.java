@@ -75,7 +75,7 @@ public final class ProjectUpdate {
      * @throws NullPointerException if {@code visibility} is {@code null}
      */
     public ProjectUpdate visibility(final Visibility visibility) {
-        return put("visibility", requireNonNull(visibility, "visibility").wireValue());
+        return put("visibility", requireNonNull(visibility, "visibility").value());
     }
 
     /**

@@ -109,6 +109,13 @@ class MergeRequestTest {
     }
 
     @Test
+    void stateName_shouldReturnRawValue_whenStateIsUnknown() {
+        final MergeRequest sut = new MergeRequest(project, mergeRequest(IID, "Fix", "draft"));
+
+        assertThat(sut.stateName()).isEqualTo("draft");
+    }
+
+    @Test
     void close_shouldSendStateEventClose_andReturnNewMergeRequest() throws IOException {
         final GitLabMergeRequest closed = mergeRequest(IID, "Fix", "closed");
         when(gitLab.mergerequests()

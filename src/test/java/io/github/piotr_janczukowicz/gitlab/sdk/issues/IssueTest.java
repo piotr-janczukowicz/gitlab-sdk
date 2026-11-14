@@ -86,6 +86,13 @@ class IssueTest {
     }
 
     @Test
+    void stateName_shouldReturnRawValue_whenStateIsUnknown() {
+        final Issue sut = new Issue(project, issue(IID, "Broken", "locked"));
+
+        assertThat(sut.stateName()).isEqualTo("locked");
+    }
+
+    @Test
     void close_shouldSendStateEventClose_andReturnNewIssue() throws IOException {
         final GitLabIssue closed = issue(IID, "Broken", "closed");
         when(gitLab.issues().project().update(eq(ID), eq(IID), any(GitLabProjectIssuesUpdatePayload.class)))
