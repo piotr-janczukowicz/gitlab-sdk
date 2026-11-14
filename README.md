@@ -35,7 +35,9 @@ class path. It depends on `gitlab-rest-client`, which Maven brings in.
 ```
 
 The versions follow the core: SDK `19.6.N` pairs with `gitlab-rest-client` `19.6.N`. Until the core `19.6.0` is
-released, the SDK is `19.6.0-SNAPSHOT` and builds against the core `19.6.0-SNAPSHOT`. The newest release is on the
+released, the SDK is `19.6.0-SNAPSHOT` and builds against the core `19.6.0-SNAPSHOT`. CI stays red until the core
+`19.6.0` is released and the `gitlab-rest-client.version` pin in `pom.xml` changes to it, because the SDK needs core
+changes that only the unreleased core snapshot has. The newest release is on the
 [releases page](https://github.com/piotr-janczukowicz/gitlab-sdk/releases). The library is new and not yet proven in
 production; see the [Disclaimer](#disclaimer).
 
@@ -556,8 +558,7 @@ All objects behave the same way, so you learn them once:
 - A **project or group** is a `String`: its numeric id or its path, as in the core (`my-group/my-project`). Every object
   returned by create, update or transfer of a project or group (`ProjectDraft.send()`, `GroupDraft.send()`,
   `ProjectUpdate.send()`, `GroupUpdate.send()`, `transfer(...)`, and also `fork(...)`) is addressed by its numeric id
-  afterwards. Issues and merge requests are addressed by their `iid`, the number within
-  the project.
+  afterwards. Issues and merge requests are addressed by their `iid`, the number within the project.
 - A **lookup** (`project.issue(42)`, `sdk.user(7)`, `project.file("README.md", "main")`) returns an `Optional`, empty
   when GitLab answers 404. A lookup in a Premium or Ultimate area (`wiki.find(slug)`, `auditEvents.find(id)`) is empty
   when GitLab answers 404 (expected in some cases where the feature is not available); a 403 or the core's
@@ -609,10 +610,10 @@ All objects behave the same way, so you learn them once:
   return the raw value GitLab sent, for that case.
 - **Raw escape hatches** stand next to the typed accessors and never fail on a value the SDK does not know:
   `statusName()` (pipelines, jobs, deployments), `stateName()` (milestones), `typeName()` (release links, variables,
-  schedule variables, runners, packages), `tierName()` (environments), `accessLevelValue()` (members),
-  `scopeNames()` (deploy tokens) and the
-  `*AccessValues()` methods (`pushAccessValues()`, `mergeAccessValues()`, `createAccessValues()` of protected branches
-  and tags).
+  schedule variables, runners, packages), `tierName()` (environments), `formatName()` (wiki pages),
+  `visibilityName()` (snippets and personal snippets), `accessLevelValue()` (members), `scopeNames()` (deploy tokens)
+  and the `*AccessValues()` methods (`pushAccessValues()`, `mergeAccessValues()`, `createAccessValues()` of protected
+  branches and tags).
 - **Text content** of a file is sent and read as UTF-8: `project.createFile(path, branch, content, message)` and
   `file.text()`. `file.bytes()` returns the exact bytes, including those of a binary file.
 - **Clearing a field** is a separate `clear...()` method where the core's payloads distinguish an omitted field from a

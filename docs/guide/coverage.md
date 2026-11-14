@@ -201,7 +201,7 @@ take-ownership of a trigger are not covered: the first needs the core client, th
 |---|---|
 | `Runner` | `id()`, `description()`, `name()`, `type()` (an `Optional<RunnerType>`; an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name; a type the core's enum does not know reads as `unrecognized`), `isOnline()`, `isPaused()`, `isActive()` (absent: `false`), `status()` (raw), `tagList()` (the response's tag list, an immutable list; empty when absent), `version()`, `contactedAt()`, `update()`, `refresh()`, `delete()` (removes the runner everywhere), `disable(project)` (only valid for a runner enabled in that project), `managers()` (the core's `GitLabCiRunnerManager` records, an immutable list), `jobs()` (the core's `GitLabCiJobBasicWithProject` records, lazy), `resetAuthenticationToken()` (secret), `response()` (the detail record) |
 | `RunnerUpdate` | `description(...)`, `paused(boolean)`, `active(boolean)`, `tags(List)` (copied; a `null` element throws `NullPointerException`), `runUntagged(boolean)`, `locked(boolean)`, `maximumTimeout(int)`, `maintenanceNote(...)`, `send()` (an empty update throws `IllegalStateException` before a request). The access level is not offered |
-| `RunnerType` | `INSTANCE_TYPE`, `GROUP_TYPE`, `PROJECT_TYPE` |
+| `RunnerType` | `INSTANCE_TYPE`, `GROUP_TYPE`, `PROJECT_TYPE`; `value()` (the name as GitLab spells it), `from(String)` (an unknown name throws `IllegalArgumentException`) |
 | `RunnerToken` | `token()` (secret, do not log it), `expiresAt()`, `response()`; `toString()` prints the token as `<redacted>` |
 
 `GitLabSdk.runner(id)` loads a runner by its global id (`GET /runners/{id}`). A runner from a project or group list is
@@ -215,7 +215,7 @@ loaded again, because the list holds a smaller record: one request per item. `Ru
 |---|---|
 | `ProjectPackage` | `id()`, `name()`, `version()`, `type()` (a `PackageType`; an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name), `status()` (raw), `createdAt()`, `lastDownloadedAt()`, `project()` (no request: the owning project for a package of a project list, a handle of the project named by `project_id` for a package of a group list), `refresh()`, `files()` (lazy), `delete()`, `response()`. A response without a project id makes `project()`, `refresh()`, `files()` and `delete()` throw `IllegalStateException` |
 | `PackageFile` | `projectPackage()` (the package the file belongs to, no request), `id()`, `fileName()`, `size()`, `sha256()`, `download(Path)` (written atomically, never partial), `download(OutputStream)` (never closed by the SDK; may hold a partial body on failure), `delete()`, `response()`. `download` and `delete` throw `IllegalStateException` when the package response names no project id; `download(Path)` throws `IllegalArgumentException` for a target without a parent directory and `FileAlreadyExistsException` for an existing directory |
-| `PackageType` | `MAVEN`, `NPM`, `CONAN`, `NUGET`, `PYPI`, `COMPOSER`, `GENERIC`, `GOLANG`, `DEBIAN`, `RUBYGEMS`, `HELM`, `TERRAFORM_MODULE`, `RPM`, `ML_MODEL`, `CARGO`, `SWIFT` |
+| `PackageType` | `MAVEN`, `NPM`, `CONAN`, `NUGET`, `PYPI`, `COMPOSER`, `GENERIC`, `GOLANG`, `DEBIAN`, `RUBYGEMS`, `HELM`, `TERRAFORM_MODULE`, `RPM`, `ML_MODEL`, `CARGO`, `SWIFT`; `value()` (the name as GitLab spells it), `from(String)` (an unknown name throws `IllegalArgumentException`) |
 
 GitLab lists and loads a package with the same record, so nothing is loaded again. The object is `ProjectPackage` and
 not `Package`, which would shadow `java.lang.Package`. The download calls use the client's own authentication and no
@@ -239,7 +239,7 @@ the SDK reads tag metadata only.
 | `Wiki` | From `project.wiki()` or `group.wiki()` (Premium), or `Wiki.forProject(project)` and `Wiki.forGroup(group)`; none makes a request. `all()` (one list request, then each page loaded again as the stream reaches it; gone ones are skipped), `find(slug)` (empty when GitLab answers 404, expected in some cases where the wiki is not available; a 403 or the core's `GitLabTierException` passes through), `create(title, content)`, `create(title, content, format)`, `uploadAttachment(fileName, bytes)` and `uploadAttachment(fileName, bytes, branch)` (the form part `file` as `application/octet-stream`; the core's `GitLabWikiAttachment` record is passed through) |
 | `WikiPage` | `slug()` (as GitLab returns it, not URL-encoded), `title()`, `content()`, `format()` (an `Optional<WikiFormat>`; an unknown format throws `IllegalArgumentException`), `formatName()` (the raw name), `encoding()`, `frontMatter()` (an immutable copy, nested maps and lists included; empty when absent), `wiki()`, `refresh()`, `update()`, `delete()`, `response()` |
 | `WikiPageUpdate` | `title(...)` (GitLab is expected to give the page a new slug; the request names the old one), `content(...)`, `format(WikiFormat)`, `send()` (an empty update, or one with only the format set, throws `IllegalStateException` before a request; GitLab needs the title or the content) |
-| `WikiFormat` | `MARKDOWN`, `RDOC`, `ASCIIDOC`, `ORG` |
+| `WikiFormat` | `MARKDOWN`, `RDOC`, `ASCIIDOC`, `ORG`; `value()` (the name as GitLab spells it), `from(String)` (an unknown name throws `IllegalArgumentException`) |
 
 GitLab lists the pages of a wiki in one unpaged response without their content, so each page is loaded through
 `GET .../wikis/{slug}`: one request per page. A slug such as `dir/page` reaches the core unchanged, and the core encodes
@@ -258,7 +258,7 @@ answer 403 or 404 on a lower tier, and a client configured with a lower tier ref
 | `PersonalSnippet` | As `Snippet`, without `project()`: `id()`, `title()`, `description()`, `visibility()`, `visibilityName()`, `author()`, `webUrl()`, `files()`, `content()`, `fileContent(ref, path)` (the core declares this snippet id as text, so the SDK passes `String.valueOf(id())`), `refresh()`, `update()`, `delete()` (the core's optional answer is discarded), `response()` (a `GitLabPersonalSnippet`) |
 | `PersonalSnippetUpdate` | As `SnippetUpdate`, sent with `PUT /snippets/{id}` |
 | `SnippetFile` | `path()`, `rawUrl()` (an `Optional`) |
-| `SnippetVisibility` | `PRIVATE`, `INTERNAL` (GitLab.com disables internal visibility for new snippets, per the GitLab docs), `PUBLIC` |
+| `SnippetVisibility` | `PRIVATE`, `INTERNAL` (GitLab.com disables internal visibility for new snippets, per the GitLab docs), `PUBLIC`; `value()` (the name as GitLab spells it), `from(String)` (an unknown name throws `IllegalArgumentException`) |
 
 The SDK sends the files of a snippet only as the `files` array: the `content` and `file_name` parameters of create and
 update are deprecated by GitLab and never sent (`create(payload)` passes the core's payload through unchanged). The raw
