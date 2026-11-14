@@ -6,11 +6,18 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.deployments.GitLabProjectDeploymentsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.deployments.GitLabProjectDeploymentsCreateStatus;
+import io.github.piotr_janczukowicz.gitlab.api.deployments.GitLabProjectDeploymentsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabProjectDeployTokensCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabProjectDeployTokensCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabProjectDeployTokensCreateScopes;
+import io.github.piotr_janczukowicz.gitlab.api.environments.GitLabProjectEnvironmentsCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.environments.GitLabProjectEnvironmentsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.environments.GitLabProjectEnvironmentsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFilter;
@@ -62,6 +69,9 @@ import io.github.piotr_janczukowicz.gitlab.sdk.deploy.CreatedDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployKey;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployTokenScope;
+import io.github.piotr_janczukowicz.gitlab.sdk.environments.Deployment;
+import io.github.piotr_janczukowicz.gitlab.sdk.environments.DeploymentStatus;
+import io.github.piotr_janczukowicz.gitlab.sdk.environments.Environment;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
@@ -1389,6 +1399,148 @@ public final class Project {
         return new Variable(this, sdk.gitLab().projectlevelvariables().create(id, requireNonNull(payload, PAYLOAD)));
     }
 
+    /**
+     * Lists the environments of the project ({@code GET /projects/{id}/environments}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the environments
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Environment> environments() throws IOException {
+        return sdk.gitLab().environments().list(id).stream().map(listed -> new Environment(this, listed));
+    }
+
+    /**
+     * Lists the environments of the project that match a filter ({@code GET /projects/{id}/environments}). Pages are
+     * fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the core's filter (name, search, states)
+     * @return the environments
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Environment> environments(final GitLabProjectEnvironmentsListFilter filter) throws IOException {
+        return sdk.gitLab().environments().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new Environment(this, listed));
+    }
+
+    /**
+     * Loads an environment ({@code GET /projects/{id}/environments/{environment_id}}).
+     *
+     * @param environmentId the id of the environment
+     * @return the environment, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Environment> environment(final long environmentId) throws IOException {
+        return sdk.gitLab().environments().get(id, environmentId).map(loaded -> new Environment(this, loaded));
+    }
+
+    /**
+     * Creates an environment with a name ({@code POST /projects/{id}/environments}). Use
+     * {@link #createEnvironment(GitLabProjectEnvironmentsCreatePayload)} for the other fields, such as the external
+     * URL, the tier and the auto-stop setting.
+     *
+     * @param name the name of the environment
+     * @return the new environment
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Environment createEnvironment(final String name) throws IOException {
+        return createEnvironment(GitLabProjectEnvironmentsCreatePayloadBuilder.builder()
+                .name(requireNotBlank(name, NAME))
+                .build());
+    }
+
+    /**
+     * Creates an environment from the core's payload ({@code POST /projects/{id}/environments}), for the fields the SDK
+     * does not wrap, such as the external URL, the tier, the cluster agent and the auto-stop setting.
+     *
+     * @param payload the request body
+     * @return the new environment
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Environment createEnvironment(final GitLabProjectEnvironmentsCreatePayload payload) throws IOException {
+        return new Environment(this, sdk.gitLab().environments().create(id, requireNonNull(payload, PAYLOAD)));
+    }
+
+    /**
+     * Lists the deployments of the project ({@code GET /projects/{id}/deployments}). GitLab lists a summary of each
+     * deployment, so each one is loaded ({@code GET /projects/{id}/deployments/{deployment_id}}) as the stream reaches
+     * it, and one that is gone by then is skipped. Pages are fetched only as the stream is consumed; transport failures
+     * during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the deployments
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Deployment> deployments() throws IOException {
+        return loadedDeployments(sdk.gitLab().deployments().list(id).stream());
+    }
+
+    /**
+     * Lists the deployments of the project that match a filter ({@code GET /projects/{id}/deployments}); each one is
+     * loaded as the stream reaches it, as for {@link #deployments()}.
+     *
+     * @param filter the core's filter (order, sort, dates, environment name, status)
+     * @return the deployments
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Deployment> deployments(final GitLabProjectDeploymentsListFilter filter) throws IOException {
+        return loadedDeployments(sdk.gitLab().deployments().list(id, requireNonNull(filter, FILTER)).stream());
+    }
+
+    /**
+     * Loads a deployment ({@code GET /projects/{id}/deployments/{deployment_id}}).
+     *
+     * @param deploymentId the id of the deployment (not its iid)
+     * @return the deployment, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Deployment> deployment(final long deploymentId) throws IOException {
+        return sdk.gitLab().deployments().get(id, deploymentId).map(loaded -> new Deployment(this, loaded));
+    }
+
+    /**
+     * Creates a deployment ({@code POST /projects/{id}/deployments}) for a commit of a branch. A deployment of a tag
+     * needs the core's payload through the client.
+     *
+     * @param environment the name of the environment
+     * @param sha the commit SHA
+     * @param ref the branch name
+     * @param status the status; GitLab accepts only {@link DeploymentStatus#RUNNING}, {@link DeploymentStatus#SUCCESS},
+     *     {@link DeploymentStatus#FAILED} and {@link DeploymentStatus#CANCELED}
+     * @return the new deployment
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if a text is blank or GitLab does not accept the status; no request is made
+     * @throws IOException if the transport fails
+     */
+    public Deployment createDeployment(
+            final String environment, final String sha, final String ref, final DeploymentStatus status)
+            throws IOException {
+        requireNotBlank(environment, "environment");
+        requireNotBlank(sha, "sha");
+        requireNotBlank(ref, REF);
+        if (!requireNonNull(status, "status").isSettable()) {
+            throw new IllegalArgumentException(
+                    "A deployment can be created as running, success, failed or canceled, not " + status.value());
+        }
+        return new Deployment(
+                this,
+                sdk.gitLab()
+                        .deployments()
+                        .create(
+                                id,
+                                GitLabProjectDeploymentsCreatePayloadBuilder.builder()
+                                        .environment(environment)
+                                        .sha(sha)
+                                        .ref(ref)
+                                        .status(GitLabProjectDeploymentsCreateStatus.valueOf(status.name()))
+                                        .build()));
+    }
+
     private DeployKey createDeployKey(
             final GitLabProjectDeployKeysCreatePayloadBuilder builder, final String title, final String key)
             throws IOException {
@@ -1405,6 +1557,11 @@ public final class Project {
 
     private Stream<Pipeline> loaded(final Stream<GitLabCiPipelineBasic> listed) {
         return listed.map(item -> Lookups.find(() -> pipeline(requireNonNull(item.id(), "id"))))
+                .flatMap(Optional::stream);
+    }
+
+    private Stream<Deployment> loadedDeployments(final Stream<GitLabDeployment> listed) {
+        return listed.map(item -> Lookups.find(() -> deployment(requireNonNull(item.id(), "id"))))
                 .flatMap(Optional::stream);
     }
 

@@ -8,6 +8,7 @@ module io.github.piotr_janczukowicz.gitlabsdk {
     exports io.github.piotr_janczukowicz.gitlab.sdk.code;
     exports io.github.piotr_janczukowicz.gitlab.sdk.deploy;
     exports io.github.piotr_janczukowicz.gitlab.sdk.discussions;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.environments;
     exports io.github.piotr_janczukowicz.gitlab.sdk.issues;
     exports io.github.piotr_janczukowicz.gitlab.sdk.members;
     exports io.github.piotr_janczukowicz.gitlab.sdk.mergerequests;
