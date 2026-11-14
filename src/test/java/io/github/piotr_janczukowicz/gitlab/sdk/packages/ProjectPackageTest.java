@@ -4,7 +4,6 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.
 import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.file;
 import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.fullPackage;
 import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.groupPkg;
-import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.loadedProject;
 import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.pkg;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -118,14 +117,13 @@ class ProjectPackageTest {
     }
 
     @Test
-    void project_shouldLoadThroughProjectId_whenBuiltBySdk() throws IOException {
-        when(gitLab.projects().project().get("99")).thenReturn(Optional.of(loadedProject(99L)));
+    void project_shouldReturnHandleWithoutRequest_whenBuiltBySdk() {
         final ProjectPackage sut = grouped(groupPkg(PACKAGE_ID, 99L));
 
         final Project result = sut.project();
 
         assertThat(result.id()).isEqualTo("99");
-        verify(gitLab.projects().project()).get("99");
+        verifyNoInteractions(gitLab);
     }
 
     @Test
@@ -135,16 +133,6 @@ class ProjectPackageTest {
         final Throwable thrown = catchThrowable(sut::project);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("project id");
-    }
-
-    @Test
-    void project_shouldThrowIllegalStateException_whenProjectIsGone() throws IOException {
-        when(gitLab.projects().project().get("99")).thenReturn(Optional.empty());
-        final ProjectPackage sut = grouped(groupPkg(PACKAGE_ID, 99L));
-
-        final Throwable thrown = catchThrowable(sut::project);
-
-        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("99");
     }
 
     @Test

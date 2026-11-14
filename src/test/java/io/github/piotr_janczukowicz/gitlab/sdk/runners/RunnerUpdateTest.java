@@ -18,6 +18,8 @@ import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabInstanceRunnersUpda
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -115,6 +117,28 @@ class RunnerUpdateTest {
         runner.update().tags(List.of()).send();
 
         assertThat(payload().tagList()).isEmpty();
+    }
+
+    @Test
+    void tags_shouldSendCopy_whenCallerChangesListAfterwards() throws IOException {
+        stubUpdate();
+        final List<String> tags = new ArrayList<>(List.of("docker"));
+        final RunnerUpdate sut = runner.update().tags(tags);
+        tags.add("linux");
+
+        sut.send();
+
+        assertThat(payload().tagList()).containsExactly("docker");
+    }
+
+    @Test
+    void tags_shouldThrowNullPointerException_whenElementIsNull() {
+        final RunnerUpdate sut = runner.update();
+        final List<String> tags = Arrays.asList("docker", null);
+
+        final Throwable thrown = catchThrowable(() -> sut.tags(tags));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class);
     }
 
     @Test

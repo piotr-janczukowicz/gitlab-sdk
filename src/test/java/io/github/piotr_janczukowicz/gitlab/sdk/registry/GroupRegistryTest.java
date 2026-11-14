@@ -1,12 +1,13 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.registry;
 
 import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.groupRepository;
-import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.loadedProject;
 import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -16,7 +17,6 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -40,14 +40,14 @@ class GroupRegistryTest {
     }
 
     @Test
-    void project_shouldLoadThroughProjectId_whenListedByGroup() throws IOException {
+    void project_shouldReturnHandleWithoutRequest_whenListedByGroup() throws IOException {
         when(gitLab.groups().listRegistryRepositories(ID).stream()).thenReturn(Stream.of(groupRepository(1, 11)));
-        when(gitLab.projects().project().get("11")).thenReturn(Optional.of(loadedProject(11L)));
         final RegistryRepository item = group.registryRepositories().findFirst().orElseThrow();
 
         final Project result = item.project();
 
         assertThat(result.id()).isEqualTo("11");
+        verify(gitLab, never()).projects();
     }
 
     @Test

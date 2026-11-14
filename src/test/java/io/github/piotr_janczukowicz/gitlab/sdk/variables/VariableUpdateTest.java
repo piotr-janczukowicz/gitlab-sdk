@@ -95,6 +95,16 @@ class VariableUpdateTest {
     }
 
     @Test
+    void update_shouldSendNoFilter_whenOwnScopeIsBlank() throws IOException {
+        stubUpdate(variable("K", "n"));
+        final Variable blankScoped = new Variable(sdk.project(ID), scoped("K", "v", " "));
+
+        blankScoped.update().value("n").send();
+
+        assertThat(payload().filter()).isNull();
+    }
+
+    @Test
     void update_shouldNotSendScope_whenOnlyValueSetOnScopedVariable() throws IOException {
         stubUpdate(scoped("K", "n", "prod"));
 

@@ -1,12 +1,13 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.packages;
 
 import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.groupPkg;
-import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.loadedProject;
 import static io.github.piotr_janczukowicz.gitlab.sdk.packages.PackagesFixtures.pkg;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -20,7 +21,6 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -43,14 +43,14 @@ class GroupPackagesTest {
     }
 
     @Test
-    void project_shouldLoadThroughProjectId_whenListedByGroup() throws IOException {
+    void project_shouldReturnHandleWithoutRequest_whenListedByGroup() throws IOException {
         when(gitLab.groups().listPackages(ID).stream()).thenReturn(Stream.of(groupPkg(1, 11)));
-        when(gitLab.projects().project().get("11")).thenReturn(Optional.of(loadedProject(11L)));
         final ProjectPackage item = group.packages().findFirst().orElseThrow();
 
         final Project result = item.project();
 
         assertThat(result.id()).isEqualTo("11");
+        verify(gitLab, never()).projects();
     }
 
     @Test

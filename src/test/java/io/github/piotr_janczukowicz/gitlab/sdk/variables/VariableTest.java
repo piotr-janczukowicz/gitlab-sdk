@@ -173,6 +173,22 @@ class VariableTest {
     }
 
     @Test
+    void refresh_shouldUseKeyOnly_whenScopeIsBlank() throws IOException {
+        when(gitLab.projectlevelvariables().get(ID, "K")).thenReturn(Optional.of(variable("K", "new")));
+
+        final Variable refreshed = sut(scoped("K", "old", " ")).refresh();
+
+        assertThat(refreshed.value()).contains("new");
+    }
+
+    @Test
+    void delete_shouldSendNoFilter_whenScopeIsBlank() throws IOException {
+        sut(scoped("K", "v", "")).delete();
+
+        verify(gitLab.projectlevelvariables()).delete(ID, "K");
+    }
+
+    @Test
     void refresh_shouldThrowIllegalStateException_whenGone() throws IOException {
         when(gitLab.projectlevelvariables().get(ID, "K")).thenReturn(Optional.empty());
         final Variable sut = sut(variable("K", "v"));

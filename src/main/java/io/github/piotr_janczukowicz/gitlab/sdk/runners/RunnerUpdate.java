@@ -65,15 +65,15 @@ public final class RunnerUpdate {
     }
 
     /**
-     * Sets the tags of the runner, replacing the existing ones. The list goes to the core as a list, as the update
-     * request takes it; an empty list is sent as given.
+     * Sets the tags of the runner, replacing the existing ones. The list is copied, so later changes to it are not
+     * sent; it goes to the core as a list, as the update request takes it, and an empty list is sent as given.
      *
      * @param tags the tags
      * @return this update
-     * @throws NullPointerException if {@code tags} is {@code null}
+     * @throws NullPointerException if {@code tags} is {@code null} or holds a {@code null} element
      */
     public RunnerUpdate tags(final List<String> tags) {
-        payload.tagList(requireNonNull(tags, "tags"));
+        payload.tagList(List.copyOf(requireNonNull(tags, "tags")));
         return changed();
     }
 

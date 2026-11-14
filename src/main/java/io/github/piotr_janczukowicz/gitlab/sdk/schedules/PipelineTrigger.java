@@ -57,14 +57,15 @@ public final class PipelineTrigger {
     /**
      * Returns the description.
      *
-     * @return the description
+     * @return the description, or empty when GitLab sent none
      */
-    public String description() {
-        return requireNonNull(response.description(), "description");
+    public Optional<String> description() {
+        return Optional.ofNullable(response.description());
     }
 
     /**
-     * Returns the token that fires the trigger. The token is secret, do not log it.
+     * Returns the token that fires the trigger, as GitLab returns it; for triggers owned by someone else GitLab may
+     * return a shortened token (not verified). The token is secret, do not log it.
      *
      * @return the token
      */

@@ -54,7 +54,7 @@ class PipelineTriggerUpdateTest {
         verify(gitLab.pipelinetriggers()).update(eq(ID), eq(4L), payload.capture());
         assertSoftly(softly -> {
             softly.assertThat(payload.getValue().description()).isEqualTo("new");
-            softly.assertThat(result.description()).isEqualTo("new");
+            softly.assertThat(result.description()).contains("new");
         });
     }
 

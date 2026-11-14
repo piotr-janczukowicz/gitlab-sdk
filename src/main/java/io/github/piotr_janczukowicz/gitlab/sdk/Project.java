@@ -1,12 +1,15 @@
 package io.github.piotr_janczukowicz.gitlab.sdk;
 
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.FILTER;
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.IS_GONE;
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.NAME;
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.loadedRunners;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
-import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiRunnerWithUuid;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
 import io.github.piotr_janczukowicz.gitlab.api.containerregistry.GitLabProjectContainerRegistryListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayload;
@@ -121,12 +124,9 @@ import org.jspecify.annotations.Nullable;
  */
 public final class Project {
 
-    private static final String IS_GONE = " is gone";
-    private static final String NAME = "name";
     private static final String PAYLOAD = "payload";
     private static final String KEY = "key";
     private static final String TAG_NAME = "tagName";
-    private static final String FILTER = "filter";
     private static final String REF = "ref";
 
     static {
@@ -1735,7 +1735,7 @@ public final class Project {
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<Runner> runners() throws IOException {
-        return loadedRunners(sdk.gitLab().runners().project().list(id).stream());
+        return loadedRunners(sdk, sdk.gitLab().runners().project().list(id).stream());
     }
 
     /**
@@ -1749,7 +1749,7 @@ public final class Project {
      */
     public Stream<Runner> runners(final GitLabProjectRunnersListFilter filter) throws IOException {
         final GitLabProjectRunnersListFilter checked = requireNonNull(filter, FILTER);
-        return loadedRunners(sdk.gitLab().runners().project().list(id, checked).stream());
+        return loadedRunners(sdk, sdk.gitLab().runners().project().list(id, checked).stream());
     }
 
     /**
@@ -1763,18 +1763,17 @@ public final class Project {
      * @throws IOException if the transport fails
      */
     public Runner enableRunner(final long runnerId) throws IOException {
-        final long enabled = requireNonNull(
-                sdk.gitLab()
-                        .runners()
-                        .project()
-                        .create(
-                                id,
-                                GitLabProjectRunnersCreatePayloadBuilder.builder()
-                                        .runnerId(runnerId)
-                                        .build())
-                        .id(),
-                "id");
-        return sdk.runner(enabled).orElseThrow(() -> new IllegalStateException("Runner " + enabled + IS_GONE));
+        sdk.gitLab()
+                .runners()
+                .project()
+                .create(
+                        id,
+                        GitLabProjectRunnersCreatePayloadBuilder.builder()
+                                .runnerId(runnerId)
+                                .build());
+        return sdk.runner(runnerId)
+                .orElseThrow(
+                        () -> new IllegalStateException("Runner " + runnerId + " was enabled but could not be loaded"));
     }
 
     /**
@@ -1859,11 +1858,6 @@ public final class Project {
                                 .build())
                 .stream()
                 .map(item -> new RegistryRepository(this, item));
-    }
-
-    private Stream<Runner> loadedRunners(final Stream<GitLabCiRunnerWithUuid> listed) {
-        return listed.map(item -> Lookups.find(() -> sdk.runner(requireNonNull(item.id(), "id"))))
-                .flatMap(Optional::stream);
     }
 
     private DeployKey createDeployKey(

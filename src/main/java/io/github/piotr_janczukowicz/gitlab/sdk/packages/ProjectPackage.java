@@ -20,11 +20,11 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A package from {@link Project#packages()} belongs to that project and {@link #project()} returns it without a
  * request. A package from a group list ({@code Group.packages()}) belongs to whichever project of the group published
- * it, and its {@code project_id} says which: {@link #project()} then loads that project, one request. When the response
- * has no project id, such a package cannot address its project, so {@link #project()}, {@link #refresh()},
- * {@link #files()} and {@link #delete()} throw {@link IllegalStateException}; listing never does. The package
- * ecosystems' own endpoints (Maven, npm, NuGet and the others) and the package protection rules are not wrapped; use
- * the core client for them.
+ * it, and its {@code project_id} says which: {@link #project()} then returns a handle of that project, without a
+ * request. When the response has no project id, such a package cannot address its project, so {@link #project()},
+ * {@link #refresh()}, {@link #files()} and {@link #delete()} throw {@link IllegalStateException}; listing never does.
+ * The package ecosystems' own endpoints (Maven, npm, NuGet and the others) and the package protection rules are not
+ * wrapped; use the core client for them.
  */
 public final class ProjectPackage {
 
@@ -144,19 +144,18 @@ public final class ProjectPackage {
     }
 
     /**
-     * Returns the project the package belongs to. A package that came from {@link Project#packages()} answers its
-     * project without a request. A package that came from a group list loads the project named by its
-     * {@code project_id} ({@code GET /projects/{id}}): one request each time.
+     * Returns the project the package belongs to; no request is made. A package that came from
+     * {@link Project#packages()} answers that project. A package that came from a group list answers a handle of the
+     * project named by its {@code project_id}; call {@link Project#fetch()} on it to load the project.
      *
      * @return the project
-     * @throws IllegalStateException if the response names no project id, or the project is gone
-     * @throws IOException if the transport fails
+     * @throws IllegalStateException if the package has no owner and the response names no project id
      */
-    public Project project() throws IOException {
+    public Project project() {
         if (owner != null) {
             return owner;
         }
-        return sdk.project(address()).refresh();
+        return sdk.project(address());
     }
 
     /**

@@ -125,6 +125,15 @@ public final class GitLabSdk {
     }
 
     /**
+     * Returns the account that the client signs in as.
+     *
+     * @return the current account
+     */
+    public Me me() {
+        return new Me(this);
+    }
+
+    /**
      * Loads a runner ({@code GET /runners/{id}}).
      *
      * @param id the id of the runner
@@ -133,15 +142,6 @@ public final class GitLabSdk {
      */
     public Optional<Runner> runner(final long id) throws IOException {
         return gitlab.runners().instance().get(id).map(loaded -> new Runner(this, loaded));
-    }
-
-    /**
-     * Returns the account that the client signs in as.
-     *
-     * @return the current account
-     */
-    public Me me() {
-        return new Me(this);
     }
 
     /**

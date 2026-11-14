@@ -200,7 +200,8 @@ given; the time zone and the active flag are set with `update()`. GitLab lists a
 each listed schedule is loaded again and one that is gone is skipped. The variables of a schedule come from its own
 response (GitLab has no call that lists them), so `variables()` does not reflect changes made since: use `refresh()`.
 `lastPipeline()` loads the pipeline through the project, one request per call. `play()` starts a pipeline now. A
-trigger's `token()` is a secret.
+trigger's `description()` is an `Optional`, and its `token()` is a secret, as GitLab returns it: for a trigger owned by
+someone else GitLab may return a shortened token (not verified).
 
 ```java
 PipelineSchedule schedule = project.createPipelineSchedule("nightly", "main", "0 1 * * *");
@@ -216,11 +217,12 @@ String token = trigger.token();                                         // secre
 lists a smaller record than a single load, so each listed runner is loaded again (one request per item) and one that is
 gone is skipped; each load is `GET /runners/{id}`, which GitLab may refuse with 403 for a token that is not an
 administrator (not verified). `project.enableRunner(id)` enables an existing runner in the project, and
-`runner.disable(project)` stops the project from using it; `runner.delete()` removes it everywhere. `tagList()` returns
-the tags of the response and `update().tags(...)` takes a list. The registration token of a project or group and the
-authentication token of a runner come back as a `RegistrationToken`, whose `token()` is a secret and whose `toString()`
-never prints it. A runner type the core does not know reads as `unrecognized` in `typeName()` (a limitation of the
-core's enum), and `type()` then throws `IllegalArgumentException`.
+`runner.disable(project)` stops the project from using it (`enableRunner` then loads the runner by the id you passed);
+`runner.delete()` removes it everywhere. `tagList()` returns the tags of the response and `update().tags(...)` takes a
+list, which it copies. The registration token of a project or group and the authentication token of a runner come back
+as a `RegistrationToken`, whose `token()` is a secret and whose `toString()` never prints it. A runner type the core
+does not know reads as `unrecognized` in `typeName()` (a limitation of the core's enum), and `type()` then throws
+`IllegalArgumentException`.
 
 ```java
 Runner runner = project.enableRunner(7);
@@ -261,9 +263,9 @@ contain secrets: the SDK writes only where you say. `project.registryRepositorie
 `repository.tags()` loads each listed tag again, because the list holds a smaller record (one request per tag; a tag
 that is gone is skipped). A tag name with a colon or a slash is passed to the core unchanged.
 `repository.deleteTags(filter)` deletes by regular expression through the core's filter: check the expression, a
-deleted tag cannot be recovered. A package or repository from a project list answers `project()` with that project and
-no request; one from a group list loads the project named by its `project_id`, one request (see
-[Conventions](#conventions)).
+deleted tag cannot be recovered. A package or repository from a project list answers `project()` with that project;
+one from a group list answers a handle of the project named by its `project_id`. Neither makes a request (see
+[Conventions](#conventions)); `file.projectPackage()` returns the package a file belongs to.
 
 ```java
 ProjectPackage pkg = project.projectPackage(5).orElseThrow();
@@ -466,16 +468,17 @@ All objects behave the same way, so you learn them once:
   requests, labels, group labels, milestones, releases, release links and draft notes have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
-- A `ProjectPackage` and a `RegistryRepository` load their project through the `project_id` of their response: from a
-  project list `project()` is that project without a request, from a group list it loads the project (one request). A
-  response without a project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`,
-  and the `download` and `delete` of their files and tags) throw `IllegalStateException`.
-- A `Reaction`, a `Runner`, a `PackageFile` and a `RegistrationToken` are the objects **without parent navigation**.
+- A `ProjectPackage` and a `RegistryRepository` find their project through the `project_id` of their response: from a
+  project list `project()` is that project, from a group list it is a handle of the project named by the
+  `project_id`; neither makes a request, as for `Deployment`, `Milestone` and `MergeRequest`. A response without a
+  project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`, and the
+  `download` and `delete` of their files and tags) throw `IllegalStateException`.
+- A `Reaction`, a `Runner` and a `RegistrationToken` are the objects **without parent navigation**.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
   `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
   project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
-  `update()`, `delete()` and the other calls use the global runner id. A `PackageFile` uses the project id of the
-  package it was listed from, and a `RegistrationToken` is a value: a token and its expiry.
+  `update()`, `delete()` and the other calls use the global runner id. A `RegistrationToken` is a value: a token and
+  its expiry.
 - **Same-key CI/CD variables** of different environment scopes: a project `Variable` names its own scope in
   `refresh()`, `update()` and `delete()`; a `GroupVariable` cannot, because the core does not offer the scope filter
   on the group operations (GitLab documents one), so same-key group variables of different scopes cannot be told apart

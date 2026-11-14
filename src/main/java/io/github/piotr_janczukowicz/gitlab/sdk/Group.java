@@ -1,9 +1,12 @@
 package io.github.piotr_janczukowicz.gitlab.sdk;
 
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.FILTER;
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.IS_GONE;
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.NAME;
+import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.loadedRunners;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
-import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiRunnerWithUuid;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreateScopes;
@@ -59,10 +62,6 @@ import org.jspecify.annotations.Nullable;
  * immutable: every operation returns a new group built from GitLab's answer.
  */
 public final class Group {
-
-    private static final String IS_GONE = " is gone";
-    private static final String NAME = "name";
-    private static final String FILTER = "filter";
 
     static {
         Internals.registerGroupAccess(group -> group.sdk);
@@ -708,7 +707,7 @@ public final class Group {
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<Runner> runners() throws IOException {
-        return loadedRunners(sdk.gitLab().groups().listRunners(id).stream());
+        return loadedRunners(sdk, sdk.gitLab().groups().listRunners(id).stream());
     }
 
     /**
@@ -722,7 +721,7 @@ public final class Group {
      */
     public Stream<Runner> runners(final GitLabGroupGroupsListRunnersFilter filter) throws IOException {
         final GitLabGroupGroupsListRunnersFilter checked = requireNonNull(filter, FILTER);
-        return loadedRunners(sdk.gitLab().groups().listRunners(id, checked).stream());
+        return loadedRunners(sdk, sdk.gitLab().groups().listRunners(id, checked).stream());
     }
 
     /**
@@ -738,9 +737,9 @@ public final class Group {
 
     /**
      * Lists the packages of the group, including its subgroups ({@code GET /groups/{id}/packages}). Each package
-     * belongs to its own project: {@link ProjectPackage#project()} loads the project named by its {@code project_id},
-     * one request. Pages are fetched only as the stream is consumed; transport failures during iteration are
-     * {@link java.io.UncheckedIOException}.
+     * belongs to its own project: {@link ProjectPackage#project()} returns a handle of the project named by its
+     * {@code project_id}, without a request. Pages are fetched only as the stream is consumed; transport failures
+     * during iteration are {@link java.io.UncheckedIOException}.
      *
      * @return the packages
      * @throws IOException if the first page cannot be loaded
@@ -765,9 +764,9 @@ public final class Group {
 
     /**
      * Lists the container registry repositories of the group ({@code GET /groups/{id}/registry/repositories}). Each
-     * repository belongs to its own project: {@link RegistryRepository#project()} loads the project named by its
-     * {@code project_id}, one request. The core offers no filter for this list. Pages are fetched only as the stream is
-     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     * repository belongs to its own project: {@link RegistryRepository#project()} returns a handle of the project named
+     * by its {@code project_id}, without a request. The core offers no filter for this list. Pages are fetched only as
+     * the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
      *
      * @return the repositories
      * @throws IOException if the first page cannot be loaded
@@ -775,11 +774,6 @@ public final class Group {
     public Stream<RegistryRepository> registryRepositories() throws IOException {
         return sdk.gitLab().groups().listRegistryRepositories(id).stream()
                 .map(item -> new RegistryRepository(sdk, item));
-    }
-
-    private Stream<Runner> loadedRunners(final Stream<GitLabCiRunnerWithUuid> listed) {
-        return listed.map(item -> Lookups.find(() -> sdk.runner(requireNonNull(item.id(), "id"))))
-                .flatMap(Optional::stream);
     }
 
     private GroupMember createMember(

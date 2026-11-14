@@ -15,12 +15,12 @@ import java.util.Optional;
 /**
  * A CI/CD variable of a {@link Project}, as GitLab returned it. A variable is addressed by its key and its environment
  * scope: several variables of one project may share a key and differ in the scope. This object targets GitLab with its
- * own scope in {@link #refresh()}, {@link #update()} and {@link #delete()}; a variable the answer gave no scope for is
- * targeted by key alone. A scope that is stale (the variable was moved to another scope since this object was loaded)
- * may make {@link #update()} change a different variable of the same key: GitLab's documentation says that when the
- * scope of the filter does not exist, the endpoint updates a variable with the same key but a different scope (not
- * verified live). Call {@link #refresh()} first when the scope may have changed. The object is immutable: it keeps the
- * data of the moment it was loaded, and {@link #response()} gives the complete response. The value is a secret: no
+ * own scope in {@link #refresh()}, {@link #update()} and {@link #delete()}; a variable whose answer has no scope, or a
+ * blank one, is targeted by key alone. A scope that is stale (the variable was moved to another scope since this object
+ * was loaded) may make {@link #update()} change a different variable of the same key: GitLab's documentation says that
+ * when the scope of the filter does not exist, the endpoint updates a variable with the same key but a different scope
+ * (not verified live). Call {@link #refresh()} first when the scope may have changed. The object is immutable: it keeps
+ * the data of the moment it was loaded, and {@link #response()} gives the complete response. The value is a secret: no
  * method of this object, and no {@code toString()}, prints it. Instance-level and pipeline variables are not wrapped;
  * use the core client for them.
  */
@@ -153,12 +153,12 @@ public final class Variable {
 
     /**
      * Deletes the variable ({@code DELETE /projects/{id}/variables/{key}}), narrowed by the variable's own environment
-     * scope with {@code filter[environment_scope]} when it has one.
+     * scope with {@code filter[environment_scope]} when it has one that is not blank.
      *
      * @throws IOException if the transport fails
      */
     public void delete() throws IOException {
-        final Optional<String> scope = environmentScope();
+        final Optional<String> scope = targetScope();
         if (scope.isPresent()) {
             gitLab().projectlevelvariables()
                     .delete(
@@ -174,14 +174,14 @@ public final class Variable {
 
     /**
      * Loads the variable again ({@code GET /projects/{id}/variables/{key}}), narrowed by the variable's own environment
-     * scope when it has one. This object is not changed.
+     * scope when it has one that is not blank. This object is not changed.
      *
      * @return the variable as GitLab holds it now
      * @throws IllegalStateException if the variable is gone
      * @throws IOException if the transport fails
      */
     public Variable refresh() throws IOException {
-        final Optional<String> scope = environmentScope();
+        final Optional<String> scope = targetScope();
         final Optional<Variable> loaded =
                 scope.isPresent() ? project.variable(key(), scope.get()) : project.variable(key());
         return loaded.orElseThrow(() -> new IllegalStateException("Variable " + key() + " is gone"));
@@ -198,11 +198,15 @@ public final class Variable {
     }
 
     Variable apply(final GitLabProjectProjectLevelVariablesUpdatePayloadBuilder payload) throws IOException {
-        environmentScope()
+        targetScope()
                 .ifPresent(scope -> payload.filter(GitLabProjectProjectLevelVariablesUpdateFilterBuilder.builder()
                         .environmentScope(scope)
                         .build()));
         return new Variable(project, gitLab().projectlevelvariables().update(project.id(), key(), payload.build()));
+    }
+
+    private Optional<String> targetScope() {
+        return environmentScope().filter(scope -> !scope.isBlank());
     }
 
     private GitLab gitLab() {

@@ -48,6 +48,7 @@ class PackageFileTest {
         final PackageFile sut = wrap(response);
 
         assertSoftly(softly -> {
+            softly.assertThat(sut.projectPackage()).isSameAs(owner);
             softly.assertThat(sut.id()).isEqualTo(FILE_ID);
             softly.assertThat(sut.fileName()).isEqualTo("lib-1.2.3.tgz");
             softly.assertThat(sut.size()).contains(2048L);

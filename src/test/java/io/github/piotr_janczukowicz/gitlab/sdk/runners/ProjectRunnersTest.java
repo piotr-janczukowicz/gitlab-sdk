@@ -13,6 +13,8 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.inOrder;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -133,7 +135,21 @@ class ProjectRunnersTest {
 
         final Throwable thrown = catchThrowable(() -> project.enableRunner(5L));
 
-        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("5");
+        assertThat(thrown)
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Runner 5 was enabled but could not be loaded");
+    }
+
+    @Test
+    void enableRunner_shouldLoadByArgumentId_whenAnswerNamesAnotherId() throws IOException {
+        when(gitLab.runners().project().create(any(String.class), any(GitLabProjectRunnersCreatePayload.class)))
+                .thenReturn(listed(9));
+        when(gitLab.runners().instance().get(5L)).thenReturn(Optional.of(fullRunner(5)));
+
+        final Runner result = project.enableRunner(5L);
+
+        assertThat(result.id()).isEqualTo(5L);
+        verify(gitLab.runners().instance(), never()).get(9L);
     }
 
     @Test

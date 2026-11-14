@@ -83,7 +83,7 @@ class SchedulesJsonTest {
 
         assertSoftly(softly -> {
             softly.assertThat(sut.id()).isEqualTo(10L);
-            softly.assertThat(sut.description()).isEqualTo("my trigger");
+            softly.assertThat(sut.description()).contains("my trigger");
             softly.assertThat(sut.token()).isEqualTo("glptt-6d056f63");
             softly.assertThat(sut.lastUsed()).isEmpty();
             softly.assertThat(sut.expiresAt()).contains(Instant.parse("2027-01-01T00:00:00Z"));

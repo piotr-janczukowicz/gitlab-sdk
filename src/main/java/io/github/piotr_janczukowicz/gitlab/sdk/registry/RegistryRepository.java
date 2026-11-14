@@ -23,9 +23,9 @@ import org.jspecify.annotations.Nullable;
  *
  * <p>A repository from {@link Project#registryRepositories()} belongs to that project and {@link #project()} returns it
  * without a request. A repository from a group list ({@code Group.registryRepositories()}) belongs to the project named
- * by its {@code project_id}: {@link #project()} then loads that project, one request. When the response has no project
- * id, such a repository cannot address its project, so {@link #project()}, {@link #tags()}, {@link #tag(String)},
- * {@link #delete()} and {@link #deleteTags(GitLabProjectContainerRegistryDeleteTagFilter)} throw
+ * by its {@code project_id}: {@link #project()} then returns a handle of that project, without a request. When the
+ * response has no project id, such a repository cannot address its project, so {@link #project()}, {@link #tags()},
+ * {@link #tag(String)}, {@link #delete()} and {@link #deleteTags(GitLabProjectContainerRegistryDeleteTagFilter)} throw
  * {@link IllegalStateException}; listing and {@link #refresh()} never do. The registry protection rules and the
  * registry event endpoint are not wrapped; use the core client for them.
  */
@@ -121,25 +121,25 @@ public final class RegistryRepository {
     }
 
     /**
-     * Returns the project the repository belongs to. A repository that came from {@link Project#registryRepositories()}
-     * answers its project without a request. A repository that came from a group list loads the project named by its
-     * {@code project_id} ({@code GET /projects/{id}}): one request each time.
+     * Returns the project the repository belongs to; no request is made. A repository that came from
+     * {@link Project#registryRepositories()} answers that project. A repository that came from a group list answers a
+     * handle of the project named by its {@code project_id}; call {@link Project#fetch()} on it to load the project.
      *
      * @return the project
-     * @throws IllegalStateException if the response names no project id, or the project is gone
-     * @throws IOException if the transport fails
+     * @throws IllegalStateException if the repository has no owner and the response names no project id
      */
-    public Project project() throws IOException {
+    public Project project() {
         if (owner != null) {
             return owner;
         }
-        return sdk.project(address()).refresh();
+        return sdk.project(address());
     }
 
     /**
      * Loads the repository again ({@code GET /registry/repositories/{id}}), by the id of the repository and not of the
      * project. This object is not changed. The returned repository belongs to the same project as this one, even when
-     * the answer names none.
+     * the answer names none; when this one knows no project and the answer names a {@code project_id}, the returned
+     * repository uses it.
      *
      * @return the repository as GitLab holds it now
      * @throws IllegalStateException if the repository is gone
@@ -149,7 +149,8 @@ public final class RegistryRepository {
         final long repositoryId = id();
         return gitLab().containerregistry()
                 .get(String.valueOf(repositoryId))
-                .map(loaded -> new RegistryRepository(sdk, owner, projectKey, loaded))
+                .map(loaded ->
+                        new RegistryRepository(sdk, owner, projectKey != null ? projectKey : keyOf(loaded), loaded))
                 .orElseThrow(() -> new IllegalStateException("Repository " + repositoryId + " is gone"));
     }
 

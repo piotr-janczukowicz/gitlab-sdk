@@ -42,7 +42,7 @@ class PipelineTriggerTest {
 
         assertSoftly(softly -> {
             softly.assertThat(sut.id()).isEqualTo(4L);
-            softly.assertThat(sut.description()).isEqualTo("deploy hook");
+            softly.assertThat(sut.description()).contains("deploy hook");
             softly.assertThat(sut.token()).isEqualTo(TOKEN);
             softly.assertThat(sut.lastUsed()).contains(Instant.parse("2026-01-01T00:00:00Z"));
             softly.assertThat(sut.expiresAt()).contains(Instant.parse("2027-01-01T00:00:00Z"));
@@ -50,6 +50,17 @@ class PipelineTriggerTest {
             softly.assertThat(sut.project()).isSameAs(project);
             softly.assertThat(sut.response()).isSameAs(response);
         });
+    }
+
+    @Test
+    void description_shouldBeEmpty_whenGitLabSendsNone() {
+        final PipelineTrigger sut = new PipelineTrigger(
+                project,
+                GitLabTriggerBuilder.builder(trigger(4)).description(null).build());
+
+        final Optional<String> result = sut.description();
+
+        assertThat(result).isEmpty();
     }
 
     @Test
@@ -89,7 +100,7 @@ class PipelineTriggerTest {
 
         final PipelineTrigger result = new PipelineTrigger(project, trigger(4)).refresh();
 
-        assertThat(result.description()).isEqualTo("new");
+        assertThat(result.description()).contains("new");
     }
 
     @Test

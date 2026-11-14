@@ -110,9 +110,9 @@ class SchedulesSmokeIT {
                     final Optional<PipelineTrigger> afterDelete = project.pipelineTrigger(created.id());
 
                     assertSoftly(softly -> {
-                        softly.assertThat(created.description()).isEqualTo(description);
+                        softly.assertThat(created.description()).contains(description);
                         softly.assertThat(created.token()).isNotBlank();
-                        softly.assertThat(updated.description()).isEqualTo(description + "-2");
+                        softly.assertThat(updated.description()).contains(description + "-2");
                         softly.assertThat(refreshed.id()).isEqualTo(created.id());
                         softly.assertThat(listed).isTrue();
                         softly.assertThat(printed).doesNotContain(created.token());

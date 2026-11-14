@@ -5,7 +5,6 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.
 import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.fullRepository;
 import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.groupRepository;
 import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.listedTag;
-import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.loadedProject;
 import static io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryFixtures.repository;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
@@ -99,13 +98,13 @@ class RegistryRepositoryTest {
     }
 
     @Test
-    void project_shouldLoadThroughProjectId_whenBuiltBySdk() throws IOException {
-        when(gitLab.projects().project().get("99")).thenReturn(Optional.of(loadedProject(99L)));
+    void project_shouldReturnHandleWithoutRequest_whenBuiltBySdk() {
         final RegistryRepository sut = grouped(groupRepository(REPOSITORY_ID, 99L));
 
         final Project result = sut.project();
 
         assertThat(result.id()).isEqualTo("99");
+        verifyNoInteractions(gitLab);
     }
 
     @Test
@@ -115,16 +114,6 @@ class RegistryRepositoryTest {
         final Throwable thrown = catchThrowable(sut::project);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("project id");
-    }
-
-    @Test
-    void project_shouldThrowIllegalStateException_whenProjectIsGone() throws IOException {
-        when(gitLab.projects().project().get("99")).thenReturn(Optional.empty());
-        final RegistryRepository sut = grouped(groupRepository(REPOSITORY_ID, 99L));
-
-        final Throwable thrown = catchThrowable(sut::project);
-
-        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("99");
     }
 
     @Test
@@ -154,6 +143,27 @@ class RegistryRepositoryTest {
         final List<RegistryTag> tags = sut.refresh().tags().toList();
 
         assertThat(tags).extracting(RegistryTag::name).containsExactly("v1");
+    }
+
+    @Test
+    void refresh_shouldTakeProjectIdFromAnswer_whenBuiltBySdkWithoutOne() throws IOException {
+        when(gitLab.containerregistry().get("77")).thenReturn(Optional.of(groupRepository(REPOSITORY_ID, 99L)));
+        final RegistryRepository sut = grouped(repository(REPOSITORY_ID));
+
+        final RegistryRepository result = sut.refresh();
+
+        assertThat(result.project().id()).isEqualTo("99");
+    }
+
+    @Test
+    void refresh_shouldStayWithoutProjectId_whenNeitherObjectNorAnswerHasOne() throws IOException {
+        when(gitLab.containerregistry().get("77")).thenReturn(Optional.of(repository(REPOSITORY_ID)));
+        final RegistryRepository sut = grouped(repository(REPOSITORY_ID));
+        final RegistryRepository result = sut.refresh();
+
+        final Throwable thrown = catchThrowable(result::project);
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("project id");
     }
 
     @Test

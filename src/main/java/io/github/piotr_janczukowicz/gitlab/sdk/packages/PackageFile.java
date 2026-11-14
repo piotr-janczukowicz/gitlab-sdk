@@ -32,6 +32,15 @@ public final class PackageFile {
     }
 
     /**
+     * Returns the package the file belongs to; no request is made.
+     *
+     * @return the package
+     */
+    public ProjectPackage projectPackage() {
+        return projectPackage;
+    }
+
+    /**
      * Returns the id of the file, which addresses it in the requests.
      *
      * @return the id

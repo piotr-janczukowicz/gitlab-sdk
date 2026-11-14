@@ -10,11 +10,11 @@ import java.io.IOException;
 
 /**
  * Collects changes to a {@link Variable} and sends them in one request. Only the fields that were set are sent, and
- * nothing is sent until {@link #send()}. The variable is targeted by its key and its own environment scope;
- * {@link #environmentScope(String)} sets a new scope. When the variable's own scope is stale, GitLab may update a
- * different variable of the same key: GitLab's documentation says that when the scope of the filter does not exist, the
- * endpoint updates a variable with the same key but a different scope (not verified live). The object has no
- * {@code toString()}, so a value set here is never printed.
+ * nothing is sent until {@link #send()}. The variable is targeted by its key and its own environment scope (a blank
+ * scope counts as none); {@link #environmentScope(String)} sets a new scope. When the variable's own scope is stale,
+ * GitLab may update a different variable of the same key: GitLab's documentation says that when the scope of the filter
+ * does not exist, the endpoint updates a variable with the same key but a different scope (not verified live). The
+ * object has no {@code toString()}, so a value set here is never printed.
  */
 public final class VariableUpdate {
 
