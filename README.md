@@ -36,8 +36,8 @@ class path. It depends on `gitlab-rest-client`, which Maven brings in.
 
 The versions follow the core: SDK `19.6.N` pairs with `gitlab-rest-client` `19.6.N`. Until the core `19.6.0` is
 released, the SDK is `19.6.0-SNAPSHOT` and builds against the core `19.6.0-SNAPSHOT`. CI stays red until the core
-`19.6.0` is released and the `gitlab-rest-client.version` pin in `pom.xml` changes to it, because the SDK needs core
-changes that only the unreleased core snapshot has. The newest release is on the
+`19.6.0` is released and the `gitlab-rest-client.version` pin in `pom.xml` changes to it: the CI build resolves only
+released versions of the core, so it cannot fetch the snapshot. The newest release is on the
 [releases page](https://github.com/piotr-janczukowicz/gitlab-sdk/releases). The library is new and not yet proven in
 production; see the [Disclaimer](#disclaimer).
 
