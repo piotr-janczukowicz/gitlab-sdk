@@ -51,7 +51,9 @@ public final class Dependency {
     }
 
     /**
-     * Returns the package manager as GitLab spells it, such as {@code bundler}.
+     * Returns the package manager as GitLab spells it, such as {@code bundler}. It is the raw name, while
+     * {@code Dependencies.all(first, more...)} filters by the core's enum
+     * {@code GitLabProjectDependenciesListPackageManager}: a name the enum does not know is still read here.
      *
      * @return the package manager, or empty when GitLab sent none
      */

@@ -110,7 +110,9 @@ public final class PersonalSnippet {
 
     /**
      * Reads the content of the snippet as text ({@code GET /snippets/{id}/raw}). Binary content comes back decoded as
-     * UTF-8. A snippet that is gone is the core's {@code GitLabNotFoundException}, not an empty result.
+     * UTF-8. A snippet that is gone is the core's {@code GitLabNotFoundException}, not an empty result. For a snippet
+     * with several files GitLab is expected to return the content of one file only (which one is not checked): read
+     * each file with {@link #files()} and {@link #fileContent(String, String)}.
      *
      * @return the content
      * @throws IOException if the transport fails
@@ -126,7 +128,8 @@ public final class PersonalSnippet {
      * content comes back decoded as UTF-8. A missing file or ref is the core's {@code GitLabNotFoundException}, not an
      * empty result.
      *
-     * @param ref the branch, tag or commit of the snippet repository, such as {@code main}
+     * @param ref the branch, tag or commit of the snippet repository: its default branch, such as {@code main}, which
+     *     the {@link SnippetFile#rawUrl()} of a file shows (as in {@code .../-/snippets/1/raw/main/add.rb})
      * @param path the path of the file
      * @return the content of the file
      * @throws NullPointerException if an argument is {@code null}

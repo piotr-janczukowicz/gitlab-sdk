@@ -53,7 +53,8 @@ public final class Dependencies {
 
     /**
      * Lists the dependencies of the project that belong to the given package managers ({@code GET
-     * /projects/{id}/dependencies} with {@code package_manager}). Paging and the stream are as for {@link #all()}.
+     * /projects/{id}/dependencies} with {@code package_manager}). Paging and the stream are as for {@link #all()}. The
+     * filter takes the core's enum, while {@link Dependency#packageManager()} reads the raw name GitLab sent.
      *
      * @param first the first package manager
      * @param more further package managers

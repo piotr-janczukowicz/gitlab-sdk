@@ -55,7 +55,8 @@ public final class PersonalSnippets {
 
     /**
      * Loads one snippet ({@code GET /snippets/{id}}): GitLab is expected to return any snippet the signed-in user can
-     * see, not only their own.
+     * see, not only their own. That can be a project snippet ({@code response().projectId()} set); its {@code update()}
+     * and {@code delete()} still go to {@code /snippets/{id}}, which is not verified for a project snippet.
      *
      * @param id the id of the snippet
      * @return the snippet, or empty when GitLab answers HTTP 404; a 403 passes through

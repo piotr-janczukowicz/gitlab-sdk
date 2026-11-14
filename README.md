@@ -462,13 +462,17 @@ page.delete();
 `project.snippets()` returns the `ProjectSnippets` of a project and `sdk.snippets()` the `PersonalSnippets` of the
 signed-in user, both without a request. `all()` lists them (`GET /snippets` for the personal ones: the user's own
 snippets), `find(id)` loads one (empty when GitLab answers 404, a 403 passes through; a personal `find` is expected to
-load any snippet the user can see), and `create(title, visibility, filePath, content)` creates a snippet with one file;
-`create(payload)` passes the core's payload through for several files or a description. The SDK always sends files as
-the `files` array, never the `content` and `file_name` parameters, which GitLab deprecates. A `Snippet` (project) and a
-`PersonalSnippet` give `title()`, `description()`, `visibility()` (a strict `SnippetVisibility`; `visibilityName()`
-gives the raw name), `author()`, `webUrl()` and `files()` (a `SnippetFile` per entry: `path()` and `rawUrl()`; empty for
-a legacy single-file snippet). `content()` reads the snippet and `fileContent(ref, path)` one file as text (binary
-content comes back decoded as UTF-8; a 404 is the core's `GitLabNotFoundException`, not empty). `update()` collects the
+load any snippet the user can see, which can be a project snippet: its `update()` and `delete()` then go to
+`/snippets/{id}`, not verified for a project snippet), and `create(title, visibility, filePath, content)` creates a
+snippet with one file; `create(payload)` passes the core's payload through for several files or a description. The SDK
+always sends files as the `files` array, never the `content` and `file_name` parameters, which GitLab deprecates. A
+`Snippet` (project) and a `PersonalSnippet` give `title()`, `description()`, `visibility()` (a strict
+`SnippetVisibility`; `visibilityName()` gives the raw name), `author()`, `webUrl()` and `files()` (a `SnippetFile` per
+entry: `path()` and `rawUrl()`; empty for a legacy single-file snippet). `content()` reads the snippet as text; for a
+snippet with several files GitLab is expected to return one file only (which one is unchecked), so read each file with
+`files()` and `fileContent(ref, path)`. The ref is the snippet repository's default branch, which the `rawUrl()` of a
+file shows (as in `.../-/snippets/1/raw/main/add.rb`). Both reads decode binary content as UTF-8, and a 404 is the
+core's `GitLabNotFoundException`, not empty. `update()` collects the
 title, description, visibility and file changes (`addFile`, `updateFile`, `deleteFile`, `moveFile(previousPath, path)`),
 sent in call order by `send()`. A `Snippet` returns its project from `project()`; a `PersonalSnippet` has no parent
 navigation. Snippet content can hold anything the user wrote, so no SDK `toString()` prints it.
@@ -489,9 +493,11 @@ core's `GitLabTierException` before a request. `all()` lists the dependencies (`
 `all(first, more...)` only those of the given package managers (the core's
 `GitLabProjectDependenciesListPackageManager`; a `null` throws before a request). GitLab has no call that loads one
 dependency, so a `Dependency` is a value, with no `find` and no `refresh()`. It gives `name()`, `version()`,
-`packageManager()`, `filePath()`, `malware()` (an `Optional<Boolean>`), `vulnerabilities()` and `licenses()` (the
-core's records, immutable, empty when GitLab sends none) and `project()`. The `vulnerabilities()` are the advisories
-GitLab matched to the dependency, not SDK vulnerability objects: the vulnerabilities REST API is not offered.
+`packageManager()` (the raw name, while the filter of `all(first, more...)` takes the core's enum, so a name the enum
+does not know is still read), `filePath()`, `malware()` (an `Optional<Boolean>`), `vulnerabilities()` and
+`licenses()` (the core's records, immutable, empty when GitLab sends none) and `project()`. The `vulnerabilities()` are
+the advisories GitLab matched to the dependency, not SDK vulnerability objects: the vulnerabilities REST API is not
+offered.
 
 ```java
 project.dependencies().all(GitLabProjectDependenciesListPackageManager.NPM).forEach(dependency ->
@@ -505,7 +511,8 @@ project.dependencies().all(GitLabProjectDependenciesListPackageManager.NPM).forE
 They are a Premium feature: GitLab is expected to answer 403 or 404 on a lower tier, and a client configured with a
 lower tier refuses the call with the core's `GitLabTierException` before a request. `all()` lists the events and
 `createdBetween(after, before)` those created in a range (both bounds inclusive per the GitLab docs, both required;
-`after` later than `before` throws `IllegalArgumentException` before a request). Lists walk by keyset pagination
+`after` later than `before` throws `IllegalArgumentException` before a request; both are truncated to whole seconds,
+the docs' `YYYY-MM-DDTHH:MM:SSZ`, because a fraction is not verified to be accepted). Lists walk by keyset pagination
 (`order_by=id`, `sort=desc`), the only keyset order the GitLab REST docs list for audit events, so events come newest
 first; offset paging, which GitLab deprecates, is never sent. `find(id)` loads one event, empty on a 404 (a 403 or
 the core's `GitLabTierException` passes through). Per the GitLab docs a project Developer and a group Developer or
@@ -560,7 +567,7 @@ All objects behave the same way, so you learn them once:
   `ProjectUpdate.send()`, `GroupUpdate.send()`, `transfer(...)`, and also `fork(...)`) is addressed by its numeric id
   afterwards. Issues and merge requests are addressed by their `iid`, the number within the project.
 - A **lookup** (`project.issue(42)`, `sdk.user(7)`, `project.file("README.md", "main")`) returns an `Optional`, empty
-  when GitLab answers 404. A lookup in a Premium or Ultimate area (`wiki.find(slug)`, `auditEvents.find(id)`) is empty
+  when GitLab answers 404. A lookup in an area that can be unavailable (wikis, audit events) is empty
   when GitLab answers 404 (expected in some cases where the feature is not available); a 403 or the core's
   `GitLabTierException` passes through.
 - A **list** is a lazy, single-use `Stream`. Pages are fetched as you consume it, so `limit(...)` stops further

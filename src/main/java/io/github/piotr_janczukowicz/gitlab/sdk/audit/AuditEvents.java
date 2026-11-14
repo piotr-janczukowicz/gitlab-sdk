@@ -8,6 +8,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import java.io.IOException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Optional;
 import java.util.stream.Stream;
 
@@ -78,7 +79,10 @@ public final class AuditEvents {
     /**
      * Lists the audit events created between two instants, newest first ({@code GET /projects/{id}/audit_events} with
      * {@code created_after} and {@code created_before}, walked by keyset as {@link #all()} describes). Per the GitLab
-     * REST docs both bounds are inclusive. The instants are sent as {@link Instant#toString()} gives them.
+     * REST docs both bounds are inclusive. Both instants are truncated to whole seconds and sent in the docs' format
+     * {@code YYYY-MM-DDTHH:MM:SSZ}, such as {@code 2026-11-13T00:00:00Z}: whether GitLab accepts a fraction of a second
+     * is not verified, so a sub-second part is dropped (an event in the fraction of a second after {@code before} is
+     * then out of range).
      *
      * @param after the earliest creation time
      * @param before the latest creation time; equal to {@code after} is allowed
@@ -93,7 +97,7 @@ public final class AuditEvents {
         if (after.isAfter(before)) {
             throw new IllegalArgumentException("after must not be later than before");
         }
-        return wrapped(gateway.events(after, before));
+        return wrapped(gateway.events(after.truncatedTo(ChronoUnit.SECONDS), before.truncatedTo(ChronoUnit.SECONDS)));
     }
 
     /**

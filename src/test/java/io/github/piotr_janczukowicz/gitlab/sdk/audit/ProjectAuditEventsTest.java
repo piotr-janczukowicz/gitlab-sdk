@@ -184,6 +184,24 @@ class ProjectAuditEventsTest {
     }
 
     @Test
+    void createdBetween_shouldTruncateToWholeSeconds_whenBoundsHaveFraction() throws IOException {
+        when(gitLab.projects()
+                        .project()
+                        .listAuditEvents(eq(ID), any(GitLabProjectProjectsListAuditEventsFilter.class), any()))
+                .thenReturn(page(walk, event(5L)));
+
+        sut.createdBetween(Instant.parse("2026-11-13T00:00:00.123456789Z"), Instant.parse("2026-11-14T00:00:00.999Z"))
+                .toList();
+
+        final ArgumentCaptor<GitLabProjectProjectsListAuditEventsFilter> filter =
+                ArgumentCaptor.forClass(GitLabProjectProjectsListAuditEventsFilter.class);
+        verify(gitLab.projects().project(), times(1)).listAuditEvents(eq(ID), filter.capture(), any());
+        assertThat(filter.getValue().toQueryParameters())
+                .containsExactlyInAnyOrderEntriesOf(
+                        Map.of("created_after", "2026-11-13T00:00:00Z", "created_before", "2026-11-14T00:00:00Z"));
+    }
+
+    @Test
     void createdBetween_shouldAcceptEqualBounds_whenOneInstant() throws IOException {
         when(gitLab.projects()
                         .project()
