@@ -156,7 +156,7 @@ class ProjectRunnersTest {
     void resetRunnerRegistrationToken_shouldReturnRedactedToken_whenCalled() throws IOException {
         when(gitLab.runners().project().resetRegistrationToken(ID)).thenReturn(resetResult());
 
-        final RegistrationToken result = project.resetRunnerRegistrationToken();
+        final RunnerToken result = project.resetRunnerRegistrationToken();
 
         assertSoftly(softly -> {
             softly.assertThat(result.token()).isEqualTo(TOKEN);

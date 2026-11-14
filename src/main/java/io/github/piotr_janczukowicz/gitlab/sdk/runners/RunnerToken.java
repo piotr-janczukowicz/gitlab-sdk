@@ -11,7 +11,7 @@ import java.util.Optional;
  * authentication token of a {@link Runner}. GitLab returns the secret only in this answer, so {@link #token()} is the
  * only place the SDK exposes it. The secret is never part of {@link #toString()}.
  */
-public final class RegistrationToken {
+public final class RunnerToken {
 
     private final GitLabCiResetTokenResult response;
 
@@ -21,7 +21,7 @@ public final class RegistrationToken {
      * @param response the answer of the reset
      * @throws NullPointerException if {@code response} is {@code null}
      */
-    public RegistrationToken(final GitLabCiResetTokenResult response) {
+    public RunnerToken(final GitLabCiResetTokenResult response) {
         this.response = requireNonNull(response, "response");
     }
 
@@ -55,6 +55,6 @@ public final class RegistrationToken {
 
     @Override
     public String toString() {
-        return "RegistrationToken[token=<redacted>, expiresAt=" + response.tokenExpiresAt() + "]";
+        return "RunnerToken[token=<redacted>, expiresAt=" + response.tokenExpiresAt() + "]";
     }
 }

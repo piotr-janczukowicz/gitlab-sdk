@@ -3,7 +3,7 @@
 Every object of the SDK, with the methods it has, by package. The [README](../../README.md) gives the short overview.
 Every object also has `response()`, which returns the complete `gitlab-rest-client` record it is built from, and
 navigates to its parent (`issue.project()`, `note.issue()`, `job.project()`, `file.projectPackage()` and so on),
-except a `Reaction`, a `Runner` and a `RegistrationToken`, which have none. A lookup returns an `Optional`, a list is a
+except a `Reaction`, a `Runner` and a `RunnerToken`, which have none. A lookup returns an `Optional`, a list is a
 lazy, single-use `Stream`, and the `iid` of an issue or a merge request is a `long`.
 
 ## Root package: `io.github.piotr_janczukowicz.gitlab.sdk`
@@ -199,7 +199,7 @@ take-ownership of a trigger are not covered: the first needs the core client, th
 | `Runner` | `id()`, `description()`, `name()`, `type()` (an `Optional<RunnerType>`; an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name; a type the core's enum does not know reads as `unrecognized`), `isOnline()`, `isPaused()`, `isActive()` (absent: `false`), `status()` (raw), `tagList()` (the response's tag list, an immutable list; empty when absent), `version()`, `contactedAt()`, `update()`, `refresh()`, `delete()` (removes the runner everywhere), `disable(project)` (only valid for a runner enabled in that project), `managers()` (the core's `GitLabCiRunnerManager` records, an immutable list), `jobs()` (the core's `GitLabCiJobBasicWithProject` records, lazy), `resetAuthenticationToken()` (secret), `response()` (the detail record) |
 | `RunnerUpdate` | `description(...)`, `paused(boolean)`, `active(boolean)`, `tags(List)` (copied; a `null` element throws `NullPointerException`), `runUntagged(boolean)`, `locked(boolean)`, `maximumTimeout(int)`, `maintenanceNote(...)`, `send()` (an empty update throws `IllegalStateException` before a request). The access level is not offered |
 | `RunnerType` | `INSTANCE_TYPE`, `GROUP_TYPE`, `PROJECT_TYPE` |
-| `RegistrationToken` | `token()` (secret, do not log it), `expiresAt()`, `response()`; `toString()` prints the token as `<redacted>` |
+| `RunnerToken` | `token()` (secret, do not log it), `expiresAt()`, `response()`; `toString()` prints the token as `<redacted>` |
 
 `GitLabSdk.runner(id)` loads a runner by its global id (`GET /runners/{id}`). A runner from a project or group list is
 loaded again, because the list holds a smaller record: one request per item. `Runner` has no parent navigation, like

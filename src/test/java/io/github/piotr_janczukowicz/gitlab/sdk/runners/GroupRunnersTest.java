@@ -103,7 +103,7 @@ class GroupRunnersTest {
     void resetRunnerRegistrationToken_shouldReturnRedactedToken_whenCalled() throws IOException {
         when(gitLab.groups().resetRegistrationTokenRunner(ID)).thenReturn(resetResult());
 
-        final RegistrationToken result = group.resetRunnerRegistrationToken();
+        final RunnerToken result = group.resetRunnerRegistrationToken();
 
         assertSoftly(softly -> {
             softly.assertThat(result.token()).isEqualTo(TOKEN);

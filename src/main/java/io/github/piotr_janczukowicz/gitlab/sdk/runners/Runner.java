@@ -232,8 +232,8 @@ public final class Runner {
      * @return the new token
      * @throws IOException if the transport fails
      */
-    public RegistrationToken resetAuthenticationToken() throws IOException {
-        return new RegistrationToken(gitLab().runners().instance().resetAuthenticationTokenById(id()));
+    public RunnerToken resetAuthenticationToken() throws IOException {
+        return new RunnerToken(gitLab().runners().instance().resetAuthenticationTokenById(id()));
     }
 
     /**

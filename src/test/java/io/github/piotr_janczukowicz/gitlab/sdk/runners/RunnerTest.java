@@ -231,7 +231,7 @@ class RunnerTest {
     void resetAuthenticationToken_shouldUseRunnerId_whenCalled() throws IOException {
         when(gitLab.runners().instance().resetAuthenticationTokenById(7L)).thenReturn(resetResult());
 
-        final RegistrationToken result = wrap(runner(7)).resetAuthenticationToken();
+        final RunnerToken result = wrap(runner(7)).resetAuthenticationToken();
 
         assertSoftly(softly -> {
             softly.assertThat(result.token()).isEqualTo(TOKEN);

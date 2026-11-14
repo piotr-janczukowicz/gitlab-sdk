@@ -46,8 +46,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.packages.ProjectPackage;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.GroupProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
-import io.github.piotr_janczukowicz.gitlab.sdk.runners.RegistrationToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
+import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.GroupVariable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
@@ -731,8 +731,8 @@ public final class Group {
      * @return the new token
      * @throws IOException if the transport fails
      */
-    public RegistrationToken resetRunnerRegistrationToken() throws IOException {
-        return new RegistrationToken(sdk.gitLab().groups().resetRegistrationTokenRunner(id));
+    public RunnerToken resetRunnerRegistrationToken() throws IOException {
+        return new RunnerToken(sdk.gitLab().groups().resetRegistrationTokenRunner(id));
     }
 
     /**

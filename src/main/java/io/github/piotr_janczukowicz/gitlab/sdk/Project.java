@@ -101,8 +101,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
 import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
-import io.github.piotr_janczukowicz.gitlab.sdk.runners.RegistrationToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
+import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineSchedule;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineTrigger;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
@@ -1784,8 +1784,8 @@ public final class Project {
      * @return the new token
      * @throws IOException if the transport fails
      */
-    public RegistrationToken resetRunnerRegistrationToken() throws IOException {
-        return new RegistrationToken(sdk.gitLab().runners().project().resetRegistrationToken(id));
+    public RunnerToken resetRunnerRegistrationToken() throws IOException {
+        return new RunnerToken(sdk.gitLab().runners().project().resetRegistrationToken(id));
     }
 
     /**

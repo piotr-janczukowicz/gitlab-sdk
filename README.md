@@ -220,7 +220,7 @@ administrator (not verified). `project.enableRunner(id)` enables an existing run
 `runner.disable(project)` stops the project from using it (`enableRunner` then loads the runner by the id you passed);
 `runner.delete()` removes it everywhere. `tagList()` returns the tags of the response and `update().tags(...)` takes a
 list, which it copies. The registration token of a project or group and the authentication token of a runner come back
-as a `RegistrationToken`, whose `token()` is a secret and whose `toString()` never prints it. A runner type the core
+as a `RunnerToken`, whose `token()` is a secret and whose `toString()` never prints it. A runner type the core
 does not know reads as `unrecognized` in `typeName()` (a limitation of the core's enum), and `type()` then throws
 `IllegalArgumentException`.
 
@@ -473,11 +473,11 @@ All objects behave the same way, so you learn them once:
   `project_id`; neither makes a request, as for `Deployment`, `Milestone` and `MergeRequest`. A response without a
   project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`, and the
   `download` and `delete` of their files and tags) throw `IllegalStateException`.
-- A `Reaction`, a `Runner` and a `RegistrationToken` are the objects **without parent navigation**.
+- A `Reaction`, a `Runner` and a `RunnerToken` are the objects **without parent navigation**.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
   `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
   project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
-  `update()`, `delete()` and the other calls use the global runner id. A `RegistrationToken` is a value: a token and
+  `update()`, `delete()` and the other calls use the global runner id. A `RunnerToken` is a value: a token and
   its expiry.
 - **Same-key CI/CD variables** of different environment scopes: a project `Variable` names its own scope in
   `refresh()`, `update()` and `delete()`; a `GroupVariable` cannot, because the core does not offer the scope filter
@@ -541,7 +541,7 @@ All objects behave the same way, so you learn them once:
   your instance; log what you need, not the whole record. These are credentials: the secret of a new deploy token
   (`token()`, and the `token()` of its `response()`), the token you set on a webhook (`update().token(...)`), the token
   of a pipeline trigger (`PipelineTrigger.token()`), the registration and authentication tokens of runners
-  (`RegistrationToken.token()`, and the `runners_token` in the `response()` of a project or a group), and the value of a
+  (`RunnerToken.token()`, and the `runners_token` in the `response()` of a project or a group), and the value of a
   CI/CD variable (`Variable.value()`, `GroupVariable.value()`, `ScheduleVariable.value()`, `update().value(...)`). The
   artifacts of a job, the files of a package and the images of the container registry can carry credentials too. Store
   secrets in a secret store and never log them; the SDK's own `toString()` methods never print a secret value.

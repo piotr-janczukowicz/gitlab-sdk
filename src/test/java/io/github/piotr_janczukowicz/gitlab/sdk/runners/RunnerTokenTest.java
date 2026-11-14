@@ -19,7 +19,7 @@ class RegistrationTokenTest {
     void accessors_shouldReadResponse_whenAllSet() {
         final GitLabCiResetTokenResult response = resetResult();
 
-        final RegistrationToken sut = new RegistrationToken(response);
+        final RunnerToken sut = new RunnerToken(response);
 
         assertSoftly(softly -> {
             softly.assertThat(sut.token()).isEqualTo(TOKEN);
@@ -30,7 +30,7 @@ class RegistrationTokenTest {
 
     @Test
     void expiresAt_shouldBeEmpty_whenAbsent() {
-        final RegistrationToken sut = new RegistrationToken(
+        final RunnerToken sut = new RunnerToken(
                 GitLabCiResetTokenResultBuilder.builder().token(TOKEN).build());
 
         assertThat(sut.expiresAt()).isEmpty();
@@ -38,21 +38,21 @@ class RegistrationTokenTest {
 
     @Test
     void toString_shouldNotContainToken_whenPrinted() {
-        final RegistrationToken sut = new RegistrationToken(resetResult());
+        final RunnerToken sut = new RunnerToken(resetResult());
 
         assertThat(sut.toString()).doesNotContain(TOKEN).contains("<redacted>");
     }
 
     @Test
     void token_shouldThrowNullPointerException_whenAbsent() {
-        final RegistrationToken sut =
-                new RegistrationToken(GitLabCiResetTokenResultBuilder.builder().build());
+        final RunnerToken sut =
+                new RunnerToken(GitLabCiResetTokenResultBuilder.builder().build());
 
         assertThat(catchThrowable(sut::token)).isInstanceOf(NullPointerException.class);
     }
 
     @Test
     void constructor_shouldThrowNullPointerException_whenResponseIsNull() {
-        assertThat(catchThrowable(() -> new RegistrationToken(null))).isInstanceOf(NullPointerException.class);
+        assertThat(catchThrowable(() -> new RunnerToken(null))).isInstanceOf(NullPointerException.class);
     }
 }
