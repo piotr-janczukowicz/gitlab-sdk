@@ -574,9 +574,9 @@ All objects behave the same way, so you learn them once:
   requests; a transport failure during iteration is an `UncheckedIOException`.
 - **Several fields at once** go through `update()`: `issue.update().title("New").labels(List.of("bug")).send()` sends
   one request with only the fields you set. `send()` with nothing set throws `IllegalStateException`. Projects, groups,
-  members, webhooks, variables, environments, pipeline schedules and triggers, runners, deploy keys, issues, merge
-  requests, labels, group labels, milestones, releases, release links, draft notes, wiki pages, snippets and personal
-  snippets have an `update()`.
+  members, webhooks, variables, environments, pipeline schedules, schedule variables and triggers, runners, deploy keys,
+  issues, merge requests, labels, group labels, milestones, releases, release links, draft notes, wiki pages, snippets
+  and personal snippets have an `update()`.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
 - A `ProjectPackage` and a `RegistryRepository` find their project through the `project_id` of their response: from a
@@ -603,9 +603,12 @@ All objects behave the same way, so you learn them once:
 - **Dates** are `LocalDate`s where GitLab means a date (milestone `dueDate()` and `startDate()`, member `expiresAt()`),
   and a milestone date is sent as `yyyy-MM-dd`. A milestone date is empty when GitLab sends none or a blank one, and a
   value that is not an ISO date throws `IllegalStateException`.
-- `refresh()` reloads an object and throws `IllegalStateException` when it is gone. Access requests (`AccessRequest`,
-  `GroupAccessRequest`), `ProjectGroupLink`, `AuditEvent` and `Dependency` have no `refresh()`: the API has no lookup of
-  a single access request or dependency, and an audit event does not change.
+- `refresh()` reloads an object and throws `IllegalStateException` when it is gone. These have no `refresh()`: access
+  requests (`AccessRequest`, `GroupAccessRequest`), `ProjectGroupLink`, `Approvals`, `Commit`, `RepositoryFile`,
+  `PackageFile`, `CreatedDeployToken`, `GroupCreatedDeployToken`, `RunnerToken`, `AuditEvent` and `Dependency`. Where
+  the API has a lookup, load them again through it (`project.file(path, ref)`, `mergeRequest.approvals()`); it has none
+  for a single access request, package file or dependency, a commit and an audit event do not change, and the secret of
+  a created token is returned only once.
 - Where GitLab's list returns a smaller record than a single lookup (merge requests, pipelines, commits, the forks of a
   project, the projects and subgroups of a group, and the issues and merge requests of a milestone), the SDK loads each
   item with one more request as the stream reaches it. The Javadoc says so, and `limit(...)` bounds the cost. An item

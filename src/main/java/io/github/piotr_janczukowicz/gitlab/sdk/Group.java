@@ -352,7 +352,8 @@ public final class Group {
      * Loads a webhook ({@code GET /groups/{id}/hooks/{hook_id}}). Premium.
      *
      * @param hookId the id of the webhook
-     * @return the webhook, or empty when GitLab answers HTTP 404
+     * @return the webhook, or empty when GitLab answers HTTP 404 (expected in some cases where the feature is not
+     *     available); a 403 or the core's {@code GitLabTierException} passes through
      * @throws IOException if the transport fails
      */
     public Optional<GroupWebhook> webhook(final long hookId) throws IOException {
@@ -455,7 +456,8 @@ public final class Group {
      * Loads a protected branch ({@code GET /groups/{id}/protected_branches/{name}}). Premium.
      *
      * @param name the branch name or wildcard, which may contain slashes; the core encodes it
-     * @return the protected branch, or empty when GitLab answers HTTP 404
+     * @return the protected branch, or empty when GitLab answers HTTP 404 (expected in some cases where the feature is
+     *     not available); a 403 or the core's {@code GitLabTierException} passes through
      * @throws IllegalArgumentException if the name is blank
      * @throws NullPointerException if the name is {@code null}
      * @throws IOException if the transport fails

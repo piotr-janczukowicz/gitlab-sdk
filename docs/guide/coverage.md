@@ -34,7 +34,7 @@ their project with `project()`, and an `AuditEvent` to its `AuditEvents` with `a
 | `IssueState` | `OPENED`, `CLOSED`; `value()` (the name as GitLab spells it), `from(String)` (an unknown name throws `IllegalArgumentException`) |
 | `Note` | `issue()`, `id()`, `body()`, `update(body)`, `reactions()`, `react(name)`, `delete()`, `refresh()`, `response()` |
 | `Label` | `project()`, `name()`, `color()`, `description()`, `update()`, `promote()` (returns the `GroupLabel`; sends `GET /projects/{id}` to find the group from the project's namespace, then the promotion, so a failed GET promotes nothing; a project in a user namespace is not rejected by the SDK: GitLab's rejection passes through as the core's exception), `delete()`, `refresh()`, `response()` |
-| `LabelUpdate` | `name(...)`, `color(...)`, `description(...)`, `send()` |
+| `LabelUpdate` | `name(...)`, `color(...)`, `description(...)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 | `GroupLabel` | `group()`, `name()`, `color()`, `description()`, `isSubscribed()`, `update()`, `subscribe()`, `unsubscribe()`, `delete()`, `refresh()`, `response()`; addressed by name (a slash or space reaches the core unchanged) |
 | `GroupLabelUpdate` | `name(...)` (the new name), `color(...)`, `description(...)`, `archived(boolean)`, `send()`; `send()` with nothing set throws `IllegalStateException` |
 
