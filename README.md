@@ -85,6 +85,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
 | **Wikis** | list (each page loaded in full), load by slug, create (with an optional typed `WikiFormat`), update (title, content, format), reload and delete the wiki pages of a project or group (Premium); upload an attachment to the wiki repository |
 | **Snippets** | list, load, create (one file, or several through the core payload), read the content of a snippet or of one file, update (title, description, typed `SnippetVisibility`, add, update, delete and move files), reload and delete the snippets of a project and the personal snippets of the signed-in user |
+| **Dependencies** | list the dependencies of a project (Ultimate), all or filtered by package manager, with their advisories and licenses; read only |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes, discussions (threads) and emoji reactions; labels (list with the core's filter, load by name, create, update, delete), with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
@@ -100,7 +101,8 @@ burndown events; snippet, commit and epic discussions and the snippet and epic-n
 reply through the discussion endpoints (use the `Note` objects); building a diff `position`; clearing a milestone date
 or a draft-note position (the SDK cannot send `null` for them); the priority of a label; and, for snippets, the
 deprecated `content` and `file_name` parameters, the instance-wide and public snippet lists, repository storage moves
-and user-agent details.
+and user-agent details; for dependencies, the dependency list exports, and the vulnerabilities, vulnerability findings
+and epics REST APIs, which GitLab deprecates and the SDK deliberately does not offer.
 
 Not covered in the CI/CD areas: instance-level variables and runners, and pipeline variables; `maskedAndHidden` on a
 variable update (on create it goes through the payload overload); protected environments (Premium), deleting review
@@ -473,6 +475,24 @@ sdk.snippets().all().forEach(mine -> System.out.println(mine.title()));
 snippet.delete();
 ```
 
+### Dependencies
+
+`project.dependencies()` returns the `Dependencies` of a project without a request. It is an Ultimate feature: GitLab
+is expected to answer 403 or 404 on a lower tier, and a client configured with a lower tier refuses the call with the
+core's `GitLabTierException` before a request. `all()` lists the dependencies (`GET /projects/{id}/dependencies`), and
+`all(first, more...)` only those of the given package managers (the core's
+`GitLabProjectDependenciesListPackageManager`; a `null` throws before a request). GitLab has no call that loads one
+dependency, so a `Dependency` is a value, with no `find` and no `refresh()`. It gives `name()`, `version()`,
+`packageManager()`, `filePath()`, `isMalware()` (an `Optional<Boolean>`), `vulnerabilities()` and `licenses()` (the
+core's records, immutable, empty when GitLab sends none) and `project()`. The `vulnerabilities()` are the advisories
+GitLab matched to the dependency, not SDK vulnerability objects: the vulnerabilities REST API is not offered.
+
+```java
+project.dependencies().all(GitLabProjectDependenciesListPackageManager.NPM).forEach(dependency ->
+        System.out.println(dependency.name() + " " + dependency.version().orElse("?")
+                + ": " + dependency.vulnerabilities().size() + " advisories"));
+```
+
 ## When the SDK does not cover a call
 
 The SDK covers the common work, not every endpoint. For the rest, use `gitlab-rest-client` directly: the `GitLab` client
@@ -528,8 +548,9 @@ All objects behave the same way, so you learn them once:
   project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`, and the
   `download` and `delete` of their files and tags) throw `IllegalStateException`.
 - A `Reaction`, a `Runner`, a `RunnerToken` and a `PersonalSnippet` are the objects **without parent navigation**. A
-  `Wiki`, a `ProjectSnippets` and a `PersonalSnippets` are area handles with neither `response()` nor parent
-  navigation; wiki pages return their wiki from `wiki()`, and a `Snippet` returns its project from `project()`.
+  `Wiki`, a `ProjectSnippets`, a `PersonalSnippets` and a `Dependencies` are area handles with neither `response()`
+  nor parent navigation; wiki pages return their wiki from `wiki()`, and a `Snippet` and a `Dependency` return their
+  project from `project()`.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
   `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
   project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
@@ -640,7 +661,7 @@ The options are described in the `gitlab-rest-client` documentation:
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
 other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
 `code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`,
-`schedules`, `runners`, `packages`, `registry`, `wikis` and `snippets`.
+`schedules`, `runners`, `packages`, `registry`, `wikis`, `snippets` and `dependencies`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

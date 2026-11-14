@@ -78,6 +78,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.RepositoryFile;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Tag;
+import io.github.piotr_janczukowicz.gitlab.sdk.dependencies.Dependencies;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.CreatedDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployKey;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployToken;
@@ -1879,6 +1880,15 @@ public final class Project {
      */
     public ProjectSnippets snippets() {
         return ProjectSnippets.forProject(this);
+    }
+
+    /**
+     * Returns the dependencies of the project (Ultimate): a read-only list. No request is made.
+     *
+     * @return the dependencies of the project
+     */
+    public Dependencies dependencies() {
+        return Dependencies.forProject(this);
     }
 
     private DeployKey createDeployKey(

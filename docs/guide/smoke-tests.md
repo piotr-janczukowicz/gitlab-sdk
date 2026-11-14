@@ -65,19 +65,19 @@ Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is sk
 | `PackagesAndRegistrySmokeIT` | reads only, each test skipped when the sandbox has no package or no registry repository, or when the first list answers 403 or 404 (the feature is disabled): list the packages, load and reload one, list its files; list the repositories, reload one, list its tags and load the first. Downloading a package file and every delete are not run live |
 | `WikisSmokeIT` | create a wiki page titled `smoke-<runId>/page` (a slug with a slash), find it by its slug, update its content, then its title to `smoke-<runId>/renamed` and check that the page comes back with a new slug, find it by the new slug, list, reload, delete. With `SMOKE_GITLAB_GROUP` (Premium; the test is skipped on a 403 or 404): create, find and delete a group page `smoke-<runId>/group-page`. Uploading an attachment is not run live, because GitLab offers no call that removes an uploaded file |
 | `SnippetsSmokeIT` | in the sandbox project: create a private two-file snippet titled `smoke-<runId>` through the payload overload, find it, read its content and one file on the ref `main` (that check is skipped when GitLab answers 404), update it (add a file, move a file with its previous path, delete a file), reload it and check its files, delete it. Personal snippets live on the token user's account, outside the sandbox, so that test is **read-only**: list the user's snippets and load the first one (skipped when the user has none). Creating, updating and deleting a personal snippet are covered by unit tests only, not run live; public and internal visibility are not run live either |
+| `DependenciesSmokeIT` | reads only (Ultimate), skipped when the first list answers 403 or 404 or when the list is empty (the sandbox needs a dependency scan result): list the first five dependencies of the sandbox, read the accessors of the first, and list again filtered by its package manager. It has not been run live yet |
 
 Every resource a test creates is named `smoke-<runId>-...` (a variable key is `SMOKE_<RUNID>`, a wiki page title is
 `smoke-<runId>/...`, so its slug holds a slash, and a snippet title is `smoke-<runId>`) and is removed in a
 `finally` block, so a failed run leaves nothing behind. Issues are deleted outright. Cleanup relies on the same SDK
 calls that the tests exercise, so a failure in `delete()` can leave a `smoke-` resource in the sandbox; remove it by
-hand. GitLab may keep a deleted resource for a
-short time before it disappears.
+hand. GitLab may keep a deleted resource for a short time before it disappears.
 
 A disabled feature or a 403 skips, never fails: the first call of an area that may be switched off for the sandbox
 or refused to the token (packages, the container registry, environments, CI/CD variables, schedules and triggers,
-runners and their managers and jobs, job artifacts, project and group wikis, project and personal snippets) goes
-through `SmokeSkips.probe(...)`,
-which turns GitLab's 403 or 404 into a skipped test. The calls under test do not, so a wrong request still fails.
+runners and their managers and jobs, job artifacts, project and group wikis, project and personal snippets, project
+dependencies) goes through `SmokeSkips.probe(...)`, which turns GitLab's 403 or 404 into a skipped test. The calls under
+test do not, so a wrong request still fails.
 
 ## Not yet verified live
 
@@ -124,6 +124,9 @@ questions are open until a run:
 | The content of a multi-file snippet | `content()` reads `GET .../raw` of the snippet; which file GitLab answers with for a snippet of several files is unchecked (`SnippetsSmokeIT` accepts either file's content) |
 | Personal snippet writes | Creating, updating and deleting a personal snippet are not run live (they would write on the token user's account outside the sandbox); they are unit-tested only |
 | The real snippet shapes | `SnippetsJsonTest` decodes JSON shaped after the REST docs examples (a legacy single-file snippet, a snippet with `files` and the personal list), not a live response |
+| Dependency list availability | The list is an Ultimate feature; on a lower tier GitLab is expected to answer 403 or 404 (`DependenciesSmokeIT` then skips). Which of the two a free instance answers is unchecked, and so is whether a sandbox that is Ultimate but has no dependency scan answers an empty list (the test then skips as well) |
+| The real dependency shapes | `DependenciesJsonTest` decodes JSON shaped after the REST docs example (vulnerabilities with integer ids, an empty `vulnerabilities` array, a license without `url`), with illustrative values, not a live response. The core patch that turns `vulnerabilities` and `licenses` into arrays meets a real answer only in `DependenciesSmokeIT`, and only when the sandbox has a dependency scan |
+| The package manager filter | `all(first, more...)` sends `package_manager` as the core encodes the list; how GitLab treats several values at once is unchecked, `DependenciesSmokeIT` filters by one |
 
 ## Reading a failure
 
