@@ -9,6 +9,7 @@ import io.github.piotr_janczukowicz.gitlab.client.GitLabCaller;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
+import io.github.piotr_janczukowicz.gitlab.sdk.snippets.PersonalSnippets;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -142,6 +143,16 @@ public final class GitLabSdk {
      */
     public Optional<Runner> runner(final long id) throws IOException {
         return gitlab.runners().instance().get(id).map(loaded -> new Runner(this, loaded));
+    }
+
+    /**
+     * Returns the personal snippets of the account the client signs in as: list, load, create, read their content,
+     * update and delete. No request is made.
+     *
+     * @return the personal snippets
+     */
+    public PersonalSnippets snippets() {
+        return PersonalSnippets.forSdk(this);
     }
 
     /**

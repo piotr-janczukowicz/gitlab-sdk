@@ -84,6 +84,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
 | **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
 | **Wikis** | list (each page loaded in full), load by slug, create (with an optional typed `WikiFormat`), update (title, content, format), reload and delete the wiki pages of a project or group (Premium); upload an attachment to the wiki repository |
+| **Snippets** | list, load, create (one file, or several through the core payload), read the content of a snippet or of one file, update (title, description, typed `SnippetVisibility`, add, update, delete and move files), reload and delete the snippets of a project and the personal snippets of the signed-in user |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes, discussions (threads) and emoji reactions; labels (list with the core's filter, load by name, create, update, delete), with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
@@ -97,7 +98,9 @@ event; group-level deploy keys (GitLab has none); protected-branch rules of a us
 role (they stay in `response()`); group releases, the typed latest-release getter and release asset sources; milestone
 burndown events; snippet, commit and epic discussions and the snippet and epic-note reactions; editing or deleting a
 reply through the discussion endpoints (use the `Note` objects); building a diff `position`; clearing a milestone date
-or a draft-note position (the SDK cannot send `null` for them); and the priority of a label.
+or a draft-note position (the SDK cannot send `null` for them); the priority of a label; and, for snippets, the
+deprecated `content` and `file_name` parameters, the instance-wide and public snippet lists, repository storage moves
+and user-agent details.
 
 Not covered in the CI/CD areas: instance-level variables and runners, and pipeline variables; `maskedAndHidden` on a
 variable update (on create it goes through the payload overload); protected environments (Premium), deleting review
@@ -108,7 +111,7 @@ reading a single file out of the artifacts and a job-token parameter on the arti
 endpoints (Maven, npm, NuGet and the others), the package and container registry protection rules, the registry event
 endpoint and the instance-level package and registry lists.
 
-The same goes for every area outside the table, such as snippets and the administration of an instance. Use
+The same goes for every area outside the table, such as badges and the administration of an instance. Use
 `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
 [Live smoke tests](docs/guide/smoke-tests.md).
 
@@ -446,6 +449,30 @@ GitLabWikiAttachment upload = wiki.uploadAttachment("diagram.png", bytes);
 page.delete();
 ```
 
+### Snippets
+
+`project.snippets()` returns the `ProjectSnippets` of a project and `sdk.snippets()` the `PersonalSnippets` of the
+signed-in user, both without a request. `all()` lists them (`GET /snippets` for the personal ones: the user's own
+snippets), `find(id)` loads one (empty on a 404; a personal `find` loads any snippet the user can see), and
+`create(title, visibility, filePath, content)` creates a snippet with one file; `create(payload)` passes the core's
+payload through for several files or a description. The SDK always sends files as the `files` array, never the
+`content` and `file_name` parameters, which GitLab deprecates. A `Snippet` (project) and a `PersonalSnippet` give
+`title()`, `description()`, `visibility()` (a strict `SnippetVisibility`; `visibilityName()` gives the raw name),
+`author()`, `webUrl()` and `files()` (a `SnippetFile` per entry: `path()` and `rawUrl()`; empty for a legacy
+single-file snippet). `content()` reads the snippet and `fileContent(ref, path)` one file as text (binary content comes
+back decoded as UTF-8; a 404 is the core's `GitLabNotFoundException`, not empty). `update()` collects the title,
+description, visibility and file changes (`addFile`, `updateFile`, `deleteFile`, `moveFile(previousPath, path)`), sent
+in call order by `send()`. A `Snippet` returns its project from `project()`; a `PersonalSnippet` has no parent
+navigation. Snippet content can hold anything the user wrote, so no SDK `toString()` prints it.
+
+```java
+Snippet snippet = project.snippets().create("setup", SnippetVisibility.PRIVATE, "setup.sh", "./configure");
+snippet = snippet.update().addFile("docs/README.md", "# Setup").moveFile("setup.sh", "bin/setup.sh").send();
+System.out.println(snippet.fileContent("main", "bin/setup.sh")); // branch name expected, unchecked live
+sdk.snippets().all().forEach(mine -> System.out.println(mine.title()));
+snippet.delete();
+```
+
 ## When the SDK does not cover a call
 
 The SDK covers the common work, not every endpoint. For the rest, use `gitlab-rest-client` directly: the `GitLab` client
@@ -462,9 +489,9 @@ try (GitLabClient client = GitLabClients.create(
     Project project = sdk.project("my-group/my-project");
     project.createIssue("Found a bug");                                     // an SDK object
 
-    // no SDK object for snippets yet: use the client with the same project id
-    for (GitLabProjectSnippet snippet : gitLab.projectsnippets().list(project.id()).all()) {
-        System.out.println(snippet.title());
+    // no SDK object for badges: use the client with the same project id
+    for (GitLabBadge badge : gitLab.projectbadges().list(project.id()).all()) {
+        System.out.println(badge.name());
     }
 }
 ```
@@ -500,8 +527,9 @@ All objects behave the same way, so you learn them once:
   `project_id`; neither makes a request, as for `Deployment`, `Milestone` and `MergeRequest`. A response without a
   project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`, and the
   `download` and `delete` of their files and tags) throw `IllegalStateException`.
-- A `Reaction`, a `Runner` and a `RunnerToken` are the objects **without parent navigation**. A `Wiki` is an area
-  handle with neither `response()` nor parent navigation; its pages return it from `wiki()`.
+- A `Reaction`, a `Runner`, a `RunnerToken` and a `PersonalSnippet` are the objects **without parent navigation**. A
+  `Wiki`, a `ProjectSnippets` and a `PersonalSnippets` are area handles with neither `response()` nor parent
+  navigation; wiki pages return their wiki from `wiki()`, and a `Snippet` returns its project from `project()`.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
   `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
   project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
@@ -612,7 +640,7 @@ The options are described in the `gitlab-rest-client` documentation:
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
 other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
 `code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`,
-`schedules`, `runners`, `packages`, `registry` and `wikis`.
+`schedules`, `runners`, `packages`, `registry`, `wikis` and `snippets`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

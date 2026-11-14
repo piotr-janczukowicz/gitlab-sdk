@@ -105,6 +105,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineSchedule;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineTrigger;
+import io.github.piotr_janczukowicz.gitlab.sdk.snippets.ProjectSnippets;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
@@ -1868,6 +1869,16 @@ public final class Project {
      */
     public Wiki wiki() {
         return Wiki.forProject(this);
+    }
+
+    /**
+     * Returns the snippets of the project: list, load, create, read their content, update and delete. No request is
+     * made.
+     *
+     * @return the snippets of the project
+     */
+    public ProjectSnippets snippets() {
+        return ProjectSnippets.forProject(this);
     }
 
     private DeployKey createDeployKey(

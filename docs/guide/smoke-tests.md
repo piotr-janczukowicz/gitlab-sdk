@@ -64,9 +64,10 @@ Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is sk
 | `ArtifactsSmokeIT` | reads only, skipped when none of the latest 50 jobs of the sandbox has artifacts: list the artifact tree (the root and one directory, recursively), download the archive to a temporary directory that is emptied and deleted afterwards (skipped when GitLab reports no size or more than 50 MB; a 403 or 404 on the first artifact read skips). Keeping and deleting artifacts are not run live |
 | `PackagesAndRegistrySmokeIT` | reads only, each test skipped when the sandbox has no package or no registry repository, or when the first list answers 403 or 404 (the feature is disabled): list the packages, load and reload one, list its files; list the repositories, reload one, list its tags and load the first. Downloading a package file and every delete are not run live |
 | `WikisSmokeIT` | create a wiki page titled `smoke-<runId>/page` (a slug with a slash), find it by its slug, update its content, then its title to `smoke-<runId>/renamed` and check that the page comes back with a new slug, find it by the new slug, list, reload, delete. With `SMOKE_GITLAB_GROUP` (Premium; the test is skipped on a 403 or 404): create, find and delete a group page `smoke-<runId>/group-page`. Uploading an attachment is not run live, because GitLab offers no call that removes an uploaded file |
+| `SnippetsSmokeIT` | in the sandbox project: create a private two-file snippet titled `smoke-<runId>` through the payload overload, find it, read its content and one file on the ref `main` (that check is skipped when GitLab answers 404), update it (add a file, move a file with its previous path, delete a file), reload it and check its files, delete it. Personal snippets live on the token user's account, outside the sandbox, so that test is **read-only**: list the user's snippets and load the first one (skipped when the user has none). Creating, updating and deleting a personal snippet are covered by unit tests only, not run live; public and internal visibility are not run live either |
 
 Every resource a test creates is named `smoke-<runId>-...` (a variable key is `SMOKE_<RUNID>`, a wiki page title is
-`smoke-<runId>/...`, so its slug holds a slash) and is removed in a
+`smoke-<runId>/...`, so its slug holds a slash, and a snippet title is `smoke-<runId>`) and is removed in a
 `finally` block, so a failed run leaves nothing behind. Issues are deleted outright. Cleanup relies on the same SDK
 calls that the tests exercise, so a failure in `delete()` can leave a `smoke-` resource in the sandbox; remove it by
 hand. GitLab may keep a deleted resource for a
@@ -74,7 +75,8 @@ short time before it disappears.
 
 A disabled feature or a 403 skips, never fails: the first call of an area that may be switched off for the sandbox
 or refused to the token (packages, the container registry, environments, CI/CD variables, schedules and triggers,
-runners and their managers and jobs, job artifacts, project and group wikis) goes through `SmokeSkips.probe(...)`,
+runners and their managers and jobs, job artifacts, project and group wikis, project and personal snippets) goes
+through `SmokeSkips.probe(...)`,
 which turns GitLab's 403 or 404 into a skipped test. The calls under test do not, so a wrong request still fails.
 
 ## Not yet verified live
@@ -116,6 +118,12 @@ questions are open until a run:
 | The title of a nested page | A page created with the title `smoke-<runId>/page` gets a slug with a slash; whether GitLab then reports the title as the full path or only the last segment (`page`) is unchecked, so `WikisSmokeIT` asserts on the slug only and no unit test relies on the title holding the path |
 | Group wiki availability | Group wikis are a Premium feature; on a lower tier GitLab is expected to answer 403 or 404 (the group test of `WikisSmokeIT` then skips). Which of the two a free instance answers, and whether a 404 lookup is then empty, is unchecked |
 | The real wiki page shapes | `WikisJsonTest` decodes JSON shaped after the REST docs examples (the page, the list and the attachment), not a live response; `WikisSmokeIT` is the first check against a real answer |
+| The default branch of a snippet repository | `fileContent(ref, path)` needs a ref; `SnippetsSmokeIT` reads a file on `main` and skips that check on a 404, so whether a new snippet repository's branch is `main` (or follows the instance default) is unchecked |
+| Binary snippet content | The core reads raw snippet content as text, so a binary file comes back decoded as UTF-8 (bytes that are not UTF-8 are lost); not run live |
+| Moving a snippet file without content | `moveFile(previousPath, path)` sends the `move` action with `previous_path` and no content; that GitLab then keeps the content of the file is expected, not checked: `SnippetsSmokeIT` checks the new path only |
+| The content of a multi-file snippet | `content()` reads `GET .../raw` of the snippet; which file GitLab answers with for a snippet of several files is unchecked (`SnippetsSmokeIT` accepts either file's content) |
+| Personal snippet writes | Creating, updating and deleting a personal snippet are not run live (they would write on the token user's account outside the sandbox); they are unit-tested only |
+| The real snippet shapes | `SnippetsJsonTest` decodes JSON shaped after the REST docs examples (a legacy single-file snippet, a snippet with `files` and the personal list), not a live response |
 
 ## Reading a failure
 
