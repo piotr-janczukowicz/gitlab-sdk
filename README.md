@@ -83,6 +83,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Protected branches and tags** | list, load, protect (default rules, or who may push and merge or create), allow force pushes, require code owner approval and unprotect the protected branches and the protected tags of a project; the protected branches of a group (Premium); a typed `ProtectedAccess` with the raw level numbers as an escape hatch |
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
 | **Milestones** | list (with the core's filter), load, create, update (title, description, due and start date), close, reopen, delete the milestones of a project or group; promote a project milestone to a group milestone; the issues and merge requests of a milestone |
+| **Wikis** | list (each page loaded in full), load by slug, create (with an optional typed `WikiFormat`), update (title, content, format), reload and delete the wiki pages of a project or group (Premium); upload an attachment to the wiki repository |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes, discussions (threads) and emoji reactions; labels (list with the core's filter, load by name, create, update, delete), with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
@@ -419,6 +420,29 @@ Reaction reaction = issue.react("thumbsup");
 reaction.delete();
 ```
 
+### Wikis
+
+`project.wiki()` and `group.wiki()` return a `Wiki` without a request; a group wiki needs Premium (GitLab answers 403
+or 404 on a lower tier). `wiki.all()` lists the pages: GitLab lists every page in one response without its content, so
+each page is loaded again as the stream reaches it (one request per page, and a page that is gone is skipped).
+`wiki.find(slug)` loads one page, empty on a 404, also when the wiki is not available. A slug is passed as GitLab
+returns it, not URL-encoded: `dir/page` stays as it is and the core encodes it. GitLab derives the slug from the title,
+so `page.update().title(...).send()` targets the old slug and returns the page with its new one. `content()`,
+`format()` (a strict `WikiFormat`; `formatName()` gives the raw name) and `encoding()` are `Optional`, and
+`frontMatter()` is an immutable copy of the parsed front matter, empty when there is none.
+`wiki.uploadAttachment(fileName, bytes)` (or with a branch) uploads a file and returns the core's
+`GitLabWikiAttachment`, whose `link().markdown()` goes into a page; GitLab offers no call that removes an upload.
+Page content can hold anything the user wrote, so no SDK `toString()` prints it.
+
+```java
+Wiki wiki = project.wiki();
+WikiPage page = wiki.create("guides/setup", "# Setup", WikiFormat.MARKDOWN);
+page = page.update().content("# Setup\n\nRun the installer.").send();
+wiki.find("guides/setup").ifPresent(found -> System.out.println(found.content().orElse("")));
+GitLabWikiAttachment upload = wiki.uploadAttachment("diagram.png", bytes);
+page.delete();
+```
+
 ## When the SDK does not cover a call
 
 The SDK covers the common work, not every endpoint. For the rest, use `gitlab-rest-client` directly: the `GitLab` client
@@ -473,7 +497,8 @@ All objects behave the same way, so you learn them once:
   `project_id`; neither makes a request, as for `Deployment`, `Milestone` and `MergeRequest`. A response without a
   project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`, and the
   `download` and `delete` of their files and tags) throw `IllegalStateException`.
-- A `Reaction`, a `Runner` and a `RunnerToken` are the objects **without parent navigation**.
+- A `Reaction`, a `Runner` and a `RunnerToken` are the objects **without parent navigation**. A `Wiki` is an area
+  handle with neither `response()` nor parent navigation; its pages return it from `wiki()`.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
   `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
   project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
@@ -584,7 +609,7 @@ The options are described in the `gitlab-rest-client` documentation:
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
 other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
 `code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`,
-`schedules`, `runners`, `packages` and `registry`.
+`schedules`, `runners`, `packages`, `registry` and `wikis`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

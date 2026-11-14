@@ -51,6 +51,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.GroupVariable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
+import io.github.piotr_janczukowicz.gitlab.sdk.wikis.Wiki;
 import java.io.IOException;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -774,6 +775,15 @@ public final class Group {
     public Stream<RegistryRepository> registryRepositories() throws IOException {
         return sdk.gitLab().groups().listRegistryRepositories(id).stream()
                 .map(item -> new RegistryRepository(sdk, item));
+    }
+
+    /**
+     * Returns the wiki of the group (Premium): its pages and attachments. No request is made.
+     *
+     * @return the wiki
+     */
+    public Wiki wiki() {
+        return Wiki.forGroup(this);
     }
 
     private GroupMember createMember(

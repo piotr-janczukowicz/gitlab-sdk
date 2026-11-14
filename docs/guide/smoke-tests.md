@@ -18,7 +18,7 @@ project that holds nothing else, whose path contains `smoke`. The tests refuse a
 | `SMOKE_GITLAB_PROJECT` | The path of the sandbox project, `group/name`; the path must contain `smoke` |
 | `SMOKE_GITLAB_URL` | The instance root; default `https://gitlab.com` |
 | `SMOKE_GITLAB_USER_ID` | Optional. The numeric id of a second user who may be added to and removed from the sandbox; without it the add, change and remove of a member is skipped |
-| `SMOKE_GITLAB_GROUP` | Optional. The path of a sandbox group, which must contain `smoke` like the project path; without it `GroupLabelsSmokeIT` and the group test of `VariablesSmokeIT` are skipped. The token's user must be allowed to create labels and variables in it |
+| `SMOKE_GITLAB_GROUP` | Optional. The path of a sandbox group, which must contain `smoke` like the project path; without it `GroupLabelsSmokeIT` and the group tests of `VariablesSmokeIT` and `WikisSmokeIT` are skipped. The token's user must be allowed to create labels, variables and (on Premium) wiki pages in it |
 
 ```bash
 export SMOKE_GITLAB_TOKEN=glpat-...
@@ -63,8 +63,10 @@ Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is sk
 | `RunnersSmokeIT` | reads only, skipped when the sandbox project has no runner: list the runners of the sandbox, load one with `sdk.runner(id)`, refresh it, read `tagList()`, `type()`, `typeName()`, the status, the managers and the jobs (a 403 or 404 on the list, the managers or the jobs skips the test). Registering, updating, enabling, disabling and deleting a runner and resetting a token are not run live |
 | `ArtifactsSmokeIT` | reads only, skipped when none of the latest 50 jobs of the sandbox has artifacts: list the artifact tree (the root and one directory, recursively), download the archive to a temporary directory that is emptied and deleted afterwards (skipped when GitLab reports no size or more than 50 MB; a 403 or 404 on the first artifact read skips). Keeping and deleting artifacts are not run live |
 | `PackagesAndRegistrySmokeIT` | reads only, each test skipped when the sandbox has no package or no registry repository, or when the first list answers 403 or 404 (the feature is disabled): list the packages, load and reload one, list its files; list the repositories, reload one, list its tags and load the first. Downloading a package file and every delete are not run live |
+| `WikisSmokeIT` | create a wiki page titled `smoke-<runId>/page` (a slug with a slash), find it by its slug, update its content, then its title to `smoke-<runId>/renamed` and check that the page comes back with a new slug, find it by the new slug, list, reload, delete. With `SMOKE_GITLAB_GROUP` (Premium; the test is skipped on a 403 or 404): create, find and delete a group page `smoke-<runId>/group-page`. Uploading an attachment is not run live, because GitLab offers no call that removes an uploaded file |
 
-Every resource a test creates is named `smoke-<runId>-...` (a variable key is `SMOKE_<RUNID>`) and is removed in a
+Every resource a test creates is named `smoke-<runId>-...` (a variable key is `SMOKE_<RUNID>`, a wiki page title is
+`smoke-<runId>/...`, so its slug holds a slash) and is removed in a
 `finally` block, so a failed run leaves nothing behind. Issues are deleted outright. Cleanup relies on the same SDK
 calls that the tests exercise, so a failure in `delete()` can leave a `smoke-` resource in the sandbox; remove it by
 hand. GitLab may keep a deleted resource for a
@@ -72,8 +74,8 @@ short time before it disappears.
 
 A disabled feature or a 403 skips, never fails: the first call of an area that may be switched off for the sandbox
 or refused to the token (packages, the container registry, environments, CI/CD variables, schedules and triggers,
-runners and their managers and jobs, job artifacts) goes through `SmokeSkips.probe(...)`, which turns GitLab's 403 or
-404 into a skipped test. The calls under test do not, so a wrong request still fails.
+runners and their managers and jobs, job artifacts, project and group wikis) goes through `SmokeSkips.probe(...)`,
+which turns GitLab's 403 or 404 into a skipped test. The calls under test do not, so a wrong request still fails.
 
 ## Not yet verified live
 
@@ -110,6 +112,10 @@ questions are open until a run:
 | Artifact download permissions | Downloading the artifacts of a job needs access to the job's artifacts (a project that restricts them, or a token of a role that cannot read them, answers 403 or 404), and the download writes a file that is owner-only where the file system has POSIX permissions; `ArtifactsSmokeIT` is skipped when the sandbox has no job with artifacts |
 | Package and registry list shapes | The package and container registry lists, the group lists with the `project_id`, the files and the tag details are only unit-tested against records built from the OpenAPI description; `PackagesAndRegistrySmokeIT` is the first check, and it is skipped when the sandbox has no package or repository |
 | Schedule inputs on the request side | The core reads inputs of any type in a schedule answer, but sends a scalar input as a one-item array; whether GitLab accepts that for a string, boolean or number input is unchecked, so the SDK offers no schedule inputs (`createPipelineSchedule(payload)` passes the core's payload through) |
+| The slug of a renamed wiki page | GitLab derives the slug from the title, so a new title should give a new slug; `WikisSmokeIT` checks that the slug changes and that the new one loads. Whether the old slug then answers 404 or redirects, and how GitLab slugs titles with spaces or other characters, is unchecked |
+| Group wiki availability | Group wikis are a Premium feature; on a lower tier GitLab is expected to answer 403 or 404 (the group test of `WikisSmokeIT` then skips). Which of the two a free instance answers, and whether a 404 lookup is then empty, is unchecked |
+| A wiki update of the format alone | `WikiPageUpdate.format(...)` can be sent without a title or content; GitLab's REST docs require the title or the content on an update, so a format-only update is expected to be refused (the SDK does not check it, GitLab's answer passes through). Not run live |
+| The real wiki page shapes | `WikisJsonTest` decodes JSON shaped after the REST docs examples (the page, the list and the attachment), not a live response; `WikisSmokeIT` is the first check against a real answer |
 
 ## Reading a failure
 

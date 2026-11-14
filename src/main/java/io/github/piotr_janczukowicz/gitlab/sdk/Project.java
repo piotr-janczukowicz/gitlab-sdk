@@ -108,6 +108,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineTrigger;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
+import io.github.piotr_janczukowicz.gitlab.sdk.wikis.Wiki;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
@@ -1858,6 +1859,15 @@ public final class Project {
                                 .build())
                 .stream()
                 .map(item -> new RegistryRepository(this, item));
+    }
+
+    /**
+     * Returns the wiki of the project: its pages and attachments. No request is made.
+     *
+     * @return the wiki
+     */
+    public Wiki wiki() {
+        return Wiki.forProject(this);
     }
 
     private DeployKey createDeployKey(

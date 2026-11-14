@@ -22,4 +22,5 @@ module io.github.piotr_janczukowicz.gitlabsdk {
     exports io.github.piotr_janczukowicz.gitlab.sdk.schedules;
     exports io.github.piotr_janczukowicz.gitlab.sdk.variables;
     exports io.github.piotr_janczukowicz.gitlab.sdk.webhooks;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.wikis;
 }
