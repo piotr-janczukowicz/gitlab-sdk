@@ -84,16 +84,26 @@ class RunnerTest {
     }
 
     @Test
-    void tagList_shouldSplitAndTrim_whenCommaSeparated() {
-        assertThat(wrap(fullRunner(7)).tagList()).containsExactly("docker", "linux");
+    void tagList_shouldKeepOrder_whenListGiven() {
+        final Runner sut = wrap(GitLabCiRunnerDetailsBuilder.builder(runner(7))
+                .tagList(List.of("z", "a", "m"))
+                .build());
+
+        assertThat(sut.tagList()).containsExactly("z", "a", "m");
     }
 
     @Test
-    void tagList_shouldBeEmpty_whenBlank() {
-        final Runner sut = wrap(
-                GitLabCiRunnerDetailsBuilder.builder(runner(7)).tagList(" ").build());
+    void tagList_shouldBeEmpty_whenListIsEmpty() {
+        final Runner sut = wrap(GitLabCiRunnerDetailsBuilder.builder(runner(7))
+                .tagList(List.of())
+                .build());
 
         assertThat(sut.tagList()).isEmpty();
+    }
+
+    @Test
+    void tagList_shouldBeEmpty_whenNull() {
+        assertThat(wrap(runner(7)).tagList()).isEmpty();
     }
 
     @Test
@@ -139,8 +149,15 @@ class RunnerTest {
     }
 
     @Test
-    void update_shouldReturnBuilder_whenCalled() {
-        assertThat(wrap(runner(7)).update()).isNotNull();
+    void delete_shouldUseOwnGlobalId_whenRunnerCameFromGroupList() throws IOException {
+        when(gitLab.groups().listRunners("my-group").stream()).thenReturn(Stream.of(RunnersFixtures.listed(31)));
+        when(gitLab.runners().instance().get(31L)).thenReturn(Optional.of(runner(31)));
+        final Runner fromGroup = sdk.group("my-group").runners().findFirst().orElseThrow();
+
+        fromGroup.delete();
+
+        verify(gitLab.runners().instance()).deleteById(31L);
+        verifyNoInteractions(gitLab.runners().project());
     }
 
     @Test

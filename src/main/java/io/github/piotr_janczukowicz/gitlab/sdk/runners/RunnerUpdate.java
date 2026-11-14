@@ -66,8 +66,7 @@ public final class RunnerUpdate {
 
     /**
      * Sets the tags of the runner, replacing the existing ones. The list goes to the core as a list, as the update
-     * request takes it; an empty list is sent as given. A tag that contains a comma is sent as given, but
-     * {@link Runner#tagList()} cannot read it back because the response holds the tags in one comma-separated string.
+     * request takes it; an empty list is sent as given.
      *
      * @param tags the tags
      * @return this update

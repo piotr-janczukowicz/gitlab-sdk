@@ -13,6 +13,7 @@ import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabCiRunnerDetails;
 import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabCiRunnerDetailsBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabCiRunnerDetailsRunnerType;
 import java.time.Instant;
+import java.util.List;
 
 /** Builds the core records for the tests of the runner objects. */
 final class RunnersFixtures {
@@ -46,7 +47,7 @@ final class RunnersFixtures {
                 .active(true)
                 .paused(false)
                 .online(true)
-                .tagList("docker, linux ,")
+                .tagList(List.of("docker", "linux"))
                 .version("18.0.0")
                 .contactedAt(Instant.parse("2026-01-02T03:04:05Z"))
                 .build();

@@ -196,7 +196,7 @@ take-ownership of a trigger are not covered: the first needs the core client, th
 
 | Object | Methods |
 |---|---|
-| `Runner` | `id()`, `description()`, `name()`, `type()` (an `Optional<RunnerType>`; an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name), `isOnline()`, `isPaused()`, `isActive()` (absent: `false`), `status()` (raw), `tagList()` (split on commas and trimmed; empty gives an empty list), `version()`, `contactedAt()`, `update()`, `refresh()`, `delete()` (removes the runner everywhere), `disable(project)` (only valid for a runner enabled in that project), `managers()` (the core's `GitLabCiRunnerManager` records, an immutable list), `jobs()` (the core's `GitLabCiJobBasicWithProject` records, lazy), `resetAuthenticationToken()` (secret), `response()` (the detail record) |
+| `Runner` | `id()`, `description()`, `name()`, `type()` (an `Optional<RunnerType>`; an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name), `isOnline()`, `isPaused()`, `isActive()` (absent: `false`), `status()` (raw), `tagList()` (the response's tag list, an immutable list; empty when absent), `version()`, `contactedAt()`, `update()`, `refresh()`, `delete()` (removes the runner everywhere), `disable(project)` (only valid for a runner enabled in that project), `managers()` (the core's `GitLabCiRunnerManager` records, an immutable list), `jobs()` (the core's `GitLabCiJobBasicWithProject` records, lazy), `resetAuthenticationToken()` (secret), `response()` (the detail record) |
 | `RunnerUpdate` | `description(...)`, `paused(boolean)`, `active(boolean)`, `tags(List)`, `runUntagged(boolean)`, `locked(boolean)`, `maximumTimeout(int)`, `maintenanceNote(...)`, `send()` (an empty update throws `IllegalStateException` before a request). The access level is not offered |
 | `RunnerType` | `INSTANCE_TYPE`, `GROUP_TYPE`, `PROJECT_TYPE` |
 | `RegistrationToken` | `token()` (secret, do not log it), `expiresAt()`, `response()`; `toString()` prints the token as `<redacted>` |
@@ -204,9 +204,8 @@ take-ownership of a trigger are not covered: the first needs the core client, th
 `GitLabSdk.runner(id)` loads a runner by its global id (`GET /runners/{id}`). A runner from a project or group list is
 loaded again, because the list holds a smaller record: one request per item. `Runner` has no parent navigation, like
 `Reaction`: one class serves instance, group and project runners, and a runner can be enabled in several projects.
-`update()`, `delete()`, `managers()`, `jobs()` and `resetAuthenticationToken()` always use the global runner id. The tags
-are mapped between the core's comma-separated string (response) and list (update payload); this is not verified
-against a live GitLab.
+`update()`, `delete()`, `managers()`, `jobs()` and `resetAuthenticationToken()` always use the global runner id. Nothing
+here has been run against a live GitLab.
 
 ## What is not covered
 

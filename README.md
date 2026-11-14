@@ -197,9 +197,8 @@ String token = trigger.token();                                         // secre
 `sdk.runner(7)` loads a runner by its global id. `project.runners()` and `group.runners()` list the runners, and
 GitLab lists a smaller record than a single load, so each listed runner is loaded again (one request per item) and one
 that is gone is skipped. `project.enableRunner(id)` enables an existing runner in the project, and
-`runner.disable(project)` stops the project from using it; `runner.delete()` removes it everywhere. `tagList()` splits
-the comma-separated tags of the response, and `update().tags(...)` takes a list; the mapping is not verified against a
-live GitLab. The registration token of a project or group and the authentication token of a runner come back as a
+`runner.disable(project)` stops the project from using it; `runner.delete()` removes it everywhere. `tagList()` returns
+the tags of the response and `update().tags(...)` takes a list. Nothing here has been run against a live GitLab. The registration token of a project or group and the authentication token of a runner come back as a
 `RegistrationToken`, whose `token()` is a secret and whose `toString()` never prints it.
 
 ```java

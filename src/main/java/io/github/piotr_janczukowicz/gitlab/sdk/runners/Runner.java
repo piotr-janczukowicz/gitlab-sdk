@@ -13,7 +13,6 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
@@ -133,20 +132,12 @@ public final class Runner {
     }
 
     /**
-     * Returns the tags of the runner. The response holds them in one string; the SDK splits it on commas and trims each
-     * tag, and an empty or blank string gives an empty list. This mapping is not verified against a live GitLab.
+     * Returns the tags of the runner, the response's {@code tag_list}, in the order GitLab sent them.
      *
-     * @return the tags, as an immutable list
+     * @return the tags as an immutable list, empty when GitLab sent none
      */
     public List<String> tagList() {
-        final String tags = response.tagList();
-        if (tags == null) {
-            return List.of();
-        }
-        return Arrays.stream(tags.split(","))
-                .map(String::trim)
-                .filter(tag -> !tag.isEmpty())
-                .toList();
+        return Optional.ofNullable(response.tagList()).map(List::copyOf).orElse(List.of());
     }
 
     /**
@@ -184,7 +175,8 @@ public final class Runner {
      * @throws IOException if the transport fails
      */
     public Runner refresh() throws IOException {
-        return sdk.runner(id()).orElseThrow(() -> new IllegalStateException("Runner " + id() + " is gone"));
+        final long runnerId = id();
+        return sdk.runner(runnerId).orElseThrow(() -> new IllegalStateException("Runner " + runnerId + " is gone"));
     }
 
     /**
