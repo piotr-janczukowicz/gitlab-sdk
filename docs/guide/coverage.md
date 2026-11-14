@@ -282,7 +282,7 @@ file path is an empty `Optional`.
 
 | Object | Methods |
 |---|---|
-| `AuditEvents` | From `project.auditEvents()` or `group.auditEvents()` (Premium), or `AuditEvents.forProject(project)` and `AuditEvents.forGroup(group)`; none makes a request. `all()` (`GET /projects/{id}/audit_events` with `pagination=keyset`, `order_by=id`, `sort=desc`: newest first), `createdBetween(after, before)` (the same with `created_after` and `created_before`, both inclusive per the GitLab docs; a `null` throws `NullPointerException` and `after` later than `before` throws `IllegalArgumentException`, both before a request; the instants are sent as `Instant.toString()` gives them), `find(id)` (empty on a 404, also when audit events are not available; on a group it needs the Owner role) |
+| `AuditEvents` | From `project.auditEvents()` or `group.auditEvents()` (Premium), or `AuditEvents.forProject(project)` and `AuditEvents.forGroup(group)`; none makes a request. `all()` (`GET /projects/{id}/audit_events` with `pagination=keyset`, `order_by=id`, `sort=desc`: newest first), `createdBetween(after, before)` (the same with `created_after` and `created_before`, both inclusive per the GitLab docs; a `null` throws `NullPointerException` and `after` later than `before` throws `IllegalArgumentException`, both before a request; the instants are sent as `Instant.toString()` gives them), `find(id)` (empty when GitLab answers 404, which it is expected to do in some cases where audit events are not available; a 403 or the core's `GitLabTierException` passes through; on a group it needs the Owner role) |
 | `AuditEvent` | Events do not change, so no `refresh()`. `id()`, `authorId()`, `entityId()`, `entityType()` (the raw name, such as `Project`), `eventName()`, `details()` (an immutable copy, nested maps and lists included, values as GitLab sent them; empty when absent), `createdAt()` (an `Optional<Instant>`), `auditEvents()`, `response()` |
 
 The group calls are the same with `/groups/{id}`. Audit events are a Premium feature: GitLab is expected to answer 403
@@ -371,6 +371,6 @@ and never sent, so the only order is newest first. The details can hold names, e
 - **Audit events.** The instance audit events (`GET /audit_events`, an administrator API) are not covered; use the
   core client. Offset paging of project and group audit events is deliberately not offered: the GitLab REST docs
   deprecate it (17.8, removal planned for 19.0), so the SDK walks by keyset with `order_by=id` and `sort=desc`, the
-  only keyset order GitLab offers for audit events; an oldest-first walk is not available.
+  only keyset order the GitLab REST docs list for audit events; an oldest-first walk is not available.
 - **Live verification.** No area has been run against a real GitLab instance yet; see
   [Live smoke tests](smoke-tests.md).

@@ -1,16 +1,12 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.wikis;
 
+import static io.github.piotr_janczukowicz.gitlab.sdk.internal.FrozenValues.frozenMap;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabWikiPage;
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.jspecify.annotations.Nullable;
 
 /**
  * A wiki page, as GitLab returned it. The object is immutable: it keeps the data of the moment it was loaded, and
@@ -153,24 +149,5 @@ public final class WikiPage {
 
     WikiPage apply(final WikiPageChanges changes) throws IOException {
         return new WikiPage(wiki, wiki.gateway().update(slug(), changes));
-    }
-
-    private static Map<String, Object> frozenMap(final Map<String, Object> source) {
-        final Map<String, Object> copy = new LinkedHashMap<>();
-        source.forEach((key, value) -> copy.put(key, frozen(value)));
-        return Collections.unmodifiableMap(copy);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static @Nullable Object frozen(final @Nullable Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return frozenMap((Map<String, Object>) map);
-        }
-        if (value instanceof List<?> list) {
-            final List<@Nullable Object> copy = new ArrayList<>(list.size());
-            list.forEach(element -> copy.add(frozen(element)));
-            return Collections.unmodifiableList(copy);
-        }
-        return value;
     }
 }

@@ -22,8 +22,9 @@ import org.junit.jupiter.api.Test;
  * that event first, and last finds the newest one by its id. A test is skipped when its first list call answers 403 or
  * 404 (audit events are a Premium feature; see {@link SmokeSkips}) and when the list is empty. The group test needs the
  * optional {@code SMOKE_GITLAB_GROUP}; its lookup by id needs the Owner role on that group, and for a token without it
- * GitLab is expected to answer 403, which skips the lookup after the list checks have run. NOT run live in the session
- * that wrote it.
+ * GitLab is expected to answer 403, which skips the lookup after the list checks have run; should GitLab answer 404
+ * instead, the lookup is empty, and the group test skips on that too (the project test fails on it, because the event
+ * was just listed). NOT run live in the session that wrote it.
  */
 @Tag("smoke")
 class AuditEventsSmokeIT {
@@ -37,16 +38,17 @@ class AuditEventsSmokeIT {
 
     @Test
     void projectEvents_shouldListFindAndFilter_whenSandboxHasEvents() throws IOException {
-        readBack(ENV.sandbox().auditEvents(), "the audit events of the sandbox");
+        readBack(ENV.sandbox().auditEvents(), "the audit events of the sandbox", false);
     }
 
     @Test
     void groupEvents_shouldListFindAndFilter_whenSandboxGroupIsSet() throws IOException {
         ENV.requireGroupConfigured();
-        readBack(ENV.sandboxGroup().auditEvents(), "the audit events of the sandbox group");
+        readBack(ENV.sandboxGroup().auditEvents(), "the audit events of the sandbox group", true);
     }
 
-    private static void readBack(final AuditEvents events, final String feature) throws IOException {
+    private static void readBack(final AuditEvents events, final String feature, final boolean emptyLookupSkips)
+            throws IOException {
         final List<AuditEvent> listed =
                 SmokeSkips.probe(feature, () -> events.all().limit(5).toList());
         assumeFalse(listed.isEmpty(), feature + " are empty");
@@ -70,6 +72,9 @@ class AuditEventsSmokeIT {
         });
         final Optional<AuditEvent> found =
                 SmokeSkips.probe(feature + ": one event by id", () -> events.find(newest.id()));
+        if (emptyLookupSkips) {
+            assumeFalse(found.isEmpty(), feature + ": the lookup by id answered 404");
+        }
         assertThat(found).map(AuditEvent::id).contains(newest.id());
     }
 }

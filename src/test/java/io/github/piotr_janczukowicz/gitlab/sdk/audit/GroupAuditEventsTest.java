@@ -159,6 +159,49 @@ class GroupAuditEventsTest {
     }
 
     @Test
+    void createdBetween_shouldAcceptEqualBounds_whenOneInstant() throws IOException {
+        when(gitLab.groups().listAuditEvents(eq(ID), any(GitLabGroupGroupsListAuditEventsFilter.class), any()))
+                .thenReturn(page(walk));
+
+        sut.createdBetween(AFTER, AFTER).toList();
+
+        final ArgumentCaptor<GitLabGroupGroupsListAuditEventsFilter> filter =
+                ArgumentCaptor.forClass(GitLabGroupGroupsListAuditEventsFilter.class);
+        verify(gitLab.groups(), times(1)).listAuditEvents(eq(ID), filter.capture(), any());
+        assertSoftly(softly -> {
+            softly.assertThat(filter.getValue().createdAfter()).isEqualTo(AFTER);
+            softly.assertThat(filter.getValue().createdBefore()).isEqualTo(AFTER);
+        });
+    }
+
+    @Test
+    void createdBetween_shouldRejectNullBounds_withoutCoreCall() {
+        final GitLab untouched = mock(GitLab.class);
+        final AuditEvents guarded = GitLabSdk.of(untouched).group(ID).auditEvents();
+
+        assertSoftly(softly -> {
+            softly.assertThat(catchThrowable(() -> guarded.createdBetween(null, BEFORE)))
+                    .isInstanceOf(NullPointerException.class);
+            softly.assertThat(catchThrowable(() -> guarded.createdBetween(AFTER, null)))
+                    .isInstanceOf(NullPointerException.class);
+        });
+        verifyNoInteractions(untouched);
+    }
+
+    @Test
+    void all_shouldLoadNextPage_whenFirstPageIsConsumed() throws IOException {
+        final GitLabPage<GitLabAuditEvent> first = page(walk, event(2L));
+        when(gitLab.groups().listAuditEvents(eq(ID), any(GitLabGroupGroupsListAuditEventsFilter.class), any()))
+                .thenReturn(first);
+        when(walk.loadNext(first)).thenReturn(Optional.of(page(walk, event(1L))));
+
+        final List<AuditEvent> result = sut.all().limit(2).toList();
+
+        assertThat(result).extracting(AuditEvent::id).containsExactly(2L, 1L);
+        verify(walk, times(1)).loadNext(first);
+    }
+
+    @Test
     void createdBetween_shouldRejectReversedBounds_withoutCoreCall() {
         final GitLab untouched = mock(GitLab.class);
         final AuditEvents guarded = GitLabSdk.of(untouched).group(ID).auditEvents();

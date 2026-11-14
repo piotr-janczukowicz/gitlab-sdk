@@ -504,12 +504,12 @@ lower tier refuses the call with the core's `GitLabTierException` before a reque
 `createdBetween(after, before)` those created in a range (both bounds inclusive per the GitLab docs, both required;
 `after` later than `before` throws `IllegalArgumentException` before a request). Lists walk by keyset pagination
 (`order_by=id`, `sort=desc`), the only keyset order the GitLab REST docs list for audit events, so events come newest
-first; offset paging, which GitLab deprecates, is never sent. `find(id)` loads one event, empty on a 404. Per the
-GitLab docs a project Developer and a group Developer or Maintainer see only the events of their own actions, and
-loading one group event needs the Owner role. An `AuditEvent` gives `id()`, `authorId()`, `entityId()`,
-`entityType()`, `eventName()`, `createdAt()`, `details()` (an immutable copy of what GitLab recorded, empty when
-absent) and `auditEvents()`; events do not change, so it has no `refresh()`. The details can hold names, e-mail and
-IP addresses, so no SDK `toString()` prints them.
+first; offset paging, which GitLab deprecates, is never sent. `find(id)` loads one event, empty on a 404 (a 403 or
+the core's `GitLabTierException` passes through). Per the GitLab docs a project Developer and a group Developer or
+Maintainer see only the events of their own actions, and loading one group event needs the Owner role. An
+`AuditEvent` gives `id()`, `authorId()`, `entityId()`, `entityType()`, `eventName()`, `createdAt()`, `details()` (an
+immutable copy of what GitLab recorded, empty when absent) and `auditEvents()`; events do not change, so it has no
+`refresh()`. The details can hold names, e-mail and IP addresses, so no SDK `toString()` prints them.
 
 ```java
 Instant now = Instant.now();

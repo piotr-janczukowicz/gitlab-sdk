@@ -101,7 +101,8 @@ public final class AuditEvents {
      * role, see the class description.
      *
      * @param id the id of the audit event
-     * @return the event, or empty when GitLab answers HTTP 404; empty also when audit events are not available
+     * @return the event, or empty when GitLab answers HTTP 404, which it is expected to do in some cases where audit
+     *     events are not available; a 403 or the core's {@code GitLabTierException} passes through
      * @throws IOException if the transport fails
      */
     public Optional<AuditEvent> find(final long id) throws IOException {

@@ -12,6 +12,7 @@ import java.util.Map;
 final class AuditFixtures {
 
     static final Instant CREATED_AT = Instant.parse("2020-05-26T22:55:04.230Z");
+    static final String EVENT_NAME = "illustrative_event_name";
 
     private AuditFixtures() {
         throw new UnsupportedOperationException("Utility class");
@@ -23,7 +24,8 @@ final class AuditFixtures {
                 .authorId(1L)
                 .entityId(7L)
                 .entityType("Project")
-                .eventName("project_feature_access_level_updated")
+                // an opaque placeholder: the docs examples have no event_name, so its real shape is unverified
+                .eventName(EVENT_NAME)
                 .details(Map.of(
                         "change", "prevent merge request approval from committers",
                         "from", "",

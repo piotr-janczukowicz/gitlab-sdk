@@ -1,16 +1,12 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.audit;
 
+import static io.github.piotr_janczukowicz.gitlab.sdk.internal.FrozenValues.frozenMap;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabAuditEvent;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import org.jspecify.annotations.Nullable;
 
 /**
  * An audit event of a project or group, as GitLab returned it (Premium). Audit events do not change, so the object has
@@ -119,24 +115,5 @@ public final class AuditEvent {
      */
     public GitLabAuditEvent response() {
         return response;
-    }
-
-    private static Map<String, Object> frozenMap(final Map<String, Object> source) {
-        final Map<String, Object> copy = new LinkedHashMap<>();
-        source.forEach((key, value) -> copy.put(key, frozen(value)));
-        return Collections.unmodifiableMap(copy);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static @Nullable Object frozen(final @Nullable Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return frozenMap((Map<String, Object>) map);
-        }
-        if (value instanceof List<?> list) {
-            final List<@Nullable Object> copy = new ArrayList<>(list.size());
-            list.forEach(element -> copy.add(frozen(element)));
-            return Collections.unmodifiableList(copy);
-        }
-        return value;
     }
 }

@@ -1,6 +1,7 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.audit;
 
 import static io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditFixtures.CREATED_AT;
+import static io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditFixtures.EVENT_NAME;
 import static io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditFixtures.bareEvent;
 import static io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditFixtures.event;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -39,7 +40,7 @@ class AuditEventTest {
             softly.assertThat(sut.authorId()).contains(1L);
             softly.assertThat(sut.entityId()).contains(7L);
             softly.assertThat(sut.entityType()).contains("Project");
-            softly.assertThat(sut.eventName()).contains("project_feature_access_level_updated");
+            softly.assertThat(sut.eventName()).contains(EVENT_NAME);
             softly.assertThat(sut.details())
                     .containsExactlyInAnyOrderEntriesOf(Map.of("change", SECRET, "from", "", "to", "true"));
             softly.assertThat(sut.createdAt()).contains(CREATED_AT);
