@@ -8,6 +8,7 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserPublic;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabCaller;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import java.io.IOException;
 import java.util.Optional;
 
@@ -121,6 +122,17 @@ public final class GitLabSdk {
      */
     public Optional<User> user(final long id) throws IOException {
         return gitlab.users().get(id).map(loaded -> new User(this, loaded));
+    }
+
+    /**
+     * Loads a runner ({@code GET /runners/{id}}).
+     *
+     * @param id the id of the runner
+     * @return the runner, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Runner> runner(final long id) throws IOException {
+        return gitlab.runners().instance().get(id).map(loaded -> new Runner(this, loaded));
     }
 
     /**

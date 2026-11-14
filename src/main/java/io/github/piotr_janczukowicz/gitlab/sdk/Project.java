@@ -6,6 +6,7 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiRunnerWithUuid;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayloadBuilder;
@@ -61,6 +62,8 @@ import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtec
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsListFilter;
@@ -91,6 +94,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
+import io.github.piotr_janczukowicz.gitlab.sdk.runners.RegistrationToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineSchedule;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineTrigger;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
@@ -1667,6 +1672,75 @@ public final class Project {
                 .description(requireNotBlank(description, "description"))
                 .expiresAt(requireNonNull(expiresAt, "expiresAt"))
                 .build());
+    }
+
+    /**
+     * Lists the runners of the project ({@code GET /projects/{id}/runners}). GitLab lists a summary of each runner, so
+     * each one is loaded ({@code GET /runners/{id}}) as the stream reaches it, and one that is gone by then is skipped.
+     * Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the runners
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Runner> runners() throws IOException {
+        return loadedRunners(sdk.gitLab().runners().project().list(id).stream());
+    }
+
+    /**
+     * Lists the runners of the project that match a filter ({@code GET /projects/{id}/runners}), loaded one by one as
+     * described at {@link #runners()}.
+     *
+     * @param filter the query parameters
+     * @return the runners
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Runner> runners(final GitLabProjectRunnersListFilter filter) throws IOException {
+        final GitLabProjectRunnersListFilter checked = requireNonNull(filter, FILTER);
+        return loadedRunners(sdk.gitLab().runners().project().list(id, checked).stream());
+    }
+
+    /**
+     * Enables an existing runner in the project ({@code POST /projects/{id}/runners}) and loads it ({@code GET
+     * /runners/{id}}), because the answer of the enabling is a summary. The runner must already exist; to stop using it
+     * in the project again, use {@link Runner#disable(Project)}.
+     *
+     * @param runnerId the id of the runner
+     * @return the runner
+     * @throws IllegalStateException if the runner is gone after it was enabled
+     * @throws IOException if the transport fails
+     */
+    public Runner enableRunner(final long runnerId) throws IOException {
+        final long enabled = requireNonNull(
+                sdk.gitLab()
+                        .runners()
+                        .project()
+                        .create(
+                                id,
+                                GitLabProjectRunnersCreatePayloadBuilder.builder()
+                                        .runnerId(runnerId)
+                                        .build())
+                        .id(),
+                "id");
+        return sdk.runner(enabled).orElseThrow(() -> new IllegalStateException("Runner " + enabled + IS_GONE));
+    }
+
+    /**
+     * Resets the runner registration token of the project ({@code POST
+     * /projects/{id}/runners/reset_registration_token}). The old token stops working, and the new one is secret, do not
+     * log it.
+     *
+     * @return the new token
+     * @throws IOException if the transport fails
+     */
+    public RegistrationToken resetRunnerRegistrationToken() throws IOException {
+        return new RegistrationToken(sdk.gitLab().runners().project().resetRegistrationToken(id));
+    }
+
+    private Stream<Runner> loadedRunners(final Stream<GitLabCiRunnerWithUuid> listed) {
+        return listed.map(item -> Lookups.find(() -> sdk.runner(requireNonNull(item.id(), "id"))))
+                .flatMap(Optional::stream);
     }
 
     private DeployKey createDeployKey(
