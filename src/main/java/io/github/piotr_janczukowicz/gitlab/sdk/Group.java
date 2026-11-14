@@ -19,6 +19,7 @@ import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupM
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListPackagesFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListRunnersFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsSharePayload;
@@ -38,8 +39,10 @@ import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
 import io.github.piotr_janczukowicz.gitlab.sdk.milestones.GroupMilestone;
+import io.github.piotr_janczukowicz.gitlab.sdk.packages.ProjectPackage;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.GroupProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
+import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.RegistrationToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.GroupVariable;
@@ -731,6 +734,47 @@ public final class Group {
      */
     public RegistrationToken resetRunnerRegistrationToken() throws IOException {
         return new RegistrationToken(sdk.gitLab().groups().resetRegistrationTokenRunner(id));
+    }
+
+    /**
+     * Lists the packages of the group, including its subgroups ({@code GET /groups/{id}/packages}). Each package
+     * belongs to its own project: {@link ProjectPackage#project()} loads the project named by its {@code project_id},
+     * one request. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the packages
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<ProjectPackage> packages() throws IOException {
+        return sdk.gitLab().groups().listPackages(id).stream().map(item -> new ProjectPackage(sdk, item));
+    }
+
+    /**
+     * Lists the packages of the group that match a filter ({@code GET /groups/{id}/packages}), as described at
+     * {@link #packages()}.
+     *
+     * @param filter the query parameters
+     * @return the packages
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<ProjectPackage> packages(final GitLabGroupGroupsListPackagesFilter filter) throws IOException {
+        final GitLabGroupGroupsListPackagesFilter checked = requireNonNull(filter, FILTER);
+        return sdk.gitLab().groups().listPackages(id, checked).stream().map(item -> new ProjectPackage(sdk, item));
+    }
+
+    /**
+     * Lists the container registry repositories of the group ({@code GET /groups/{id}/registry/repositories}). Each
+     * repository belongs to its own project: {@link RegistryRepository#project()} loads the project named by its
+     * {@code project_id}, one request. The core offers no filter for this list. Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the repositories
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<RegistryRepository> registryRepositories() throws IOException {
+        return sdk.gitLab().groups().listRegistryRepositories(id).stream()
+                .map(item -> new RegistryRepository(sdk, item));
     }
 
     private Stream<Runner> loadedRunners(final Stream<GitLabCiRunnerWithUuid> listed) {

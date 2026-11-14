@@ -8,6 +8,7 @@ import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCre
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiRunnerWithUuid;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
+import io.github.piotr_janczukowicz.gitlab.api.containerregistry.GitLabProjectContainerRegistryListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deployments.GitLabProjectDeploymentsCreatePayloadBuilder;
@@ -30,6 +31,7 @@ import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreat
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.packages.GitLabProjectPackagesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
@@ -90,9 +92,11 @@ import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.Member;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.milestones.Milestone;
+import io.github.piotr_janczukowicz.gitlab.sdk.packages.ProjectPackage;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
+import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.RegistrationToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
@@ -1781,6 +1785,78 @@ public final class Project {
      */
     public RegistrationToken resetRunnerRegistrationToken() throws IOException {
         return new RegistrationToken(sdk.gitLab().runners().project().resetRegistrationToken(id));
+    }
+
+    /**
+     * Lists the packages of the project ({@code GET /projects/{id}/packages}). GitLab lists and loads a package with
+     * the same record, so none is loaded again. Each package answers {@link ProjectPackage#project()} with this project
+     * without a request. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}. The ecosystem endpoints (Maven, npm, NuGet and the others) are not wrapped.
+     *
+     * @return the packages
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<ProjectPackage> packages() throws IOException {
+        return sdk.gitLab().packages().list(id).stream().map(item -> new ProjectPackage(this, item));
+    }
+
+    /**
+     * Lists the packages of the project that match a filter ({@code GET /projects/{id}/packages}), as described at
+     * {@link #packages()}.
+     *
+     * @param filter the query parameters
+     * @return the packages
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<ProjectPackage> packages(final GitLabProjectPackagesListFilter filter) throws IOException {
+        final GitLabProjectPackagesListFilter checked = requireNonNull(filter, FILTER);
+        return sdk.gitLab().packages().list(id, checked).stream().map(item -> new ProjectPackage(this, item));
+    }
+
+    /**
+     * Loads a package ({@code GET /projects/{id}/packages/{package_id}}).
+     *
+     * @param packageId the id of the package
+     * @return the package, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<ProjectPackage> projectPackage(final long packageId) throws IOException {
+        return sdk.gitLab().packages().get(id, packageId).map(loaded -> new ProjectPackage(this, loaded));
+    }
+
+    /**
+     * Lists the container registry repositories of the project ({@code GET /projects/{id}/registry/repositories}).
+     * GitLab lists and loads a repository with the same record, so none is loaded again. Each repository answers
+     * {@link RegistryRepository#project()} with this project without a request. Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the repositories
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<RegistryRepository> registryRepositories() throws IOException {
+        return sdk.gitLab().containerregistry().list(id).stream().map(item -> new RegistryRepository(this, item));
+    }
+
+    /**
+     * Lists the container registry repositories of the project ({@code GET
+     * /projects/{id}/registry/repositories?tags=...}), as described at {@link #registryRepositories()}.
+     *
+     * @param withTags whether GitLab should include the tags of each repository in the response
+     * @return the repositories
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<RegistryRepository> registryRepositories(final boolean withTags) throws IOException {
+        return sdk
+                .gitLab()
+                .containerregistry()
+                .list(
+                        id,
+                        GitLabProjectContainerRegistryListFilterBuilder.builder()
+                                .tags(withTags)
+                                .build())
+                .stream()
+                .map(item -> new RegistryRepository(this, item));
     }
 
     private Stream<Runner> loadedRunners(final Stream<GitLabCiRunnerWithUuid> listed) {

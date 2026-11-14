@@ -76,6 +76,8 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Environments and deployments** | list (with the core's filter), load, create, update (URL, tier, description, Kubernetes namespace, Flux path, cluster agent, each clearable where the core allows), stop, delete the environments of a project, with a typed `EnvironmentTier`; list, load, create, update the status of, approve, reject and delete the deployments of a project or of an environment, with a typed `DeploymentStatus`; the merge requests of a deployment |
 | **Pipeline schedules and triggers** | list, load, create, update (description, ref, cron, time zone, active), take over, run now and delete the pipeline schedules of a project, with their variables (add, load, update, delete); list, load, create (with an optional expiry), update and delete the pipeline triggers of a project |
 | **Runners** | list the runners of a project or group (with the core's filter), load a runner by id, enable an existing runner in a project, disable it for a project, update (description, paused, active, tags, run untagged, locked, maximum timeout, maintenance note), delete, list its managers and jobs, and reset the registration token of a project or group or the authentication token of a runner |
+| **Packages** | list the packages of a project (with the core's filter) or of a group, load one by id, list its files, download a file to a path or a stream, delete a file or a package, with a typed `PackageType` and the raw status |
+| **Container registry** | list the repositories of a project (with or without their tags) or of a group, reload one, list its tags (each loaded in full), load a tag, delete a tag, a repository, or tags in bulk by regular expression |
 | **Deploy keys and tokens** | list, load, add, update, enable and delete the deploy keys of a project (GitLab has no group-level deploy keys in its API); list, load, create and delete the deploy tokens of a project or group, with a typed `DeployTokenScope` |
 | **Protected branches and tags** | list, load, protect (default rules, or who may push and merge or create), allow force pushes, require code owner approval and unprotect the protected branches and the protected tags of a project; the protected branches of a group (Premium); a typed `ProtectedAccess` with the raw level numbers as an escape hatch |
 | **Releases** | list (with a filter), load, create (for an existing tag, or creating the tag from a ref, or from a core payload), update (name, description, release time, milestones), collect evidence and delete the releases of a project; list, load, add, update and delete the links of a release, with a typed `ReleaseLinkType`; the release of a `Tag` |
@@ -93,8 +95,8 @@ event; group-level deploy keys (GitLab has none); protected-branch rules of a us
 role (they stay in `response()`); group releases, the typed latest-release getter and release asset sources; milestone
 burndown events; snippet, commit and epic discussions and the snippet and epic-note reactions; editing or deleting a
 reply through the discussion endpoints (use the `Note` objects); building a diff `position`; clearing a milestone date
-or a draft-note position (the SDK cannot send `null` for them); and the priority of a label; instance-level and pipeline variables, and `maskedAndHidden` on update (on create it goes through the payload overload); group variables of one key in different environment scopes cannot be told apart; protected environments (Premium), deleting review apps and stopping stale environments; the inputs of a pipeline schedule, the list of its pipelines and firing a trigger; runner registration and verification, the instance-level runner administration, runner creation through the authenticated user, and getting or deleting a runner through a group.
-The same goes for every area outside the table, such as snippets, packages, the container registry and the
+or a draft-note position (the SDK cannot send `null` for them); and the priority of a label; instance-level and pipeline variables, and `maskedAndHidden` on update (on create it goes through the payload overload); group variables of one key in different environment scopes cannot be told apart; protected environments (Premium), deleting review apps and stopping stale environments; the inputs of a pipeline schedule, the list of its pipelines and firing a trigger; runner registration and verification, the instance-level runner administration, runner creation through the authenticated user, and getting or deleting a runner through a group; the package ecosystems' own endpoints (Maven, npm, NuGet and the others), the package and container registry protection rules, the registry event endpoint and the instance-level package and registry lists.
+The same goes for every area outside the table, such as snippets and the
 administration of an instance. Use `gitlab-rest-client` for these. No area has been run against a real GitLab instance
 yet; see [Live smoke tests](docs/guide/smoke-tests.md).
 
@@ -227,6 +229,28 @@ Path archive = job.downloadArtifacts(Path.of("build", "artifacts.zip"));
 job.artifactTree("reports", true).forEach(entry -> System.out.println(entry.path()));
 Job kept = job.keepArtifacts();
 long bytes = project.downloadArtifacts("main", "build", out);
+```
+
+### Packages and the container registry
+
+`project.packages()` and `group.packages()` list packages (the filter overloads take the core's filters), and
+`project.projectPackage(id)` loads one. A package from a project list answers `project()` with that project and no
+request; a package from a group list loads the project named by its `project_id`, one request. `package.type()` is a
+strict `PackageType` and `typeName()` the raw name; the status is the raw string. `package.files()` lists the files lazily,
+and `file.download(path)` or `file.download(out)` write a file: the path form never leaves a partial file, the stream
+form is never closed by the SDK. Package files and images can contain secrets: the SDK writes only where you say.
+`project.registryRepositories()` (or `registryRepositories(true)` to ask for the tags) and `group.registryRepositories()`
+list repositories; `repository.tags()` loads each listed tag again, because the list holds a smaller record (one request
+per tag; a tag that is gone is skipped). A tag name with a colon or a slash is passed to the core unchanged.
+`repository.deleteTags(filter)` deletes by regular expression through the core's filter: check the expression, a deleted
+tag cannot be recovered. Nothing here has been run against a live GitLab.
+
+```java
+ProjectPackage pkg = project.projectPackage(5).orElseThrow();
+pkg.files().forEach(file -> System.out.println(file.fileName()));
+Path saved = pkg.files().findFirst().orElseThrow().download(Path.of("build", "lib.tgz"));
+RegistryRepository repo = project.registryRepositories().findFirst().orElseThrow();
+repo.tag("v1.0").ifPresent(RegistryTag::delete);
 ```
 
 ### Deploy keys and tokens
@@ -419,6 +443,7 @@ All objects behave the same way, so you learn them once:
 - **Clearing a field** is a separate `clear...()` method where the core can send JSON `null` (the core's `OptionalNull`), such as `environment.update().clearKubernetesNamespace()`; a `clear...()` call counts as a change, and for one field the last call wins.
 - **State changes** that are not fields are methods on the object: `close()`, `reopen()`, `merge()`, `approve()`,
   `retry()`, `cancel()`, `protect()`.
+- A `ProjectPackage` and a `RegistryRepository` navigate through the `project_id` of their response: from a project list `project()` is that project without a request, from a group list it loads the project (one request); a response without a project id makes `project()` and the calls that need the project throw `IllegalStateException`.
 - A `Runner` has **no parent navigation** either: one class serves instance, group and project runners, and a runner can be enabled in several projects, so it has no `project()` or `group()`; `update()`, `delete()` and the other calls use the global runner id.
 - A `Reaction` is the one object **without parent navigation**: one class serves issues, issue notes, merge requests and
   merge request notes, so it has no `issue()` or `mergeRequest()`; `refresh()` and `delete()` use the owner it was made
@@ -476,7 +501,7 @@ All objects behave the same way, so you learn them once:
   `read_api` covers the reads. A project or group access token covers that project or group only.
 - **Keep secrets out of logs.** `response()` of a job, of a pipeline and of a project can carry URLs and variables of
   your instance; log what you need, not the whole record. The secret of a new deploy token (`token()`, and the `token()`
-  of its `response()`), the token of a pipeline trigger (`PipelineTrigger.token()`), the runner registration and authentication tokens (`RegistrationToken.token()`), and the token you set on a webhook (`update().token(...)`), and the value of a CI/CD variable (`Variable.value()`, `ScheduleVariable.value()`, `update().value(...)`) are credentials: store them in a
+  of its `response()`), the token of a pipeline trigger (`PipelineTrigger.token()`), the runner registration and authentication tokens (`RegistrationToken.token()`), and the token you set on a webhook (`update().token(...)`), and the value of a CI/CD variable (`Variable.value()`, `ScheduleVariable.value()`, `update().value(...)`) are credentials; package files and container images can carry credentials too: store them in a
   secret store and never log them.
 - **Try an integration on a throwaway project first.** The [live smoke tests](docs/guide/smoke-tests.md) show how.
 
@@ -516,7 +541,7 @@ The options are described in the `gitlab-rest-client` documentation:
 
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
 other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
-`code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`, `schedules` and `runners`.
+`code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`, `schedules`, `runners`, `packages` and `registry`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

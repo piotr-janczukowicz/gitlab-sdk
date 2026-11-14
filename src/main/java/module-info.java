@@ -13,8 +13,10 @@ module io.github.piotr_janczukowicz.gitlabsdk {
     exports io.github.piotr_janczukowicz.gitlab.sdk.members;
     exports io.github.piotr_janczukowicz.gitlab.sdk.mergerequests;
     exports io.github.piotr_janczukowicz.gitlab.sdk.milestones;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.packages;
     exports io.github.piotr_janczukowicz.gitlab.sdk.protection;
     exports io.github.piotr_janczukowicz.gitlab.sdk.reactions;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.registry;
     exports io.github.piotr_janczukowicz.gitlab.sdk.releases;
     exports io.github.piotr_janczukowicz.gitlab.sdk.runners;
     exports io.github.piotr_janczukowicz.gitlab.sdk.schedules;
