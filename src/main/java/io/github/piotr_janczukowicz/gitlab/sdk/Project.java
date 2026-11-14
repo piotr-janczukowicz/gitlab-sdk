@@ -27,6 +27,10 @@ import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesC
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesListProjectFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProjectProjectLevelVariablesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProjectProjectLevelVariablesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProjectProjectLevelVariablesGetFilter;
+import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProjectProjectLevelVariablesGetFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesListFilter;
@@ -72,6 +76,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
+import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
@@ -89,6 +94,8 @@ public final class Project {
 
     private static final String IS_GONE = " is gone";
     private static final String NAME = "name";
+    private static final String PAYLOAD = "payload";
+    private static final String KEY = "key";
     private static final String TAG_NAME = "tagName";
     private static final String FILTER = "filter";
     private static final String REF = "ref";
@@ -839,7 +846,7 @@ public final class Project {
      * @throws IOException if the transport fails
      */
     public Webhook createWebhook(final GitLabProjectProjectWebhooksCreatePayload payload) throws IOException {
-        return new Webhook(this, sdk.gitLab().projectwebhooks().create(id, requireNonNull(payload, "payload")));
+        return new Webhook(this, sdk.gitLab().projectwebhooks().create(id, requireNonNull(payload, PAYLOAD)));
     }
 
     /**
@@ -1229,7 +1236,7 @@ public final class Project {
      * @throws IOException if the transport fails
      */
     public Release createRelease(final GitLabProjectReleasesCreatePayload payload) throws IOException {
-        return new Release(this, sdk.gitLab().releases().create(id, requireNonNull(payload, "payload")));
+        return new Release(this, sdk.gitLab().releases().create(id, requireNonNull(payload, PAYLOAD)));
     }
 
     /**
@@ -1294,14 +1301,99 @@ public final class Project {
      * @throws IOException if the transport fails
      */
     public Milestone createMilestone(final GitLabProjectProjectMilestonesCreatePayload payload) throws IOException {
-        return new Milestone(this, sdk.gitLab().projectmilestones().create(id, requireNonNull(payload, "payload")));
+        return new Milestone(this, sdk.gitLab().projectmilestones().create(id, requireNonNull(payload, PAYLOAD)));
+    }
+
+    /**
+     * Lists the CI/CD variables of the project ({@code GET /projects/{id}/variables}). Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}. The values are
+     * secrets, do not log them.
+     *
+     * @return the variables
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Variable> variables() throws IOException {
+        return sdk.gitLab().projectlevelvariables().list(id).stream().map(listed -> new Variable(this, listed));
+    }
+
+    /**
+     * Loads a variable by its key ({@code GET /projects/{id}/variables/{key}}). A key with special characters reaches
+     * the core unchanged. GitLab answers with one variable even if several share the key; name the scope with
+     * {@link #variable(String, String)}.
+     *
+     * @param key the key of the variable
+     * @return the variable, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code key} is {@code null}
+     * @throws IllegalArgumentException if {@code key} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Variable> variable(final String key) throws IOException {
+        return sdk.gitLab()
+                .projectlevelvariables()
+                .get(id, requireNotBlank(key, KEY))
+                .map(loaded -> new Variable(this, loaded));
+    }
+
+    /**
+     * Loads the variable of a key in one environment scope ({@code GET /projects/{id}/variables/{key}} with
+     * {@code filter[environment_scope]}). Use it when several variables of the project share the key.
+     *
+     * @param key the key of the variable; it reaches the core unchanged
+     * @param environmentScope the environment scope of the variable
+     * @return the variable, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<Variable> variable(final String key, final String environmentScope) throws IOException {
+        final GitLabProjectProjectLevelVariablesGetFilter filter =
+                GitLabProjectProjectLevelVariablesGetFilterBuilder.builder()
+                        .filterEnvironmentScope(requireNotBlank(environmentScope, "environmentScope"))
+                        .build();
+        return sdk.gitLab()
+                .projectlevelvariables()
+                .get(id, requireNotBlank(key, KEY), filter)
+                .map(loaded -> new Variable(this, loaded));
+    }
+
+    /**
+     * Creates a variable with a key and a value ({@code POST /projects/{id}/variables}). GitLab's defaults decide the
+     * type, the scope and the flags; an empty value is sent as given. Use
+     * {@link #createVariable(GitLabProjectProjectLevelVariablesCreatePayload)} for the other fields, such as the
+     * environment scope, masking and the hidden flag.
+     *
+     * @param key the key of the variable
+     * @param value the value; it is secret, do not log it
+     * @return the new variable
+     * @throws NullPointerException if {@code key} or {@code value} is {@code null}
+     * @throws IllegalArgumentException if {@code key} is blank
+     * @throws IOException if the transport fails
+     */
+    public Variable createVariable(final String key, final String value) throws IOException {
+        return createVariable(GitLabProjectProjectLevelVariablesCreatePayloadBuilder.builder()
+                .key(requireNotBlank(key, KEY))
+                .value(requireNonNull(value, "value"))
+                .build());
+    }
+
+    /**
+     * Creates a variable from the core's payload ({@code POST /projects/{id}/variables}), for the fields the SDK does
+     * not wrap, such as the environment scope, the type, masking and {@code maskedAndHidden}.
+     *
+     * @param payload the request body
+     * @return the new variable
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public Variable createVariable(final GitLabProjectProjectLevelVariablesCreatePayload payload) throws IOException {
+        return new Variable(this, sdk.gitLab().projectlevelvariables().create(id, requireNonNull(payload, PAYLOAD)));
     }
 
     private DeployKey createDeployKey(
             final GitLabProjectDeployKeysCreatePayloadBuilder builder, final String title, final String key)
             throws IOException {
         final GitLabProjectDeployKeysCreatePayload payload = builder.title(requireNotBlank(title, "title"))
-                .key(requireNotBlank(key, "key"))
+                .key(requireNotBlank(key, KEY))
                 .build();
         return new DeployKey(this, sdk.gitLab().deploykeys().project().create(id, payload));
     }

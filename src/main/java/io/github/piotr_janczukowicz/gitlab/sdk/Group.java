@@ -12,6 +12,8 @@ import io.github.piotr_janczukowicz.gitlab.api.grouplabels.GitLabGroupGroupLabel
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreateMergeAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.grouplevelprotectedbranches.GitLabGroupGroupLevelProtectedBranchesCreatePushAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.grouplevelvariables.GitLabGroupGroupLevelVariablesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.grouplevelvariables.GitLabGroupGroupLevelVariablesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesListFilter;
@@ -36,6 +38,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
 import io.github.piotr_janczukowicz.gitlab.sdk.milestones.GroupMilestone;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.GroupProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
+import io.github.piotr_janczukowicz.gitlab.sdk.variables.GroupVariable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import java.io.IOException;
@@ -622,6 +625,70 @@ public final class Group {
                 .color(requireNotBlank(color, "color"))
                 .build();
         return new GroupLabel(this, sdk.gitLab().grouplabels().create(id, payload));
+    }
+
+    /**
+     * Lists the CI/CD variables of the group ({@code GET /groups/{id}/variables}). Pages are fetched only as the stream
+     * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}. The values are
+     * secrets, do not log them.
+     *
+     * @return the variables
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupVariable> variables() throws IOException {
+        return sdk.gitLab().grouplevelvariables().list(id).stream().map(listed -> new GroupVariable(this, listed));
+    }
+
+    /**
+     * Loads a variable by its key ({@code GET /groups/{id}/variables/{key}}). A key with special characters reaches the
+     * core unchanged. GitLab answers with one variable even if several share the key; the core's group API cannot name
+     * an environment scope.
+     *
+     * @param key the key of the variable
+     * @return the variable, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code key} is {@code null}
+     * @throws IllegalArgumentException if {@code key} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupVariable> variable(final String key) throws IOException {
+        return sdk.gitLab()
+                .grouplevelvariables()
+                .get(id, requireNotBlank(key, "key"))
+                .map(loaded -> new GroupVariable(this, loaded));
+    }
+
+    /**
+     * Creates a variable with a key and a value ({@code POST /groups/{id}/variables}). GitLab's defaults decide the
+     * type, the scope and the flags; an empty value is sent as given. Use
+     * {@link #createVariable(GitLabGroupGroupLevelVariablesCreatePayload)} for the other fields, such as the
+     * environment scope, masking and the hidden flag.
+     *
+     * @param key the key of the variable
+     * @param value the value; it is secret, do not log it
+     * @return the new variable
+     * @throws NullPointerException if {@code key} or {@code value} is {@code null}
+     * @throws IllegalArgumentException if {@code key} is blank
+     * @throws IOException if the transport fails
+     */
+    public GroupVariable createVariable(final String key, final String value) throws IOException {
+        return createVariable(GitLabGroupGroupLevelVariablesCreatePayloadBuilder.builder()
+                .key(requireNotBlank(key, "key"))
+                .value(requireNonNull(value, "value"))
+                .build());
+    }
+
+    /**
+     * Creates a variable from the core's payload ({@code POST /groups/{id}/variables}), for the fields the SDK does not
+     * wrap, such as the environment scope, the type, masking and {@code maskedAndHidden}.
+     *
+     * @param payload the request body
+     * @return the new variable
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupVariable createVariable(final GitLabGroupGroupLevelVariablesCreatePayload payload) throws IOException {
+        return new GroupVariable(
+                this, sdk.gitLab().grouplevelvariables().create(id, requireNonNull(payload, "payload")));
     }
 
     private GroupMember createMember(
