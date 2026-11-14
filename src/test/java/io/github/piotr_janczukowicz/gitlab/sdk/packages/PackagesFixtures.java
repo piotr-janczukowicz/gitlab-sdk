@@ -4,8 +4,6 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabPackage;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabPackageBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.packages.GitLabPackageFile;
 import io.github.piotr_janczukowicz.gitlab.api.packages.GitLabPackageFileBuilder;
-import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
-import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalogBuilder;
 import java.time.Instant;
 
 /** Builds the core records for the tests of the package objects. */
@@ -53,9 +51,5 @@ final class PackagesFixtures {
                 .size(2048L)
                 .fileSha256("abc123")
                 .build();
-    }
-
-    static GitLabProjectWithAccessAndCatalog loadedProject(final long id) {
-        return GitLabProjectWithAccessAndCatalogBuilder.builder().id(id).build();
     }
 }

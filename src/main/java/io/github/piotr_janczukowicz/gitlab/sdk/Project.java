@@ -1759,7 +1759,7 @@ public final class Project {
      *
      * @param runnerId the id of the runner
      * @return the runner
-     * @throws IllegalStateException if the runner is gone after it was enabled
+     * @throws IllegalStateException if the runner was enabled but could not be loaded
      * @throws IOException if the transport fails
      */
     public Runner enableRunner(final long runnerId) throws IOException {

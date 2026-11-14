@@ -6,8 +6,6 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabContainerRegistryTag
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabContainerRegistryTagBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.containerregistry.GitLabContainerRegistryTagDetails;
 import io.github.piotr_janczukowicz.gitlab.api.containerregistry.GitLabContainerRegistryTagDetailsBuilder;
-import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalog;
-import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccessAndCatalogBuilder;
 
 /** Builds the core records for the tests of the registry objects. */
 final class RegistryFixtures {
@@ -60,9 +58,5 @@ final class RegistryFixtures {
                 .digest("sha256:abc")
                 .totalSize(1024L)
                 .build();
-    }
-
-    static GitLabProjectWithAccessAndCatalog loadedProject(final long id) {
-        return GitLabProjectWithAccessAndCatalogBuilder.builder().id(id).build();
     }
 }
