@@ -128,8 +128,8 @@ public final class PersonalSnippet {
      * content comes back decoded as UTF-8. A missing file or ref is the core's {@code GitLabNotFoundException}, not an
      * empty result.
      *
-     * @param ref the branch, tag or commit of the snippet repository: its default branch, such as {@code main}, which
-     *     the {@link SnippetFile#rawUrl()} of a file shows (as in {@code .../-/snippets/1/raw/main/add.rb})
+     * @param ref any branch, tag or commit of the snippet repository; usually the default branch, which
+     *     {@link SnippetFile#rawUrl()} shows (as in {@code .../-/snippets/1/raw/main/add.rb})
      * @param path the path of the file
      * @return the content of the file
      * @throws NullPointerException if an argument is {@code null}

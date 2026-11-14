@@ -470,12 +470,12 @@ always sends files as the `files` array, never the `content` and `file_name` par
 `SnippetVisibility`; `visibilityName()` gives the raw name), `author()`, `webUrl()` and `files()` (a `SnippetFile` per
 entry: `path()` and `rawUrl()`; empty for a legacy single-file snippet). `content()` reads the snippet as text; for a
 snippet with several files GitLab is expected to return one file only (which one is unchecked), so read each file with
-`files()` and `fileContent(ref, path)`. The ref is the snippet repository's default branch, which the `rawUrl()` of a
-file shows (as in `.../-/snippets/1/raw/main/add.rb`). Both reads decode binary content as UTF-8, and a 404 is the
-core's `GitLabNotFoundException`, not empty. `update()` collects the
-title, description, visibility and file changes (`addFile`, `updateFile`, `deleteFile`, `moveFile(previousPath, path)`),
-sent in call order by `send()`. A `Snippet` returns its project from `project()`; a `PersonalSnippet` has no parent
-navigation. Snippet content can hold anything the user wrote, so no SDK `toString()` prints it.
+`files()` and `fileContent(ref, path)`. The ref is any branch, tag or commit; usually the default branch, which the
+`rawUrl()` of a file shows (as in `.../-/snippets/1/raw/main/add.rb`). Both reads decode binary content as UTF-8,
+and a 404 is the core's `GitLabNotFoundException`, not empty. `update()` collects the title, description, visibility
+and file changes (`addFile`, `updateFile`, `deleteFile`, `moveFile(previousPath, path)`), sent in call order by
+`send()`. A `Snippet` returns its project from `project()`; a `PersonalSnippet` has no parent navigation. Snippet
+content can hold anything the user wrote, so no SDK `toString()` prints it.
 
 ```java
 Snippet snippet = project.snippets().create("setup", SnippetVisibility.PRIVATE, "setup.sh", "./configure");
@@ -511,8 +511,10 @@ project.dependencies().all(GitLabProjectDependenciesListPackageManager.NPM).forE
 They are a Premium feature: GitLab is expected to answer 403 or 404 on a lower tier, and a client configured with a
 lower tier refuses the call with the core's `GitLabTierException` before a request. `all()` lists the events and
 `createdBetween(after, before)` those created in a range (both bounds inclusive per the GitLab docs, both required;
-`after` later than `before` throws `IllegalArgumentException` before a request; both are truncated to whole seconds,
-the docs' `YYYY-MM-DDTHH:MM:SSZ`, because a fraction is not verified to be accepted). Lists walk by keyset pagination
+`after` later than `before` throws `IllegalArgumentException` before a request). The bounds are sent in the docs'
+format `YYYY-MM-DDTHH:MM:SSZ`, because a fraction is not verified to be accepted: the range is widened to whole
+seconds (`after` rounded down, `before` rounded up), so GitLab may return events up to one second outside the
+requested bounds; filter on `createdAt()` for exactness. Lists walk by keyset pagination
 (`order_by=id`, `sort=desc`), the only keyset order the GitLab REST docs list for audit events, so events come newest
 first; offset paging, which GitLab deprecates, is never sent. `find(id)` loads one event, empty on a 404 (a 403 or
 the core's `GitLabTierException` passes through). Per the GitLab docs a project Developer and a group Developer or

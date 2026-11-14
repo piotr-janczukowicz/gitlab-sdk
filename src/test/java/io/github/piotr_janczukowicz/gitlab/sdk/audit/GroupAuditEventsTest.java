@@ -31,6 +31,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Group;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -159,7 +160,7 @@ class GroupAuditEventsTest {
     }
 
     @Test
-    void createdBetween_shouldTruncateToWholeSeconds_whenBoundsHaveFraction() throws IOException {
+    void createdBetween_shouldWidenToWholeSeconds_whenBoundsHaveFraction() throws IOException {
         when(gitLab.groups().listAuditEvents(eq(ID), any(GitLabGroupGroupsListAuditEventsFilter.class), any()))
                 .thenReturn(page(walk, event(2L)));
 
@@ -171,7 +172,20 @@ class GroupAuditEventsTest {
         verify(gitLab.groups(), times(1)).listAuditEvents(eq(ID), filter.capture(), any());
         assertThat(filter.getValue().toQueryParameters())
                 .containsExactlyInAnyOrderEntriesOf(
-                        Map.of("created_after", "2026-11-13T00:00:00Z", "created_before", "2026-11-14T00:00:00Z"));
+                        Map.of("created_after", "2026-11-13T00:00:00Z", "created_before", "2026-11-14T00:00:01Z"));
+    }
+
+    @Test
+    void createdBetween_shouldKeepLatestBound_whenBeforeIsInstantMax() throws IOException {
+        when(gitLab.groups().listAuditEvents(eq(ID), any(GitLabGroupGroupsListAuditEventsFilter.class), any()))
+                .thenReturn(page(walk, event(2L)));
+
+        sut.createdBetween(AFTER, Instant.MAX).toList();
+
+        final ArgumentCaptor<GitLabGroupGroupsListAuditEventsFilter> filter =
+                ArgumentCaptor.forClass(GitLabGroupGroupsListAuditEventsFilter.class);
+        verify(gitLab.groups(), times(1)).listAuditEvents(eq(ID), filter.capture(), any());
+        assertThat(filter.getValue().createdBefore()).isEqualTo(Instant.MAX.truncatedTo(ChronoUnit.SECONDS));
     }
 
     @Test

@@ -79,10 +79,11 @@ public final class AuditEvents {
     /**
      * Lists the audit events created between two instants, newest first ({@code GET /projects/{id}/audit_events} with
      * {@code created_after} and {@code created_before}, walked by keyset as {@link #all()} describes). Per the GitLab
-     * REST docs both bounds are inclusive. Both instants are truncated to whole seconds and sent in the docs' format
-     * {@code YYYY-MM-DDTHH:MM:SSZ}, such as {@code 2026-11-13T00:00:00Z}: whether GitLab accepts a fraction of a second
-     * is not verified, so a sub-second part is dropped (an event in the fraction of a second after {@code before} is
-     * then out of range).
+     * REST docs both bounds are inclusive. The bounds are sent in the docs' format {@code YYYY-MM-DDTHH:MM:SSZ}, such
+     * as {@code 2026-11-13T00:00:00Z}, because whether GitLab accepts a fraction of a second is not verified: the range
+     * is widened to whole seconds ({@code after} rounded down, {@code before} rounded up, except at
+     * {@link Instant#MAX}), so GitLab may return events up to one second outside the requested bounds; filter on
+     * {@link AuditEvent#createdAt()} for exactness. The order of the bounds is checked before the widening.
      *
      * @param after the earliest creation time
      * @param before the latest creation time; equal to {@code after} is allowed
@@ -97,7 +98,7 @@ public final class AuditEvents {
         if (after.isAfter(before)) {
             throw new IllegalArgumentException("after must not be later than before");
         }
-        return wrapped(gateway.events(after.truncatedTo(ChronoUnit.SECONDS), before.truncatedTo(ChronoUnit.SECONDS)));
+        return wrapped(gateway.events(after.truncatedTo(ChronoUnit.SECONDS), roundedUp(before)));
     }
 
     /**
@@ -115,5 +116,13 @@ public final class AuditEvents {
 
     private Stream<AuditEvent> wrapped(final Stream<GitLabAuditEvent> listed) {
         return listed.map(event -> new AuditEvent(this, event));
+    }
+
+    private static Instant roundedUp(final Instant instant) {
+        final Instant whole = instant.truncatedTo(ChronoUnit.SECONDS);
+        if (instant.getNano() == 0 || whole.getEpochSecond() == Instant.MAX.getEpochSecond()) {
+            return whole;
+        }
+        return whole.plusSeconds(1);
     }
 }
