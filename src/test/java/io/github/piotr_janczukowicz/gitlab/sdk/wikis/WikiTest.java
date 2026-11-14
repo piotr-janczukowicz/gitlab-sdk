@@ -14,6 +14,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -76,6 +77,20 @@ class WikiTest {
             softly.assertThat(result.getFirst().content()).contains(CONTENT);
             softly.assertThat(result.getFirst().wiki()).isSameAs(sut);
         });
+        verify(gitLab.projectwikis(), times(1)).list(ID);
+        verify(gitLab.projectwikis(), times(1)).get(ID, "home");
+        verify(gitLab.projectwikis(), times(1)).get(ID, "dir/page");
+    }
+
+    @Test
+    void all_shouldLoadOnlyReachedItems_whenPartlyConsumed() throws IOException {
+        when(gitLab.projectwikis().list(ID)).thenReturn(List.of(listed("home"), listed("dir/page")));
+        when(gitLab.projectwikis().get(ID, "home")).thenReturn(Optional.of(page("home")));
+
+        final Optional<WikiPage> first = sut.all().findFirst();
+
+        assertThat(first).map(WikiPage::slug).contains("home");
+        verify(gitLab.projectwikis(), times(1)).get(anyString(), anyString());
     }
 
     @Test

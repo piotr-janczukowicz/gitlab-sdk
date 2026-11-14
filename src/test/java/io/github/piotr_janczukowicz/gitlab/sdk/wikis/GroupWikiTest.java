@@ -199,7 +199,7 @@ class GroupWikiTest {
             softly.assertThat(result).isSameAs(response);
             softly.assertThat(body).contains("name=\"file\"; filename=\"notes.txt\"");
             softly.assertThat(body).contains("Content-Type: application/octet-stream");
-            softly.assertThat(body).contains("name=\"branch\"");
+            softly.assertThat(body).contains("name=\"branch\"\r\n\r\nmain\r\n");
         });
     }
 }

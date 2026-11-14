@@ -18,10 +18,18 @@ final class WikisFixtures {
         throw new UnsupportedOperationException("Utility class");
     }
 
+    /**
+     * The title of a fixture page: the last segment of the slug. How GitLab titles a nested page is unverified, so no
+     * test relies on the title holding the full path.
+     */
+    static String titleOf(final String slug) {
+        return slug.substring(slug.lastIndexOf('/') + 1);
+    }
+
     static GitLabWikiPageBasic listed(final String slug) {
         return GitLabWikiPageBasicBuilder.builder()
                 .slug(slug)
-                .title(slug)
+                .title(titleOf(slug))
                 .format("markdown")
                 .build();
     }
@@ -29,7 +37,7 @@ final class WikisFixtures {
     static GitLabWikiPage page(final String slug) {
         return GitLabWikiPageBuilder.builder()
                 .slug(slug)
-                .title(slug)
+                .title(titleOf(slug))
                 .format("markdown")
                 .content(CONTENT)
                 .encoding("UTF-8")
@@ -37,7 +45,7 @@ final class WikisFixtures {
     }
 
     static GitLabWikiPage bare(final String slug) {
-        return GitLabWikiPageBuilder.builder().slug(slug).title(slug).build();
+        return GitLabWikiPageBuilder.builder().slug(slug).title(titleOf(slug)).build();
     }
 
     static GitLabWikiAttachment attachment() {

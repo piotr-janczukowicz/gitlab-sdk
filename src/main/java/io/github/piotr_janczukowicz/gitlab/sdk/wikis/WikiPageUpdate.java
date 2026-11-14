@@ -9,9 +9,9 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Collects changes to a {@link WikiPage} and sends them in one request. Only the fields that were set are sent, and
- * nothing is sent until {@link #send()}. GitLab's REST docs require the title or the content on an update, so a change
- * of the format alone is expected to be refused; the SDK sends it as set and GitLab's answer passes through (unverified
- * live). The front matter is not offered here; use the core client for it.
+ * nothing is sent until {@link #send()}. GitLab's REST docs require the title or the content on an update, so
+ * {@link #send()} refuses a change of the format alone before a request. The front matter is not offered here; use the
+ * core client for it.
  */
 public final class WikiPageUpdate {
 
@@ -33,8 +33,8 @@ public final class WikiPageUpdate {
     }
 
     /**
-     * Sets the title. GitLab derives the slug from the title, so the page {@link #send()} returns has a new slug, while
-     * the request still names the old one.
+     * Sets the title. GitLab derives the slug from the title, so the page {@link #send()} returns is expected to have a
+     * new slug, while the request still names the old one.
      *
      * @param title the title
      * @return this update
@@ -59,7 +59,7 @@ public final class WikiPageUpdate {
     }
 
     /**
-     * Sets the markup format.
+     * Sets the markup format. It is sent only together with a title or content.
      *
      * @param format the format
      * @return this update
@@ -75,11 +75,14 @@ public final class WikiPageUpdate {
      * update was made from. That page is not changed.
      *
      * @return the page as GitLab returned it after the update, with its new slug when the title changed
-     * @throws IllegalStateException if nothing was set
+     * @throws IllegalStateException if nothing was set, or only the format
      * @throws IOException if the transport fails
      */
     public WikiPage send() throws IOException {
         state.requireChange();
+        if (title == null && content == null) {
+            throw new IllegalStateException("A wiki page update needs the title or the content, not the format alone");
+        }
         return page.apply(new WikiPageChanges(title, content, format));
     }
 

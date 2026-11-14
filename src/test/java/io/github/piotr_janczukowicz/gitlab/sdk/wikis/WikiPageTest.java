@@ -44,7 +44,7 @@ class WikiPageTest {
 
         assertSoftly(softly -> {
             softly.assertThat(sut.slug()).isEqualTo("dir/page");
-            softly.assertThat(sut.title()).isEqualTo("dir/page");
+            softly.assertThat(sut.title()).isEqualTo("page");
             softly.assertThat(sut.content()).contains(CONTENT);
             softly.assertThat(sut.format()).contains(WikiFormat.MARKDOWN);
             softly.assertThat(sut.formatName()).contains("markdown");

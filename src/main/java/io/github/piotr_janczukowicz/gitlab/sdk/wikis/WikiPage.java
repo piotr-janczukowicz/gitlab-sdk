@@ -37,7 +37,7 @@ public final class WikiPage {
 
     /**
      * Returns the slug, which addresses the page in the requests. It is GitLab's value, not URL-encoded, such as
-     * {@code dir/page}; GitLab derives it from the title, so a new title gives a new slug.
+     * {@code dir/page}; GitLab derives it from the title, so a new title is expected to give a new slug.
      *
      * @return the slug
      */

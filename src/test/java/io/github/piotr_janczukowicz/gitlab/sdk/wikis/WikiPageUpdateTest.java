@@ -35,6 +35,15 @@ class WikiPageUpdateTest {
     }
 
     @Test
+    void send_shouldThrowIllegalStateException_whenOnlyFormatIsSet() throws IOException {
+        final Throwable thrown =
+                catchThrowable(() -> page.update().format(WikiFormat.ASCIIDOC).send());
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("title or the content");
+        verify(gitLab.projectwikis(), never()).update(anyString(), anyString(), any());
+    }
+
+    @Test
     void setters_shouldRejectInvalidArguments_withoutMarkingUpdate() throws IOException {
         final WikiPageUpdate sut = page.update();
 

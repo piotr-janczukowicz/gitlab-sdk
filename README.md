@@ -422,12 +422,15 @@ reaction.delete();
 
 ### Wikis
 
-`project.wiki()` and `group.wiki()` return a `Wiki` without a request; a group wiki needs Premium (GitLab answers 403
-or 404 on a lower tier). `wiki.all()` lists the pages: GitLab lists every page in one response without its content, so
-each page is loaded again as the stream reaches it (one request per page, and a page that is gone is skipped).
+`project.wiki()` and `group.wiki()` return a `Wiki` without a request; a group wiki needs Premium (GitLab is expected
+to answer 403 or 404 on a lower tier). `wiki.all()` lists the pages: GitLab lists every page in one response without
+its content, so each page is loaded again as the stream reaches it (one request per page, and a page that is gone is
+skipped).
 `wiki.find(slug)` loads one page, empty on a 404, also when the wiki is not available. A slug is passed as GitLab
 returns it, not URL-encoded: `dir/page` stays as it is and the core encodes it. GitLab derives the slug from the title,
-so `page.update().title(...).send()` targets the old slug and returns the page with its new one. `content()`,
+so `page.update().title(...).send()` targets the old slug and returns the page with its new one (expected; unverified
+live). An update needs the title or the content: `send()` with only `format(...)` set throws `IllegalStateException`
+before a request. `content()`,
 `format()` (a strict `WikiFormat`; `formatName()` gives the raw name) and `encoding()` are `Optional`, and
 `frontMatter()` is an immutable copy of the parsed front matter, empty when there is none.
 `wiki.uploadAttachment(fileName, bytes)` (or with a branch) uploads a file and returns the core's

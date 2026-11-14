@@ -14,11 +14,12 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Throwaway wiki pages titled {@code smoke-<runId>/page}, so the slug holds a slash. The project test creates a page,
- * finds it by its slug, updates its content and then its title (GitLab gives the page a new slug), lists the wiki and
- * deletes the page. The group test needs the optional {@code SMOKE_GITLAB_GROUP} and a Premium instance, and creates,
- * finds and deletes a page. A test is skipped when its first list call answers 403 or 404, as when the wiki is disabled
- * or the tier lacks group wikis (see {@link SmokeSkips}). Uploading an attachment is NOT run live, because GitLab
- * offers no call that removes an uploaded file.
+ * finds it by its slug, updates its content and then its title (GitLab is expected to give the page a new slug), lists
+ * the wiki and deletes the page. Assertions are on the slug only: how GitLab titles a nested page is unverified. The
+ * group test needs the optional {@code SMOKE_GITLAB_GROUP} and a Premium instance, and creates, finds and deletes a
+ * page. A test is skipped when its first list call answers 403 or 404, as when the wiki is disabled or the tier lacks
+ * group wikis (see {@link SmokeSkips}). Uploading an attachment is NOT run live, because GitLab offers no call that
+ * removes an uploaded file.
  */
 @Tag("smoke")
 class WikisSmokeIT {
@@ -36,6 +37,7 @@ class WikisSmokeIT {
         final String title = "smoke-" + ENV.runId() + "/page";
         final String renamed = "smoke-" + ENV.runId() + "/renamed";
         SmokeSkips.probe("the wiki of the sandbox", () -> wiki.all().limit(5).toList());
+        final String prefix = "smoke-" + ENV.runId() + "/";
         final WikiPage created = wiki.create(title, "Created by the gitlab-sdk smoke tests.");
         final AtomicReference<String> current = new AtomicReference<>(created.slug());
         SmokeCleanup.run(
@@ -54,12 +56,12 @@ class WikisSmokeIT {
                     final Optional<WikiPage> afterDelete = wiki.find(moved.slug());
 
                     assertSoftly(softly -> {
-                        softly.assertThat(created.title()).isEqualTo(title);
+                        softly.assertThat(created.slug()).startsWith(prefix);
                         softly.assertThat(created.formatName()).isPresent();
                         softly.assertThat(found).map(WikiPage::slug).contains(created.slug());
                         softly.assertThat(edited.content()).contains("Edited by the smoke tests.");
-                        softly.assertThat(moved.slug()).isNotEqualTo(created.slug());
-                        softly.assertThat(foundMoved).map(WikiPage::title).contains(renamed);
+                        softly.assertThat(moved.slug()).startsWith(prefix).isNotEqualTo(created.slug());
+                        softly.assertThat(foundMoved).map(WikiPage::slug).contains(moved.slug());
                         softly.assertThat(listed).isTrue();
                         softly.assertThat(afterDelete).isEmpty();
                     });
@@ -83,7 +85,7 @@ class WikisSmokeIT {
                     final Optional<WikiPage> afterDelete = wiki.find(created.slug());
 
                     assertSoftly(softly -> {
-                        softly.assertThat(created.title()).isEqualTo(title);
+                        softly.assertThat(created.slug()).startsWith("smoke-" + ENV.runId() + "/");
                         softly.assertThat(found).map(WikiPage::slug).contains(created.slug());
                         softly.assertThat(afterDelete).isEmpty();
                     });

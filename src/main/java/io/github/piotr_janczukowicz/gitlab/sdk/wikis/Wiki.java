@@ -16,8 +16,8 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * The wiki of one project or group. {@code Project.wiki()} and {@code Group.wiki()} are the usual way in; this type
- * exists so both owner kinds share the same page objects. A group wiki needs GitLab Premium: on a lower tier GitLab
- * answers 403 or 404, and a client configured with a lower tier refuses the call with the core's
+ * exists so both owner kinds share the same page objects. A group wiki needs GitLab Premium: on a lower tier GitLab is
+ * expected to answer 403 or 404, and a client configured with a lower tier refuses the call with the core's
  * {@code GitLabTierException} before any request. Each method names the project request; the group request is the same
  * with {@code /groups/{id}} in place of {@code /projects/{id}}.
  *
@@ -88,9 +88,8 @@ public final class Wiki {
     }
 
     /**
-     * Creates a page in GitLab's default format, Markdown unless the instance says otherwise ({@code POST
-     * /projects/{id}/wikis}). GitLab derives the slug from the title; a slash in the title puts the page in a
-     * directory.
+     * Creates a page in GitLab's default format (markdown per the REST docs) ({@code POST /projects/{id}/wikis}).
+     * GitLab derives the slug from the title; a slash in the title is expected to put the page in a directory.
      *
      * @param title the title
      * @param content the content, sent as given

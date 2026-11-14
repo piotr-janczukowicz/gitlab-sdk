@@ -236,14 +236,14 @@ the SDK reads tag metadata only.
 |---|---|
 | `Wiki` | From `project.wiki()` or `group.wiki()` (Premium), or `Wiki.forProject(project)` and `Wiki.forGroup(group)`; none makes a request. `all()` (one list request, then each page loaded again as the stream reaches it; gone ones are skipped), `find(slug)` (empty on a 404, also when the wiki is not available), `create(title, content)`, `create(title, content, format)`, `uploadAttachment(fileName, bytes)` and `uploadAttachment(fileName, bytes, branch)` (the form part `file` as `application/octet-stream`; the core's `GitLabWikiAttachment` record is passed through) |
 | `WikiPage` | `slug()` (as GitLab returns it, not URL-encoded), `title()`, `content()`, `format()` (an `Optional<WikiFormat>`; an unknown format throws `IllegalArgumentException`), `formatName()` (the raw name), `encoding()`, `frontMatter()` (an immutable copy, nested maps and lists included; empty when absent), `wiki()`, `refresh()`, `update()`, `delete()`, `response()` |
-| `WikiPageUpdate` | `title(...)` (GitLab gives the page a new slug; the request names the old one), `content(...)`, `format(WikiFormat)`, `send()` (an empty update throws `IllegalStateException` before a request) |
+| `WikiPageUpdate` | `title(...)` (GitLab is expected to give the page a new slug; the request names the old one), `content(...)`, `format(WikiFormat)`, `send()` (an empty update, or one with only the format set, throws `IllegalStateException` before a request; GitLab needs the title or the content) |
 | `WikiFormat` | `MARKDOWN`, `RDOC`, `ASCIIDOC`, `ORG` |
 
 GitLab lists the pages of a wiki in one unpaged response without their content, so each page is loaded through
 `GET .../wikis/{slug}`: one request per page. A slug such as `dir/page` reaches the core unchanged, and the core encodes
-it in the path; an already encoded slug would be encoded twice. The group calls are Premium: GitLab answers 403 or 404
-on a lower tier, and a client configured with a lower tier refuses them with the core's `GitLabTierException` before a
-request. No `toString()` prints the content of a page.
+it in the path; an already encoded slug would be encoded twice. The group calls are Premium: GitLab is expected to
+answer 403 or 404 on a lower tier, and a client configured with a lower tier refuses them with the core's
+`GitLabTierException` before a request. No `toString()` prints the content of a page.
 
 ## What is not covered
 

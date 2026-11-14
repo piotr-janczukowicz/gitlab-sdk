@@ -47,7 +47,8 @@ class WikisJsonTest {
 
     /**
      * The list of the REST docs ({@code GET /projects/:id/wikis}, shaped with {@code with_content=1}), verbatim in its
-     * three pages; the fourth page, without content and with a slash in its slug, is an addition.
+     * three pages; the fourth page, without content and with a slash in its slug, is an addition (its slash-free title
+     * is a guess: how GitLab titles a nested page is unverified).
      */
     private static final String LIST = """
             [
@@ -75,7 +76,7 @@ class WikisJsonTest {
               {
                 "format" : "rdoc",
                 "slug" : "dir/page",
-                "title" : "dir/page",
+                "title" : "page",
                 "wiki_page_meta_id": 22
               }
             ]""";
