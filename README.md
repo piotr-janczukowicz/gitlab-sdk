@@ -102,7 +102,8 @@ reply through the discussion endpoints (use the `Note` objects); building a diff
 or a draft-note position (the SDK cannot send `null` for them); the priority of a label; and, for snippets, the
 deprecated `content` and `file_name` parameters, the instance-wide and public snippet lists, repository storage moves
 and user-agent details; for dependencies, the dependency list exports, and the vulnerabilities, vulnerability findings
-and epics REST APIs, which GitLab deprecates and the SDK deliberately does not offer.
+and epics REST APIs, which the GitLab docs mark as deprecated (or being deprecated) and the SDK deliberately does
+not offer.
 
 Not covered in the CI/CD areas: instance-level variables and runners, and pipeline variables; `maskedAndHidden` on a
 variable update (on create it goes through the payload overload); protected environments (Premium), deleting review
@@ -483,7 +484,7 @@ core's `GitLabTierException` before a request. `all()` lists the dependencies (`
 `all(first, more...)` only those of the given package managers (the core's
 `GitLabProjectDependenciesListPackageManager`; a `null` throws before a request). GitLab has no call that loads one
 dependency, so a `Dependency` is a value, with no `find` and no `refresh()`. It gives `name()`, `version()`,
-`packageManager()`, `filePath()`, `isMalware()` (an `Optional<Boolean>`), `vulnerabilities()` and `licenses()` (the
+`packageManager()`, `filePath()`, `malware()` (an `Optional<Boolean>`), `vulnerabilities()` and `licenses()` (the
 core's records, immutable, empty when GitLab sends none) and `project()`. The `vulnerabilities()` are the advisories
 GitLab matched to the dependency, not SDK vulnerability objects: the vulnerabilities REST API is not offered.
 

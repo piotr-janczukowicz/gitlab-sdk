@@ -94,8 +94,7 @@ public final class Dependency {
      *
      * @return the flag, or empty when GitLab sent none
      */
-    @SuppressWarnings("PMD.LinguisticNaming")
-    public Optional<Boolean> isMalware() {
+    public Optional<Boolean> malware() {
         return Optional.ofNullable(response.malware());
     }
 

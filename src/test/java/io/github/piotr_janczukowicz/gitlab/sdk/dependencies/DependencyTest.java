@@ -55,7 +55,7 @@ class DependencyTest {
             softly.assertThat(sut.filePath()).contains("Gemfile.lock");
             softly.assertThat(sut.vulnerabilities()).containsExactly(advisory());
             softly.assertThat(sut.licenses()).containsExactly(license());
-            softly.assertThat(sut.isMalware()).contains(false);
+            softly.assertThat(sut.malware()).contains(false);
             softly.assertThat(sut.response()).isSameAs(response);
         });
     }
@@ -70,17 +70,17 @@ class DependencyTest {
             softly.assertThat(sut.filePath()).isEmpty();
             softly.assertThat(sut.vulnerabilities()).isEmpty();
             softly.assertThat(sut.licenses()).isEmpty();
-            softly.assertThat(sut.isMalware()).isEmpty();
+            softly.assertThat(sut.malware()).isEmpty();
         });
     }
 
     @Test
-    void isMalware_shouldBeTrue_whenFlagged() {
+    void malware_shouldBeTrue_whenFlagged() {
         final Dependency sut = new Dependency(
                 dependencies,
                 GitLabDependencyBuilder.builder().name("evil").malware(true).build());
 
-        assertThat(sut.isMalware()).contains(true);
+        assertThat(sut.malware()).contains(true);
     }
 
     @Test

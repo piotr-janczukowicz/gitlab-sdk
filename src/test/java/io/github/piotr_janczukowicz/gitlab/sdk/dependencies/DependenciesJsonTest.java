@@ -99,7 +99,7 @@ class DependenciesJsonTest {
             softly.assertThat(first.licenses())
                     .extracting(l -> l.spdxIdentifier(), l -> l.url())
                     .containsExactly(tuple("BSD-3-Clause", "https://spdx.org/licenses/BSD-3-Clause.html"));
-            softly.assertThat(first.isMalware()).isEmpty();
+            softly.assertThat(first.malware()).isEmpty();
             softly.assertThat(second.vulnerabilities()).isEmpty();
             softly.assertThat(second.licenses())
                     .extracting(l -> l.spdxIdentifier(), l -> l.url())

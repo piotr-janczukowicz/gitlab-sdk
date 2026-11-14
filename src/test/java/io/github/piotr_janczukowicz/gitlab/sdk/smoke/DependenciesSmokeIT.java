@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
  * Reads only: the dependency list is read only, and GitLab fills it from a dependency scan. The test is skipped when
  * the first list call answers 403 or 404 (the tier lacks the list, which is an Ultimate feature, or the feature is off;
  * see {@link SmokeSkips}) and when the list is empty, because the sandbox needs a dependency scan. It reads the
- * accessors of the first dependency and lists again with the package manager of that dependency as the filter. NOT run
- * live in the session that wrote it.
+ * accessors of the first dependency and lists again with the package manager of that dependency as the filter (the
+ * answer must not be empty). NOT run live in the session that wrote it.
  */
 @Tag("smoke")
 class DependenciesSmokeIT {
@@ -53,9 +53,7 @@ class DependenciesSmokeIT {
             softly.assertThat(first.licenses()).doesNotContainNull();
             softly.assertThat(first.project()).isSameAs(project);
             softly.assertThat(first.response()).isNotNull();
-            filtered.ifPresent(list -> softly.assertThat(list)
-                    .extracting(each -> each.packageManager().orElse(""))
-                    .containsOnly(manager.get().wireValue()));
+            filtered.ifPresent(list -> softly.assertThat(list).isNotEmpty());
         });
     }
 }

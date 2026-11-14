@@ -126,7 +126,7 @@ questions are open until a run:
 | The real snippet shapes | `SnippetsJsonTest` decodes JSON shaped after the REST docs examples (a legacy single-file snippet, a snippet with `files` and the personal list), not a live response |
 | Dependency list availability | The list is an Ultimate feature; on a lower tier GitLab is expected to answer 403 or 404 (`DependenciesSmokeIT` then skips). Which of the two a free instance answers is unchecked, and so is whether a sandbox that is Ultimate but has no dependency scan answers an empty list (the test then skips as well) |
 | The real dependency shapes | `DependenciesJsonTest` decodes JSON shaped after the REST docs example (vulnerabilities with integer ids, an empty `vulnerabilities` array, a license without `url`), with illustrative values, not a live response. The core patch that turns `vulnerabilities` and `licenses` into arrays meets a real answer only in `DependenciesSmokeIT`, and only when the sandbox has a dependency scan |
-| The package manager filter | `all(first, more...)` sends `package_manager` as the core encodes the list; how GitLab treats several values at once is unchecked, `DependenciesSmokeIT` filters by one |
+| The package manager filter | `all(first, more...)` sends `package_manager` as the core encodes the list; how GitLab treats several values at once is unchecked, and `DependenciesSmokeIT` filters by one value and only checks that the answer is not empty, not that every item has that package manager (unchecked) |
 
 ## Reading a failure
 
