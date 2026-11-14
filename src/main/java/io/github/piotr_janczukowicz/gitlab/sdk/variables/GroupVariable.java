@@ -12,11 +12,13 @@ import java.util.Optional;
 
 /**
  * A CI/CD variable of a {@link Group}, as GitLab returned it. GitLab lets a group hold several variables with one key
- * and different environment scopes, but the core's group API has no way to name the scope when it loads, changes or
- * deletes a variable: {@link #refresh()}, {@link #update()} and {@link #delete()} address the variable by key alone, so
- * same-key group variables of different scopes cannot be told apart. The object is immutable: it keeps the data of the
- * moment it was loaded, and {@link #response()} gives the complete response. The value is a secret: no method of this
- * object, and no {@code toString()}, prints it. Instance-level variables are not wrapped; use the core client for them.
+ * and different environment scopes, and its documentation describes a {@code filter[environment_scope]} for them, but
+ * the core does not offer it on the group operations (its generated group API declares no such parameter):
+ * {@link #refresh()}, {@link #update()} and {@link #delete()} address the variable by key alone, so the SDK cannot tell
+ * same-key group variables of different scopes apart. Which of them GitLab then loads, changes or deletes is not
+ * verified. The object is immutable: it keeps the data of the moment it was loaded, and {@link #response()} gives the
+ * complete response. The value is a secret: no method of this object, and no {@code toString()}, prints it.
+ * Instance-level variables are not wrapped; use the core client for them.
  */
 public final class GroupVariable {
 

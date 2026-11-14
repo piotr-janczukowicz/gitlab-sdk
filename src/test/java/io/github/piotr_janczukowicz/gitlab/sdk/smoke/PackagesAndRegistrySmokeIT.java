@@ -17,7 +17,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Reads only: publishing a package or pushing an image needs a build or a registry login that a sandbox may not have,
- * and deleting would destroy real data. Each test is skipped when the sandbox has no package or no repository.
+ * and deleting would destroy real data. Each test is skipped when the sandbox has no package or no repository, and when
+ * the first list call answers 403 or 404 (the feature is disabled or the token may not use it; see {@link SmokeSkips}).
  * Downloading a package file and deleting files, packages, tags or repositories are not run live.
  */
 @Tag("smoke")
@@ -33,7 +34,8 @@ class PackagesAndRegistrySmokeIT {
     @Test
     void packages_shouldListLoadAndReadFiles_whenSandboxHasPackages() throws IOException {
         final Project project = ENV.sandbox();
-        final List<ProjectPackage> packages = project.packages().limit(5).toList();
+        final List<ProjectPackage> packages = SmokeSkips.probe(
+                "the package registry", () -> project.packages().limit(5).toList());
         assumeFalse(packages.isEmpty(), "the sandbox has no packages");
         final ProjectPackage first = packages.get(0);
 
@@ -55,8 +57,9 @@ class PackagesAndRegistrySmokeIT {
     @Test
     void registry_shouldListLoadAndReadTags_whenSandboxHasRepositories() throws IOException {
         final Project project = ENV.sandbox();
-        final List<RegistryRepository> repositories =
-                project.registryRepositories().limit(5).toList();
+        final List<RegistryRepository> repositories = SmokeSkips.probe(
+                "the container registry",
+                () -> project.registryRepositories().limit(5).toList());
         assumeFalse(repositories.isEmpty(), "the sandbox has no container registry repository");
         final RegistryRepository first = repositories.get(0);
 

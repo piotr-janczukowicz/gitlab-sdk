@@ -1392,8 +1392,8 @@ public final class Project {
 
     /**
      * Loads a variable by its key ({@code GET /projects/{id}/variables/{key}}). A key with special characters reaches
-     * the core unchanged. GitLab answers with one variable even if several share the key; name the scope with
-     * {@link #variable(String, String)}.
+     * the core unchanged. Use {@link #variable(String, String)} when several variables share the key; GitLab's answer
+     * to a lookup without a scope is not verified.
      *
      * @param key the key of the variable
      * @return the variable, or empty when GitLab answers HTTP 404

@@ -161,9 +161,12 @@ pick one; either overload rejects `null` with a `NullPointerException`.
 `maskedAndHidden` go through `createVariable(payload)`. A variable is addressed by its key and its environment scope:
 `project.variable("KEY", "production")` narrows the lookup, and a `Variable` loaded that way refreshes, updates and
 deletes itself in that scope. `update().environmentScope("staging")` sets a new scope; the old one is still the target.
-`value()` is an `Optional` (a hidden variable has none) and is a secret; no `toString()` of the SDK prints it. The
-core's group API has no scope targeting, so `GroupVariable` works by key alone and same-key group variables of
-different scopes cannot be told apart.
+`value()` is an `Optional` (a hidden variable has none) and is a secret; no `toString()` of the SDK prints it. A stale
+scope (the variable was moved to another scope since it was loaded) may make `update()` change a different variable of
+the same key: GitLab's documentation says that when the scope of the filter does not exist, the endpoint updates a
+variable with the same key but a different scope. Call `refresh()` first when the scope may have changed. GitLab
+documents a scope filter for group variables too, but the core does not offer it on the group operations, so
+`GroupVariable` works by key alone (see [Conventions](#conventions)).
 
 ```java
 Variable v = project.createVariable("DEPLOY_ENV", "staging");
@@ -211,10 +214,13 @@ String token = trigger.token();                                         // secre
 
 `sdk.runner(7)` loads a runner by its global id. `project.runners()` and `group.runners()` list the runners, and GitLab
 lists a smaller record than a single load, so each listed runner is loaded again (one request per item) and one that is
-gone is skipped. `project.enableRunner(id)` enables an existing runner in the project, and `runner.disable(project)`
-stops the project from using it; `runner.delete()` removes it everywhere. `tagList()` returns the tags of the response
-and `update().tags(...)` takes a list. The registration token of a project or group and the authentication token of a
-runner come back as a `RegistrationToken`, whose `token()` is a secret and whose `toString()` never prints it.
+gone is skipped; each load is `GET /runners/{id}`, which GitLab may refuse with 403 for a token that is not an
+administrator (not verified). `project.enableRunner(id)` enables an existing runner in the project, and
+`runner.disable(project)` stops the project from using it; `runner.delete()` removes it everywhere. `tagList()` returns
+the tags of the response and `update().tags(...)` takes a list. The registration token of a project or group and the
+authentication token of a runner come back as a `RegistrationToken`, whose `token()` is a secret and whose `toString()`
+never prints it. A runner type the core does not know reads as `unrecognized` in `typeName()` (a limitation of the
+core's enum), and `type()` then throws `IllegalArgumentException`.
 
 ```java
 Runner runner = project.enableRunner(7);
@@ -336,11 +342,12 @@ Optional<Release> tagged = project.tag("v1.0").orElseThrow().release();
 
 A milestone is addressed by its id (not its `iid`). Dates are `LocalDate`s: `dueDate()` and `startDate()` are empty when
 GitLab sends none, and the update builder takes `LocalDate`s, sent as `yyyy-MM-dd`. `close()` and `reopen()` change the
-state. `createMilestone(payload)` on a project or a group takes the core's payload for the description and the
-dates, so a literal `null` needs a cast. `issues()` and `mergeRequests()` load each item with one more request as the stream reaches it, through the
-project the item belongs to, so the items listed from a group milestone are loaded through their own projects. Burndown
-events and clearing a date are not covered: the update builder takes a `LocalDate`, never `null`. An empty description
-is sent as given (see [Conventions](#conventions)). `promote()` exists on project milestones only and returns nothing.
+state. `createMilestone(payload)` on a project or a group takes the core's payload for the description and the dates, so
+a literal `null` needs a cast. `issues()` and `mergeRequests()` load each item with one more request as the stream
+reaches it, through the project the item belongs to, so the items listed from a group milestone are loaded through their
+own projects. Burndown events and clearing a date are not covered: the update builder takes a `LocalDate`, never `null`.
+An empty description is sent as given (see [Conventions](#conventions)). `promote()` exists on project milestones only
+and returns nothing.
 
 ```java
 Milestone milestone = project.createMilestone("v1.0");
@@ -435,9 +442,9 @@ try (GitLabClient client = GitLabClients.create(
 
 The client names its resources as `gitLab.<resource>()`, an aggregator for projects, groups and the instance adds
 `project()`, `group()` or `instance()`, and the Javadoc of each method names the HTTP request it sends; see the
-[`gitlab-rest-client` documentation](https://github.com/piotr-janczukowicz/gitlab-rest-client). What the SDK returns links
-back to it as well: every object has `response()`, the complete client record, which you can pass to the client again.
-[What the SDK covers](docs/guide/coverage.md) lists every object, so you can check first.
+[`gitlab-rest-client` documentation](https://github.com/piotr-janczukowicz/gitlab-rest-client). What the SDK returns
+links back to it as well: every object has `response()`, the complete client record, which you can pass to the client
+again. [What the SDK covers](docs/guide/coverage.md) lists every object, so you can check first.
 
 ## Conventions
 
@@ -463,11 +470,16 @@ All objects behave the same way, so you learn them once:
   project list `project()` is that project without a request, from a group list it loads the project (one request). A
   response without a project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`,
   and the `download` and `delete` of their files and tags) throw `IllegalStateException`.
-- A `Reaction` and a `Runner` are the objects **without parent navigation**. One class serves issues, issue notes,
-  merge requests and merge request notes, so a `Reaction` has no `issue()` or `mergeRequest()`; `refresh()` and
-  `delete()` use the owner it was made on. One class serves instance, group and project runners, and a runner can be
-  enabled in several projects, so a `Runner` has no `project()` or `group()`; `update()`, `delete()` and the other calls
-  use the global runner id.
+- A `Reaction`, a `Runner`, a `PackageFile` and a `RegistrationToken` are the objects **without parent navigation**.
+  One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
+  `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
+  project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
+  `update()`, `delete()` and the other calls use the global runner id. A `PackageFile` uses the project id of the
+  package it was listed from, and a `RegistrationToken` is a value: a token and its expiry.
+- **Same-key CI/CD variables** of different environment scopes: a project `Variable` names its own scope in
+  `refresh()`, `update()` and `delete()`; a `GroupVariable` cannot, because the core does not offer the scope filter
+  on the group operations (GitLab documents one), so same-key group variables of different scopes cannot be told apart
+  through the SDK.
 - **Dates** are `LocalDate`s where GitLab means a date (milestone `dueDate()` and `startDate()`, member `expiresAt()`),
   and a milestone date is sent as `yyyy-MM-dd`. A milestone date is empty when GitLab sends none or a blank one, and a
   value that is not an ISO date throws `IllegalStateException`.
@@ -526,10 +538,10 @@ All objects behave the same way, so you learn them once:
   your instance; log what you need, not the whole record. These are credentials: the secret of a new deploy token
   (`token()`, and the `token()` of its `response()`), the token you set on a webhook (`update().token(...)`), the token
   of a pipeline trigger (`PipelineTrigger.token()`), the registration and authentication tokens of runners
-  (`RegistrationToken.token()`), and the value of a CI/CD variable (`Variable.value()`, `GroupVariable.value()`,
-  `ScheduleVariable.value()`, `update().value(...)`). The artifacts of a job, the files of a package and the images of
-  the container registry can carry credentials too. Store secrets in a secret store and never log them; the SDK's own
-  `toString()` methods never print a secret value.
+  (`RegistrationToken.token()`, and the `runners_token` in the `response()` of a project or a group), and the value of a
+  CI/CD variable (`Variable.value()`, `GroupVariable.value()`, `ScheduleVariable.value()`, `update().value(...)`). The
+  artifacts of a job, the files of a package and the images of the container registry can carry credentials too. Store
+  secrets in a secret store and never log them; the SDK's own `toString()` methods never print a secret value.
 - **Try an integration on a throwaway project first.** The [live smoke tests](docs/guide/smoke-tests.md) show how.
 
 ## Configure the client

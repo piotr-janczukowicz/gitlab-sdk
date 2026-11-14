@@ -10,8 +10,9 @@ import java.io.IOException;
 
 /**
  * Collects changes to a {@link GroupVariable} and sends them in one request. Only the fields that were set are sent,
- * and nothing is sent until {@link #send()}. The variable is targeted by its key alone, as the core's group API has no
- * environment-scope targeting; {@link #environmentScope(String)} sets a new scope. The object has no
+ * and nothing is sent until {@link #send()}. The variable is targeted by its key alone: GitLab's documentation
+ * describes a scope filter, but the core does not offer it on the group update. When several variables share the key,
+ * which one GitLab changes is not verified. {@link #environmentScope(String)} sets a new scope. The object has no
  * {@code toString()}, so a value set here is never printed.
  */
 public final class GroupVariableUpdate {

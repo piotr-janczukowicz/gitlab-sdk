@@ -91,8 +91,8 @@ has no request to delete a discussion.
 | `Reaction` | `id()`, `name()`, `user()` (the core's `GitLabUserBasic`), `createdAt()` (each empty when GitLab leaves it out), `refresh()` (`IllegalStateException` when gone), `delete()`, `response()`. Owners: `Issue`, `Note`, `MergeRequest` and `MergeRequestNote` each have `reactions()` (a lazy stream) and `react(name)` |
 
 `Reaction` is an object without parent navigation (so is `Runner`): a single class serves the four kinds of owner, so it
-has no `issue()` or `mergeRequest()`. `refresh()` and `delete()` use the owner the reaction was made on. A blank name makes no
-request; reacting twice with the same emoji passes GitLab's error through.
+has no `issue()` or `mergeRequest()`. `refresh()` and `delete()` use the owner the reaction was made on. A blank name
+makes no request; reacting twice with the same emoji passes GitLab's error through.
 
 ## `milestones`
 
@@ -158,12 +158,12 @@ defaults of GitLab decide), `protectBranch(name, push, merge)`, `protectedTags()
 | Object | Methods |
 |---|---|
 | `VariableType` | `ENV_VAR`, `FILE`; `value()` (the name as GitLab spells it), `from(String)` (an unknown name throws `IllegalArgumentException`) |
-| `Variable` | `project()`, `key()`, `value()` (`Optional`: secret, do not log it; a hidden variable has none), `type()` (an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name, never fails), `isProtected()`, `isMasked()`, `isRaw()`, `isHidden()` (a missing flag is `false`), `environmentScope()` (`Optional`: the SDK never assumes `*`), `description()` (`Optional`), `update()`, `delete()` (void), `refresh()` (`IllegalStateException` when gone), `response()` (its `toString()` is redacted by the core). `refresh()`, `update()` and `delete()` target the variable by key and its own environment scope (`filter[environment_scope]`); a variable with no scope in the answer is targeted by key alone. Listed and loaded variables share one record, so no list item is loaded again |
+| `Variable` | `project()`, `key()`, `value()` (`Optional`: secret, do not log it; a hidden variable has none), `type()` (an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name, never fails), `isProtected()`, `isMasked()`, `isRaw()`, `isHidden()` (a missing flag is `false`), `environmentScope()` (`Optional`: the SDK never assumes `*`), `description()` (`Optional`), `update()`, `delete()` (void), `refresh()` (`IllegalStateException` when gone), `response()` (its `toString()` is redacted by the core). `refresh()`, `update()` and `delete()` target the variable by key and its own environment scope (`filter[environment_scope]`); a variable with no scope in the answer is targeted by key alone. A stale scope may make `update()` change a different variable of the same key: GitLab's documentation says that when the scope of the filter does not exist, the endpoint updates a variable with the same key but a different scope (not verified live). Listed and loaded variables share one record, so no list item is loaded again |
 | `VariableUpdate` | `value(...)`, `protectedValue(boolean)`, `masked(boolean)`, `raw(boolean)`, `type(VariableType)`, `environmentScope(...)` (the NEW scope; the variable is still targeted by its old one), `description(...)`, `send()`; `send()` with nothing set throws `IllegalStateException`. The answer of the update is the new object, no extra request |
-| `GroupVariable`, `GroupVariableUpdate` | The same members as `Variable` and `VariableUpdate` with `group()`. The core's group API has no environment-scope targeting, so `refresh()`, `update()` and `delete()` address the variable by key alone: same-key group variables of different scopes cannot be told apart |
+| `GroupVariable`, `GroupVariableUpdate` | The same members as `Variable` and `VariableUpdate` with `group()`. GitLab documents a scope filter for the group operations, but the core does not offer it, so `refresh()`, `update()` and `delete()` address the variable by key alone: the SDK cannot tell same-key group variables of different scopes apart, and which one GitLab then touches is not verified |
 
-Neither `Variable` nor `GroupVariable` nor an update builder defines a `toString()` that prints a value. `maskedAndHidden`
-is reachable only through `createVariable(payload)`; the update builders have no such flag.
+Neither `Variable` nor `GroupVariable` nor an update builder defines a `toString()` that prints a value.
+`maskedAndHidden` is reachable only through `createVariable(payload)`; the update builders have no such flag.
 
 ## `environments`
 
@@ -196,7 +196,7 @@ take-ownership of a trigger are not covered: the first needs the core client, th
 
 | Object | Methods |
 |---|---|
-| `Runner` | `id()`, `description()`, `name()`, `type()` (an `Optional<RunnerType>`; an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name), `isOnline()`, `isPaused()`, `isActive()` (absent: `false`), `status()` (raw), `tagList()` (the response's tag list, an immutable list; empty when absent), `version()`, `contactedAt()`, `update()`, `refresh()`, `delete()` (removes the runner everywhere), `disable(project)` (only valid for a runner enabled in that project), `managers()` (the core's `GitLabCiRunnerManager` records, an immutable list), `jobs()` (the core's `GitLabCiJobBasicWithProject` records, lazy), `resetAuthenticationToken()` (secret), `response()` (the detail record) |
+| `Runner` | `id()`, `description()`, `name()`, `type()` (an `Optional<RunnerType>`; an unknown type throws `IllegalArgumentException`), `typeName()` (the raw name; a type the core's enum does not know reads as `unrecognized`), `isOnline()`, `isPaused()`, `isActive()` (absent: `false`), `status()` (raw), `tagList()` (the response's tag list, an immutable list; empty when absent), `version()`, `contactedAt()`, `update()`, `refresh()`, `delete()` (removes the runner everywhere), `disable(project)` (only valid for a runner enabled in that project), `managers()` (the core's `GitLabCiRunnerManager` records, an immutable list), `jobs()` (the core's `GitLabCiJobBasicWithProject` records, lazy), `resetAuthenticationToken()` (secret), `response()` (the detail record) |
 | `RunnerUpdate` | `description(...)`, `paused(boolean)`, `active(boolean)`, `tags(List)`, `runUntagged(boolean)`, `locked(boolean)`, `maximumTimeout(int)`, `maintenanceNote(...)`, `send()` (an empty update throws `IllegalStateException` before a request). The access level is not offered |
 | `RunnerType` | `INSTANCE_TYPE`, `GROUP_TYPE`, `PROJECT_TYPE` |
 | `RegistrationToken` | `token()` (secret, do not log it), `expiresAt()`, `response()`; `toString()` prints the token as `<redacted>` |
@@ -214,9 +214,9 @@ loaded again, because the list holds a smaller record: one request per item. `Ru
 | `PackageFile` | `id()`, `fileName()`, `size()`, `sha256()`, `download(Path)` (written atomically, never partial), `download(OutputStream)` (never closed by the SDK; may hold a partial body on failure), `delete()`, `response()`. `download` and `delete` throw `IllegalStateException` when the package response names no project id; `download(Path)` throws `IllegalArgumentException` for a target without a parent directory and `FileAlreadyExistsException` for an existing directory |
 | `PackageType` | `MAVEN`, `NPM`, `CONAN`, `NUGET`, `PYPI`, `COMPOSER`, `GENERIC`, `GOLANG`, `DEBIAN`, `RUBYGEMS`, `HELM`, `TERRAFORM_MODULE`, `RPM`, `ML_MODEL`, `CARGO`, `SWIFT` |
 
-GitLab lists and loads a package with the same record, so nothing is loaded again. The object is `ProjectPackage` and not
-`Package`, which would shadow `java.lang.Package`. The download calls use the client's own authentication and no download
-mode. Package files can contain secrets: the SDK writes only where the caller says.
+GitLab lists and loads a package with the same record, so nothing is loaded again. The object is `ProjectPackage` and
+not `Package`, which would shadow `java.lang.Package`. The download calls use the client's own authentication and no
+download mode. Package files can contain secrets: the SDK writes only where the caller says.
 
 ## `registry`
 
@@ -225,9 +225,9 @@ mode. Package files can contain secrets: the SDK writes only where the caller sa
 | `RegistryRepository` | `id()`, `name()`, `path()`, `location()`, `tagsCount()`, `project()` (as for a package), `refresh()` (by the repository id, `GET /registry/repositories/{id}`), `tags()` (lazy; each listed tag is loaded again, gone ones are skipped), `tag(name)`, `delete()`, `deleteTags(filter)` (bulk delete by regular expression with the core's `GitLabProjectContainerRegistryDeleteTagFilter`; passed through unchanged, `null` throws `NullPointerException`), `response()`. A response without a project id makes `project()`, `tags()`, `tag(name)`, `delete()` and `deleteTags(filter)` throw `IllegalStateException`; `refresh()` still works |
 | `RegistryTag` | `name()`, `location()`, `digest()`, `totalSize()`, `repository()`, `refresh()`, `delete()` (`IllegalStateException` when the repository response names no project id), `response()` (the details record) |
 
-The tag list holds a smaller record than a single tag, so every tag is loaded through the details request: one request per
-tag. A tag name is passed to the core unchanged; a blank name throws before a request. Images can contain secrets; the SDK
-reads tag metadata only.
+The tag list holds a smaller record than a single tag, so every tag is loaded through the details request: one request
+per tag. A tag name is passed to the core unchanged; a blank name throws before a request. Images can contain secrets;
+the SDK reads tag metadata only.
 
 ## What is not covered
 
@@ -244,12 +244,13 @@ reads tag metadata only.
   available from `response()`; the `allowed_to_push`, `allowed_to_merge`, `allowed_to_unprotect` and `allowed_to_create`
   rules and the unprotect level cannot be set; use the core.
 - **Everything outside the areas above**, such as group releases, snippets, member roles (Ultimate), the premium-only
-  member endpoints (approving pending members, billable members), access tokens,
-  instance-level deploy keys and tokens, protected environments, the descendant groups of a group at every level, and the
-  administration of an instance. Use `gitlab-rest-client` for them; see [When the SDK does not cover a
+  member endpoints (approving pending members, billable members), access tokens, instance-level deploy keys and tokens,
+  protected environments, the descendant groups of a group at every level, and the administration of an instance. Use
+  `gitlab-rest-client` for them; see [When the SDK does not cover a
   call](../../README.md#when-the-sdk-does-not-cover-a-call).
 - **Releases.** Group releases, the typed latest-release getter (the core only has `void` permalink calls), release
-  asset sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release (they stay reachable through `createRelease(payload)`) are not covered.
+  asset sources and downloads, evidence beyond `collectEvidence()`, and the `milestoneIds` and `assets` of a release
+  (they stay reachable through `createRelease(payload)`) are not covered.
 - **Draft notes.** Building a draft-note `position` (the core's payload record) and clearing a position are not covered.
   `createDraftNote(null)` and `publishDraftNotes(null)` need a cast, because each has an overload for the core's
   payload.
@@ -269,14 +270,28 @@ reads tag metadata only.
 - **Group-level deploy keys.** GitLab has none; a group has deploy tokens only.
 - **Webhook extras.** URL variables, custom headers, delivery logs and resending an event are not covered, nor are
   the events outside `WebhookEvent`; `createWebhook(payload)` takes the core's payload for them.
-- **Variables.** Instance-level CI/CD variables, pipeline variables and the variables inside a pipeline creation payload are not covered (the variables of a pipeline schedule are, in the `schedules` package). `maskedAndHidden` is set only through `createVariable(payload)`. Group variables with the same key and different environment scopes cannot be told apart through the core's group API.
-- **Environments and deployments.** Protected environments (Premium), deleting review apps, stopping stale environments, the auto-stop setting on update (it can be set on create through `createEnvironment(payload)`), and the tag flag of a deployment (`createDeployment(payload)` is not offered; use the core) are not covered. Whether GitLab clears a value on `clear...()` is unverified live.
+- **Variables.** Instance-level CI/CD variables, pipeline variables and the variables inside a pipeline creation payload
+  are not covered (the variables of a pipeline schedule are, in the `schedules` package). `maskedAndHidden` is set only
+  through `createVariable(payload)`. The scope filter of the group variable operations is not covered: GitLab
+  documents it, but the core does not offer it, so group variables with the same key and different environment scopes
+  cannot be told apart through the SDK.
+- **Environments and deployments.** Protected environments (Premium), deleting review apps, stopping stale environments,
+  the auto-stop setting on update (it can be set on create through `createEnvironment(payload)`), and the tag flag of a
+  deployment (`createDeployment(payload)` is not offered; use the core) are not covered. Whether GitLab clears a value
+  on `clear...()` is unverified live.
 - **Schedules and triggers.** The inputs of a schedule (they can be set through `createPipelineSchedule(payload)` but
   not changed with `update()`), the list of the pipelines a schedule started, and firing a trigger
   (`POST /projects/{id}/trigger/pipeline`). A schedule answer with inputs of any type (string, boolean, number, array)
   decodes; on the request side the core sends a scalar input as a one-item array, which is unverified live, so the SDK
   offers no inputs until that is checked.
-- **Runners.** Runner registration and verification, the instance-level runner administration (listing all runners, deleting by token, deleting a manager, runner router discovery and runner controllers), runner creation through the authenticated user, and getting or deleting a runner through a group are not covered; use the core client. The access level of a runner is not offered on `update()`.
-- **Packages and the container registry.** The package ecosystems' own endpoints (Maven, npm, NuGet, PyPI, Conan, Composer, Debian, Go, Helm, generic, RPM, Terraform and the others), package pipelines, the package and container registry protection rules, the registry event endpoint (`createContainerRegistryEventEvent`), the instance-level package and registry lists, and a filter on the group registry list (the core has none) are not covered; use the core client. `deleteTags(filter)` passes the core's filter record through.
+- **Runners.** Runner registration and verification, the instance-level runner administration (listing all runners,
+  deleting by token, deleting a manager, runner router discovery and runner controllers), runner creation through the
+  authenticated user, and getting or deleting a runner through a group are not covered; use the core client. The access
+  level of a runner is not offered on `update()`.
+- **Packages and the container registry.** The package ecosystems' own endpoints (Maven, npm, NuGet, PyPI, Conan,
+  Composer, Debian, Go, Helm, generic, RPM, Terraform and the others), package pipelines, the package and container
+  registry protection rules, the registry event endpoint (`createContainerRegistryEventEvent`), the instance-level
+  package and registry lists, and a filter on the group registry list (the core has none) are not covered; use the core
+  client. `deleteTags(filter)` passes the core's filter record through.
 - **Live verification.** No area has been run against a real GitLab instance yet; see
   [Live smoke tests](smoke-tests.md).

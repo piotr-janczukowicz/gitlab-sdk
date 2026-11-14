@@ -16,9 +16,13 @@ import java.util.Optional;
  * A CI/CD variable of a {@link Project}, as GitLab returned it. A variable is addressed by its key and its environment
  * scope: several variables of one project may share a key and differ in the scope. This object targets GitLab with its
  * own scope in {@link #refresh()}, {@link #update()} and {@link #delete()}; a variable the answer gave no scope for is
- * targeted by key alone. The object is immutable: it keeps the data of the moment it was loaded, and
- * {@link #response()} gives the complete response. The value is a secret: no method of this object, and no
- * {@code toString()}, prints it. Instance-level and pipeline variables are not wrapped; use the core client for them.
+ * targeted by key alone. A scope that is stale (the variable was moved to another scope since this object was loaded)
+ * may make {@link #update()} change a different variable of the same key: GitLab's documentation says that when the
+ * scope of the filter does not exist, the endpoint updates a variable with the same key but a different scope (not
+ * verified live). Call {@link #refresh()} first when the scope may have changed. The object is immutable: it keeps the
+ * data of the moment it was loaded, and {@link #response()} gives the complete response. The value is a secret: no
+ * method of this object, and no {@code toString()}, prints it. Instance-level and pipeline variables are not wrapped;
+ * use the core client for them.
  */
 public final class Variable {
 

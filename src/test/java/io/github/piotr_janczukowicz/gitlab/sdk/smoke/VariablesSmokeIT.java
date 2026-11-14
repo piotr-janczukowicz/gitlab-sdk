@@ -18,7 +18,8 @@ import org.junit.jupiter.api.Test;
  * Throwaway CI/CD variables named {@code SMOKE_<RUNID>}. The project test proves that an update and a delete target the
  * variable by key and its own environment scope, with a second variable of the same key in another scope, and that the
  * SDK objects never print a value. The group test needs the optional {@code SMOKE_GITLAB_GROUP} and is skipped without
- * it. Nothing is masked or hidden: those flags are not run live.
+ * it. Nothing is masked or hidden: those flags are not run live. A test is skipped when its first list call answers 403
+ * or 404, as when CI/CD is disabled or the role may not manage variables (see {@link SmokeSkips}).
  */
 @Tag("smoke")
 class VariablesSmokeIT {
@@ -43,6 +44,9 @@ class VariablesSmokeIT {
         final String secret = "smoke-secret-" + ENV.runId();
         final String changed = "smoke-changed-" + ENV.runId();
         final String other = "smoke-other-" + ENV.runId();
+        SmokeSkips.probe(
+                "the CI/CD variables of the sandbox",
+                () -> project.variables().limit(1).toList());
         final Variable created = project.createVariable(key, secret);
         SmokeCleanup.run(
                 () -> {
@@ -98,6 +102,9 @@ class VariablesSmokeIT {
         final String key = key() + "_G";
         final String secret = "smoke-secret-" + ENV.runId();
         final String changed = "smoke-changed-" + ENV.runId();
+        SmokeSkips.probe(
+                "the CI/CD variables of the sandbox group",
+                () -> group.variables().limit(1).toList());
         final GroupVariable created = group.createVariable(key, secret);
         SmokeCleanup.run(
                 () -> {

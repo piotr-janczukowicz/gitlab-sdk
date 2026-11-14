@@ -3,6 +3,8 @@ package io.github.piotr_janczukowicz.gitlab.sdk.smoke;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiRunnerManager;
+import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabCiJobBasicWithProject;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import java.io.IOException;
@@ -16,7 +18,9 @@ import org.junit.jupiter.api.Test;
  * Reads only, and skipped when the sandbox project has no runner. This is the first live check of the core's patched
  * runner types: {@code tagList()} must come back as a JSON array and {@code type()} must map. Registering, updating,
  * enabling, disabling and deleting a runner and resetting a token are not run live, because they would change the
- * runners of the instance or invalidate a token.
+ * runners of the instance or invalidate a token. Each listed runner is loaded again through {@code GET /runners/{id}},
+ * and the managers and jobs of a runner have their own permissions: a 403 or a 404 on those reads skips the test (see
+ * {@link SmokeSkips}), it never fails it.
  */
 @Tag("smoke")
 class RunnersSmokeIT {
@@ -31,7 +35,8 @@ class RunnersSmokeIT {
     @Test
     void runner_shouldBeListedAndLoadedWithTypedFields_whenSandboxHasRunners() throws IOException {
         final Project project = ENV.sandbox();
-        final List<Runner> runners = project.runners().limit(5).toList();
+        final List<Runner> runners = SmokeSkips.probe(
+                "the runners of the sandbox", () -> project.runners().limit(5).toList());
         assumeFalse(runners.isEmpty(), "the sandbox project has no runners");
         final Runner first = runners.get(0);
 
@@ -41,26 +46,36 @@ class RunnersSmokeIT {
         assertSoftly(softly -> {
             softly.assertThat(loaded).map(Runner::id).contains(first.id());
             softly.assertThat(refreshed.id()).isEqualTo(first.id());
-            softly.assertThat(first.tagList()).isNotNull().doesNotContainNull();
-            softly.assertThat(first.type()).isNotNull();
-            softly.assertThat(first.typeName()).isNotNull();
+            softly.assertThat(first.tagList()).doesNotContainNull();
+            softly.assertThat(first.type()).isPresent();
+            softly.assertThat(first.typeName())
+                    .hasValueSatisfying(name -> softly.assertThat(name).isNotBlank());
             softly.assertThat(first.status()).isNotBlank();
-            softly.assertThat(loaded.orElseThrow().tagList()).isEqualTo(first.tagList());
+            softly.assertThat(loaded).map(Runner::tagList).contains(first.tagList());
         });
     }
 
     @Test
     void managersAndJobs_shouldBeRead_whenSandboxHasRunners() throws IOException {
-        final List<Runner> runners = ENV.sandbox().runners().limit(5).toList();
+        final Project project = ENV.sandbox();
+        final List<Runner> runners = SmokeSkips.probe(
+                "the runners of the sandbox", () -> project.runners().limit(5).toList());
         assumeFalse(runners.isEmpty(), "the sandbox project has no runners");
         final Runner first = runners.get(0);
 
-        final var managers = first.managers();
-        final var jobs = first.jobs().limit(5).toList();
+        final List<GitLabCiRunnerManager> managers = SmokeSkips.probe("the managers of a runner", first::managers);
+        final List<GitLabCiJobBasicWithProject> jobs = SmokeSkips.probe(
+                "the jobs of a runner", () -> first.jobs().limit(5).toList());
 
         assertSoftly(softly -> {
-            softly.assertThat(managers).isNotNull();
-            softly.assertThat(jobs).isNotNull();
+            softly.assertThat(managers)
+                    .extracting(GitLabCiRunnerManager::systemId)
+                    .doesNotContainNull();
+            softly.assertThat(managers)
+                    .extracting(GitLabCiRunnerManager::status)
+                    .doesNotContainNull();
+            softly.assertThat(jobs).hasSizeLessThanOrEqualTo(5);
+            softly.assertThat(jobs).extracting(GitLabCiJobBasicWithProject::id).doesNotContainNull();
         });
     }
 }

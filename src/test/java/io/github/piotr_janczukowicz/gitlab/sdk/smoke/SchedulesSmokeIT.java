@@ -17,7 +17,8 @@ import org.junit.jupiter.api.Test;
 /**
  * A throwaway pipeline schedule with a variable, and a throwaway pipeline trigger. The schedule is switched off right
  * after it is created and its cron expression fires once a year, so it never starts a pipeline. {@code play()} (it
- * starts a pipeline), {@code takeOwnership()} (it would change the owner) and firing a trigger are not run live.
+ * starts a pipeline), {@code takeOwnership()} (it would change the owner) and firing a trigger are not run live. A test
+ * is skipped when its first list call answers 403 or 404, as when CI/CD is disabled (see {@link SmokeSkips}).
  */
 @Tag("smoke")
 class SchedulesSmokeIT {
@@ -37,6 +38,9 @@ class SchedulesSmokeIT {
         final String description = ENV.name("schedule");
         final String key = "SMOKE_" + ENV.runId().toUpperCase(Locale.ROOT);
         final String secret = "smoke-secret-" + ENV.runId();
+        SmokeSkips.probe(
+                "the pipeline schedules of the sandbox",
+                () -> project.pipelineSchedules().limit(1).toList());
         final PipelineSchedule created = project.createPipelineSchedule(description, defaultBranch, "0 3 1 1 *");
         SmokeCleanup.run(
                 () -> {
@@ -90,6 +94,9 @@ class SchedulesSmokeIT {
     void trigger_shouldRoundTrip_whenCreatedUpdatedAndDeleted() throws IOException {
         final Project project = ENV.sandbox();
         final String description = ENV.name("trigger");
+        SmokeSkips.probe(
+                "the pipeline triggers of the sandbox",
+                () -> project.pipelineTriggers().limit(1).toList());
         final PipelineTrigger created = project.createPipelineTrigger(description);
         SmokeCleanup.run(
                 () -> {
