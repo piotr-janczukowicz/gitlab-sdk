@@ -100,6 +100,7 @@ questions are open until a run:
 | Runner `tag_list` as a JSON array and the other patched runner fields | The core patches its OpenAPI description of the runner records (the `tag_list` array, the registration and detail types, the ids). `RunnersSmokeIT` is where that patch meets a real response: `tagList()`, `type()` and the typed detail fields must parse. It is skipped when the sandbox has no runner, so a sandbox without a runner leaves it unchecked |
 | Artifact download permissions | Downloading the artifacts of a job needs access to the job's artifacts (a project that restricts them, or a token of a role that cannot read them, answers 403 or 404), and the download writes an owner-only file; `ArtifactsSmokeIT` is skipped when the sandbox has no job with artifacts |
 | Package and registry list shapes | The package and container registry lists, the group lists with the `project_id`, the files and the tag details are only unit-tested against records built from the OpenAPI description; `PackagesAndRegistrySmokeIT` is the first check, and it is skipped when the sandbox has no package or repository |
+| Schedule inputs on the request side | The core reads inputs of any type in a schedule answer, but sends a scalar input as a one-item array; whether GitLab accepts that for a string, boolean or number input is unchecked, so the SDK offers no schedule inputs (`createPipelineSchedule(payload)` passes the core's payload through) |
 
 ## Reading a failure
 
