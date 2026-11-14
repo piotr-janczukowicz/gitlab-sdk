@@ -32,6 +32,7 @@ import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWeb
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditEvents;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployTokenScope;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupCreatedDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupDeployToken;
@@ -784,6 +785,16 @@ public final class Group {
      */
     public Wiki wiki() {
         return Wiki.forGroup(this);
+    }
+
+    /**
+     * Returns the audit events of the group (Premium): a read-only list, newest first, and a lookup by id (which needs
+     * the Owner role). No request is made.
+     *
+     * @return the audit events of the group
+     */
+    public AuditEvents auditEvents() {
+        return AuditEvents.forGroup(this);
     }
 
     private GroupMember createMember(

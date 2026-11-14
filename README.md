@@ -86,6 +86,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Wikis** | list (each page loaded in full), load by slug, create (with an optional typed `WikiFormat`), update (title, content, format), reload and delete the wiki pages of a project or group (Premium); upload an attachment to the wiki repository |
 | **Snippets** | list, load, create (one file, or several through the core payload), read the content of a snippet or of one file, update (title, description, typed `SnippetVisibility`, add, update, delete and move files), reload and delete the snippets of a project and the personal snippets of the signed-in user |
 | **Dependencies** | list the dependencies of a project (Ultimate), all or filtered by package manager, with their advisories and licenses; read only |
+| **Audit events** | list the audit events of a project or group (Premium), all or created between two instants, newest first, and load one by id; read only |
 | **Users** | load a user by id, the profile of the signed-in account |
 | **Issues** | create, list with a filter, load by `iid`, update, close, reopen, delete; notes, discussions (threads) and emoji reactions; labels (list with the core's filter, load by name, create, update, delete), with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
@@ -103,7 +104,8 @@ or a draft-note position (the SDK cannot send `null` for them); the priority of 
 deprecated `content` and `file_name` parameters, the instance-wide and public snippet lists, repository storage moves
 and user-agent details; for dependencies, the dependency list exports, and the vulnerabilities, vulnerability findings
 and epics REST APIs, which the GitLab docs mark as deprecated (or being deprecated) and the SDK deliberately does
-not offer.
+not offer. For audit events, the instance audit events (an administrator API) are not covered, and offset paging,
+which GitLab deprecates, is deliberately not offered: lists walk by keyset, newest first.
 
 Not covered in the CI/CD areas: instance-level variables and runners, and pipeline variables; `maskedAndHidden` on a
 variable update (on create it goes through the payload overload); protected environments (Premium), deleting review
@@ -494,6 +496,28 @@ project.dependencies().all(GitLabProjectDependenciesListPackageManager.NPM).forE
                 + ": " + dependency.vulnerabilities().size() + " advisories"));
 ```
 
+### Audit events
+
+`project.auditEvents()` and `group.auditEvents()` return the `AuditEvents` of a project or group without a request.
+They are a Premium feature: GitLab is expected to answer 403 or 404 on a lower tier, and a client configured with a
+lower tier refuses the call with the core's `GitLabTierException` before a request. `all()` lists the events and
+`createdBetween(after, before)` those created in a range (both bounds inclusive per the GitLab docs, both required;
+`after` later than `before` throws `IllegalArgumentException` before a request). Lists walk by keyset pagination
+(`order_by=id`, `sort=desc`), the only keyset order the GitLab REST docs list for audit events, so events come newest
+first; offset paging, which GitLab deprecates, is never sent. `find(id)` loads one event, empty on a 404. Per the
+GitLab docs a project Developer and a group Developer or Maintainer see only the events of their own actions, and
+loading one group event needs the Owner role. An `AuditEvent` gives `id()`, `authorId()`, `entityId()`,
+`entityType()`, `eventName()`, `createdAt()`, `details()` (an immutable copy of what GitLab recorded, empty when
+absent) and `auditEvents()`; events do not change, so it has no `refresh()`. The details can hold names, e-mail and
+IP addresses, so no SDK `toString()` prints them.
+
+```java
+Instant now = Instant.now();
+project.auditEvents().createdBetween(now.minus(Duration.ofDays(1)), now).limit(20).forEach(event ->
+        System.out.println(event.id() + " " + event.createdAt().map(Instant::toString).orElse("?")
+                + " " + event.details().getOrDefault("change", "")));
+```
+
 ## When the SDK does not cover a call
 
 The SDK covers the common work, not every endpoint. For the rest, use `gitlab-rest-client` directly: the `GitLab` client
@@ -549,9 +573,10 @@ All objects behave the same way, so you learn them once:
   project id makes `project()` and the calls that need the project (`files()`, `tags()`, `delete()`, and the
   `download` and `delete` of their files and tags) throw `IllegalStateException`.
 - A `Reaction`, a `Runner`, a `RunnerToken` and a `PersonalSnippet` are the objects **without parent navigation**. A
-  `Wiki`, a `ProjectSnippets`, a `PersonalSnippets` and a `Dependencies` are area handles with neither `response()`
-  nor parent navigation; wiki pages return their wiki from `wiki()`, and a `Snippet` and a `Dependency` return their
-  project from `project()`.
+  `Wiki`, a `ProjectSnippets`, a `PersonalSnippets`, a `Dependencies` and an `AuditEvents` are area handles with
+  neither `response()` nor parent navigation; wiki pages return their wiki from `wiki()`, a `Snippet` and a
+  `Dependency` return their project from `project()`, and an `AuditEvent` returns its `AuditEvents` from
+  `auditEvents()`.
   One class serves issues, issue notes, merge requests and merge request notes, so a `Reaction` has no `issue()` or
   `mergeRequest()`; `refresh()` and `delete()` use the owner it was made on. One class serves instance, group and
   project runners, and a runner can be enabled in several projects, so a `Runner` has no `project()` or `group()`;
@@ -662,7 +687,7 @@ The options are described in the `gitlab-rest-client` documentation:
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
 other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
 `code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`,
-`schedules`, `runners`, `packages`, `registry`, `wikis`, `snippets` and `dependencies`.
+`schedules`, `runners`, `packages`, `registry`, `wikis`, `snippets`, `dependencies` and `audit`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

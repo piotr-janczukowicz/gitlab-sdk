@@ -18,7 +18,7 @@ project that holds nothing else, whose path contains `smoke`. The tests refuse a
 | `SMOKE_GITLAB_PROJECT` | The path of the sandbox project, `group/name`; the path must contain `smoke` |
 | `SMOKE_GITLAB_URL` | The instance root; default `https://gitlab.com` |
 | `SMOKE_GITLAB_USER_ID` | Optional. The numeric id of a second user who may be added to and removed from the sandbox; without it the add, change and remove of a member is skipped |
-| `SMOKE_GITLAB_GROUP` | Optional. The path of a sandbox group, which must contain `smoke` like the project path; without it `GroupLabelsSmokeIT` and the group tests of `VariablesSmokeIT` and `WikisSmokeIT` are skipped. The token's user must be allowed to create labels, variables and (on Premium) wiki pages in it |
+| `SMOKE_GITLAB_GROUP` | Optional. The path of a sandbox group, which must contain `smoke` like the project path; without it `GroupLabelsSmokeIT` and the group tests of `VariablesSmokeIT`, `WikisSmokeIT` and `AuditEventsSmokeIT` are skipped. The token's user must be allowed to create labels, variables and (on Premium) wiki pages in it, and needs the Owner role for the lookup of one group audit event in `AuditEventsSmokeIT` (without it that step is skipped) |
 
 ```bash
 export SMOKE_GITLAB_TOKEN=glpat-...
@@ -66,6 +66,7 @@ Without `SMOKE_GITLAB_TOKEN` and `SMOKE_GITLAB_PROJECT`, every smoke class is sk
 | `WikisSmokeIT` | create a wiki page titled `smoke-<runId>/page` (a slug with a slash), find it by its slug, update its content, then its title to `smoke-<runId>/renamed` and check that the page comes back with a new slug, find it by the new slug, list, reload, delete. With `SMOKE_GITLAB_GROUP` (Premium; the test is skipped on a 403 or 404): create, find and delete a group page `smoke-<runId>/group-page`. Uploading an attachment is not run live, because GitLab offers no call that removes an uploaded file |
 | `SnippetsSmokeIT` | in the sandbox project: create a private two-file snippet titled `smoke-<runId>` through the payload overload, find it, read its content and one file on the ref `main` (that check is skipped when GitLab answers 404), update it (add a file, move a file with its previous path, delete a file), reload it and check its files, delete it. Personal snippets live on the token user's account, outside the sandbox, so that test is **read-only**: list the user's snippets and load the first one (skipped when the user has none). Creating, updating and deleting a personal snippet are covered by unit tests only, not run live; public and internal visibility are not run live either |
 | `DependenciesSmokeIT` | reads only (Ultimate), skipped when the first list answers 403 or 404 or when the list is empty (the sandbox needs a dependency scan result): list the first five dependencies of the sandbox, read the accessors of the first, and list again filtered by its package manager. It has not been run live yet |
+| `AuditEventsSmokeIT` | reads only (Premium; nothing in the smoke tests writes an audit event on purpose), skipped when the first list answers 403 or 404 or when the list is empty: list the first five audit events of the sandbox and check they come newest first, list the events of the day before the newest one's creation time (bounds truncated to whole seconds), expecting it first, and last find the newest by its id. With `SMOKE_GITLAB_GROUP`: the same for the group; its lookup by id needs the Owner role, and a token without it is expected to get a 403, which skips the lookup after the list checks have run. It has not been run live yet |
 
 Every resource a test creates is named `smoke-<runId>-...` (a variable key is `SMOKE_<RUNID>`, a wiki page title is
 `smoke-<runId>/...`, so its slug holds a slash, and a snippet title is `smoke-<runId>`) and is removed in a
@@ -76,8 +77,8 @@ hand. GitLab may keep a deleted resource for a short time before it disappears.
 A disabled feature or a 403 skips, never fails: the first call of an area that may be switched off for the sandbox
 or refused to the token (packages, the container registry, environments, CI/CD variables, schedules and triggers,
 runners and their managers and jobs, job artifacts, project and group wikis, project and personal snippets, project
-dependencies) goes through `SmokeSkips.probe(...)`, which turns GitLab's 403 or 404 into a skipped test. The calls under
-test do not, so a wrong request still fails.
+dependencies, project and group audit events) goes through `SmokeSkips.probe(...)`, which turns GitLab's 403 or 404
+into a skipped test. The calls under test do not, so a wrong request still fails.
 
 ## Not yet verified live
 
@@ -127,6 +128,11 @@ questions are open until a run:
 | Dependency list availability | The list is an Ultimate feature; on a lower tier GitLab is expected to answer 403 or 404 (`DependenciesSmokeIT` then skips). Which of the two a free instance answers is unchecked, and so is whether a sandbox that is Ultimate but has no dependency scan answers an empty list (the test then skips as well) |
 | The real dependency shapes | `DependenciesJsonTest` decodes JSON shaped after the REST docs example (vulnerabilities with integer ids, an empty `vulnerabilities` array, a license without `url`), with illustrative values, not a live response. The core patch that turns `vulnerabilities` and `licenses` into arrays meets a real answer only in `DependenciesSmokeIT`, and only when the sandbox has a dependency scan |
 | The package manager filter | `all(first, more...)` sends `package_manager` as the core encodes the list; how GitLab treats several values at once is unchecked, and `DependenciesSmokeIT` filters by one value and only checks that the answer is not empty, not that every item has that package manager (unchecked) |
+| Keyset paging of audit events | The SDK lists audit events with `pagination=keyset`, `order_by=id` and `sort=desc`, as the REST docs' keyset table lists for project and group audit events; that the instance accepts it (and does not fall back to offset paging or refuse the parameters) is checked first by `AuditEventsSmokeIT`, and only on its first page, because the probe reads five events |
+| Fractional seconds in the audit-event bounds | `createdBetween(after, before)` sends the instants as `Instant.toString()` gives them, so an instant with a fraction of a second carries it (`2026-11-14T10:15:30.123Z`), while the docs show `YYYY-MM-DDTHH:MM:SSZ`; whether GitLab accepts the fraction is unchecked, because `AuditEventsSmokeIT` truncates its bounds to whole seconds |
+| Audit-event availability | Audit events are a Premium feature; on a lower tier GitLab is expected to answer 403 or 404 (`AuditEventsSmokeIT` then skips). Which of the two a free instance answers, and whether a 404 lookup is then empty, is unchecked |
+| A group audit event for a non-owner | The docs make loading one group audit event available to group owners and administrators only; a token without the Owner role is expected to get a 403, which passes through `find(id)` as the core's exception (not an empty result); the group test of `AuditEventsSmokeIT` then skips the lookup. Unchecked |
+| The real audit-event shapes | `AuditEventsJsonTest` decodes the REST docs examples verbatim (the project list and the group event, with a numeric and a text `target_id`), not a live response; the docs examples have no `event_name`, so its shape is unchecked |
 
 ## Reading a failure
 

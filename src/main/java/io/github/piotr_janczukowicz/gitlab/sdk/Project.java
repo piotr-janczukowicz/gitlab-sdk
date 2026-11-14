@@ -72,6 +72,7 @@ import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersListF
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsListFilter;
+import io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditEvents;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
@@ -1889,6 +1890,16 @@ public final class Project {
      */
     public Dependencies dependencies() {
         return Dependencies.forProject(this);
+    }
+
+    /**
+     * Returns the audit events of the project (Premium): a read-only list, newest first, and a lookup by id. No request
+     * is made.
+     *
+     * @return the audit events of the project
+     */
+    public AuditEvents auditEvents() {
+        return AuditEvents.forProject(this);
     }
 
     private DeployKey createDeployKey(
