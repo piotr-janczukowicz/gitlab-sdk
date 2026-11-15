@@ -54,6 +54,14 @@ final class IssuesFixtures {
         return GitLabRelatedIssueBuilder.builder().issueLinkId(linkId).build();
     }
 
+    static GitLabRelatedIssue relatedIssue(final @Nullable Long linkId, final long iid, final long projectId) {
+        return GitLabRelatedIssueBuilder.builder()
+                .issueLinkId(linkId)
+                .iid(iid)
+                .projectId(projectId)
+                .build();
+    }
+
     static GitLabUserBasic user(final long id) {
         return GitLabUserBasicBuilder.builder().id(id).build();
     }

@@ -10,9 +10,12 @@ import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussi
 import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateIssuesDiscussionsPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateIssuesAwardEmojiPayload;
 import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateIssuesAwardEmojiPayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabIssueLink;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabIssueLinkBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreateLinkType;
 import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabRelatedIssue;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesAddSpentTimePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesAddSpentTimePayloadBuilder;
@@ -34,6 +37,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.reactions.Reaction;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -363,12 +367,16 @@ public final class Issue {
     /**
      * Links the issue to another issue ({@code POST /projects/{id}/issues/{issue_iid}/links}). The target may be in
      * another project. The link type is read from this issue: {@link IssueLinkType#BLOCKS} means this issue blocks the
-     * target.
+     * target. GitLab's answer to the create request carries no link id, so when it has none this method makes one extra
+     * request ({@code GET /projects/{id}/issues/{issue_iid}/links}) and takes the id from the entry of the target; the
+     * returned link therefore always has a usable {@link IssueLink#id()}. This is the one exception to one core
+     * operation per method.
      *
      * @param target the issue to link to
      * @param type the kind of link
      * @return the created link
      * @throws NullPointerException if {@code target} or {@code type} is {@code null}
+     * @throws IllegalStateException if the answer has no link id and the list does not show the new link
      * @throws IOException if the transport fails
      */
     public IssueLink linkTo(final Issue target, final IssueLinkType type) throws IOException {
@@ -379,7 +387,13 @@ public final class Issue {
                 .linkType(GitLabProjectIssueLinksCreateLinkType.fromWire(
                         requireNonNull(type, "type").value()))
                 .build();
-        return new IssueLink(this, gitLab().issuelinks().create(project.id(), iid(), payload));
+        final GitLabIssueLink created = gitLab().issuelinks().create(project.id(), iid(), payload);
+        if (created.id() != null) {
+            return new IssueLink(this, created);
+        }
+        return new IssueLink(
+                this,
+                GitLabIssueLinkBuilder.builder(created).id(findLinkId(linked)).build());
     }
 
     /**
@@ -472,6 +486,19 @@ public final class Issue {
         return apply(GitLabProjectIssuesUpdatePayloadBuilder.builder()
                 .stateEvent(event)
                 .build());
+    }
+
+    private Long findLinkId(final Issue linked) throws IOException {
+        final Long targetProjectId = linked.response().projectId();
+        for (final GitLabRelatedIssue related : gitLab().issuelinks().list(project.id(), iid())) {
+            if (Objects.equals(related.iid(), linked.iid())
+                    && related.issueLinkId() != null
+                    && (targetProjectId == null || targetProjectId.equals(related.projectId()))) {
+                return related.issueLinkId();
+            }
+        }
+        throw new IllegalStateException(
+                "GitLab created the link but its id was not found in the links of issue " + iid());
     }
 
     private Stream<MergeRequest> mergeRequests(final List<GitLabMergeRequestBasic> listed) {

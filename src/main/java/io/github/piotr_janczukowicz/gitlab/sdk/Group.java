@@ -802,9 +802,11 @@ public final class Group {
     }
 
     /**
-     * Lists the issues of the group and its subgroups ({@code GET /groups/{id}/issues}). Each issue is addressed
-     * through the project GitLab names for it. Pages are fetched only as the stream is consumed; transport failures
-     * during iteration are {@link java.io.UncheckedIOException}.
+     * Lists the issues of the group and its subgroups ({@code GET /groups/{id}/issues}). Unlike the instance list, this
+     * one is not limited to the caller's own issues: GitLab's {@code scope} defaults to {@code all} (see <a
+     * href="https://docs.gitlab.com/api/issues/">the GitLab docs</a>). Each issue is addressed through the project
+     * GitLab names for it. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
      *
      * @return the issues
      * @throws IOException if the first page cannot be loaded

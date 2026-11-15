@@ -15,6 +15,7 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
@@ -23,6 +24,7 @@ import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabIssuableTimeStats;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasic;
 import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabIssueLink;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabIssueLinkBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreateLinkType;
 import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
@@ -400,6 +402,65 @@ class IssueTest {
             softly.assertThat(result.response()).isSameAs(created);
             softly.assertThat(result.issue()).isSameAs(sut);
         });
+    }
+
+    @Test
+    void linkTo_shouldMakeOneRequest_whenAnswerCarriesAnId() throws IOException {
+        final Issue target = new Issue(GitLabSdk.of(gitLab).project("99"), issue(3L, "Other", "opened"));
+        when(gitLab.issuelinks().create(eq(ID), eq(IID), any(GitLabProjectIssueLinksCreatePayload.class)))
+                .thenReturn(issueLink(21L, "relates_to"));
+
+        final IssueLink result = sut.linkTo(target, IssueLinkType.RELATES_TO);
+
+        assertThat(result.id()).isEqualTo(21L);
+        verify(gitLab.issuelinks(), never()).list(ID, IID);
+    }
+
+    @Test
+    void linkTo_shouldResolveIdThroughList_whenAnswerHasNoIdAndTargetHasNoProjectId() throws IOException {
+        final Issue target = new Issue(GitLabSdk.of(gitLab).project("99"), issue(3L, "Other", "opened"));
+        final GitLabIssueLink created =
+                GitLabIssueLinkBuilder.builder().linkType("blocks").build();
+        when(gitLab.issuelinks().create(eq(ID), eq(IID), any(GitLabProjectIssueLinksCreatePayload.class)))
+                .thenReturn(created);
+        when(gitLab.issuelinks().list(ID, IID))
+                .thenReturn(
+                        List.of(relatedIssue(null, 3L, 99L), relatedIssue(30L, 9L, 99L), relatedIssue(31L, 3L, 99L)));
+
+        final IssueLink result = sut.linkTo(target, IssueLinkType.BLOCKS);
+
+        assertSoftly(softly -> {
+            softly.assertThat(result.id()).isEqualTo(31L);
+            softly.assertThat(result.typeName()).isEqualTo("blocks");
+        });
+    }
+
+    @Test
+    void linkTo_shouldResolveIdByTargetProject_whenAnswerHasNoIdAndTargetKnowsItsProject() throws IOException {
+        final GitLabIssue targetResponse = GitLabIssueBuilder.builder(issue(3L, "Other", "opened"))
+                .projectId(99L)
+                .build();
+        final Issue target = new Issue(GitLabSdk.of(gitLab).project("99"), targetResponse);
+        when(gitLab.issuelinks().create(eq(ID), eq(IID), any(GitLabProjectIssueLinksCreatePayload.class)))
+                .thenReturn(GitLabIssueLinkBuilder.builder().build());
+        when(gitLab.issuelinks().list(ID, IID))
+                .thenReturn(List.of(relatedIssue(40L, 3L, 98L), relatedIssue(41L, 3L, 99L)));
+
+        final IssueLink result = sut.linkTo(target, IssueLinkType.RELATES_TO);
+
+        assertThat(result.id()).isEqualTo(41L);
+    }
+
+    @Test
+    void linkTo_shouldThrowIllegalStateException_whenAnswerHasNoIdAndListDoesNotShowTheLink() throws IOException {
+        final Issue target = new Issue(GitLabSdk.of(gitLab).project("99"), issue(3L, "Other", "opened"));
+        when(gitLab.issuelinks().create(eq(ID), eq(IID), any(GitLabProjectIssueLinksCreatePayload.class)))
+                .thenReturn(GitLabIssueLinkBuilder.builder().build());
+        when(gitLab.issuelinks().list(ID, IID)).thenReturn(List.of(relatedIssue(30L, 9L, 99L)));
+
+        final Throwable thrown = catchThrowable(() -> sut.linkTo(target, IssueLinkType.RELATES_TO));
+
+        assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("issue 7");
     }
 
     @Test
