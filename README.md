@@ -95,7 +95,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Issues** | create, list with a filter, load by `iid`, update (also confidentiality, milestone and due date), close, reopen, move to another project, delete; list the issues of a group or of the whole instance; time tracking (estimate, spent time), links between issues, participants and the merge requests that close or mention an issue; notes, discussions (threads) and emoji reactions; labels (list with the core's filter, load by name, create, update, delete), with promotion of a project label to a group label |
 | **Group labels** | list (with the core's filter), load by name, create, update (name, color, description, archived), subscribe, unsubscribe, delete the labels of a group |
 | **Merge requests** | create, list with a filter, load by `iid`, update, close, reopen, merge, approve and withdraw an approval, delete; notes, discussions (threads, diff comments with the core's position) and emoji reactions, draft notes (create, list, load, update, publish one or all, delete), the pipelines and the commits of a merge request; rebase (asynchronous), cancel the automatic merge, create a pipeline, diffs and diff versions, participants, the issues it closes, time tracking, the approval state and approval rules (Premium); list the merge requests of a group or of the whole instance |
-| **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline; retry, cancel, play and erase a job |
+| **Pipelines and jobs** | list, load, create a pipeline for a ref, retry, cancel, delete; the jobs of a pipeline, its variables, its trigger jobs and its test report summary; fire a pipeline with a trigger token; retry, cancel, play and erase a job |
 | **Code** | files (read, create, update and delete, text or binary), branches (create, protect, unprotect, delete), tags (list with a filter, load, create lightweight or annotated, delete, signature, the tagged commit, the release of a tag), commits (list with a filter, load, diff, cherry-pick, revert, statuses, comments, merge requests, refs, signature, a multi-file commit of text and binary changes) |
 | **Repository** | list the tree of a directory at a ref, compare two refs (straight or from the merge base), contributors, merge base, delete merged branches, generate changelog notes, blame of a file or a line range |
 
@@ -114,10 +114,10 @@ vulnerability findings REST APIs, the snippet `content` and `file_name` paramete
 (lists walk by keyset, newest first); see [the
 reasons](docs/guide/coverage.md#deliberately-not-offered-deprecated-by-gitlab).
 
-Not covered in the CI/CD areas: instance-level variables and runners, and pipeline variables; `maskedAndHidden` on a
+Not covered in the CI/CD areas: instance-level variables and runners, and variables in a pipeline creation payload; `maskedAndHidden` on a
 variable update (on create it goes through the payload overload); protected environments (Premium), deleting review
 apps, stopping stale environments, the auto-stop setting on an environment update, and the tag flag of a deployment;
-the inputs of a pipeline schedule, the list of its pipelines and firing a trigger; runner registration and
+the inputs of a pipeline schedule and the list of its pipelines; runner registration and
 verification, runner creation through the authenticated user, and getting or deleting a runner through a group;
 reading a single file out of the artifacts and a job-token parameter on the artifact calls; the package ecosystems' own
 endpoints (Maven, npm, NuGet and the others), the package and container registry protection rules, the registry event
@@ -127,6 +127,9 @@ The same goes for every area outside the table, such as the list of the uploads 
 an instance. Use
 `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
 [Live smoke tests](docs/guide/smoke-tests.md).
+
+How the SDK compares with gitlab4j-api, and why an operation is not offered, is on [its own
+page](docs/guide/gitlab4j-parity.md).
 
 Two things to know about the project and group calls: a project or group you transfer is addressed by its numeric id
 afterwards, because its path changed, and `project.fork(...)` returns at once while GitLab creates the fork
@@ -713,9 +716,10 @@ The options are described in the `gitlab-rest-client` documentation:
 ## Packages
 
 The entry points (`GitLabSdk`, `Project`, `Group`, `User`, `Me`) are in `io.github.piotr_janczukowicz.gitlab.sdk`. The
-other objects are grouped by area in the sub-packages `issues`, `mergerequests`, `discussions`, `reactions`, `ci`,
-`code`, `members`, `webhooks`, `deploy`, `protection`, `releases`, `milestones`, `variables`, `environments`,
-`schedules`, `runners`, `packages`, `registry`, `wikis`, `snippets`, `dependencies` and `audit`.
+other objects are grouped by area in the sub-packages `account`, `approvals`, `audit`, `badges`, `ci`, `code`,
+`dependencies`, `deploy`, `discussions`, `environments`, `issues`, `members`, `mergerequests`, `milestones`, `mirrors`,
+`packages`, `protection`, `pushrules`, `reactions`, `registry`, `releases`, `repository`, `runners`, `schedules`,
+`snippets`, `tokens`, `variables`, `webhooks` and `wikis`.
 
 The `internal` package is not exported by the module and is not part of the API. The module system hides it only on the
 module path; on the classpath it is a convention and not a security boundary.

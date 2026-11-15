@@ -44,6 +44,9 @@ their project with `project()`, and an `AuditEvent` to its `AuditEvents` with `a
 
 ## `mergerequests`
 
+The approval types in this section (`ApprovalState`, `MergeRequestApprovalRule`, `MergeRequestApprovalRuleUpdate`) are in
+the package `approvals`; they are listed here because they belong to a merge request.
+
 | Object | Methods |
 |---|---|
 | `MergeRequest` | `project()`, `iid()`, `title()`, `description()`, `state()` (`MergeRequestState`), `stateName()` (the raw value), `targetBranch()`, `sourceBranch()`, `labels()`, `update()`, `close()`, `reopen()`, `merge()`, `merge(options)`, `approve()`, `approve(options)`, `unapprove()`, `approvals()`, `comment(body)`, `notes()`, `discussions()`, `discussion(id)`, `startDiscussion(body)`, `startDiscussion(payload)` (a diff comment: the core's payload carries the `position`; overloaded, so a literal `null` needs a cast), `draftNotes()` (one request, a stream over the core's list), `draftNote(id)`, `createDraftNote(note)`, `createDraftNote(payload)`, `publishDraftNotes()` (an empty bulk-publish payload), `publishDraftNotes(payload)` (both pairs are overloaded, so a literal `null` needs a cast), `reactions()`, `react(name)`, `pipelines()` (each pipeline is loaded from the project it ran in, a fork included), `commits()`, `isRebaseInProgress()` (the moment the merge request was loaded), `cancelAutoMerge()`, `rebase()` and `rebase(options)` (asynchronous: they return before the rebase finishes, so follow it with `refresh()`), `createPipeline()` (loaded after the creation, from the project GitLab names), `diffs()` and `diffs(filter)` (the core's `GitLabDiff` records, unwrapped), `versions()` (`DiffVersion`), `version(id)` (`MergeRequestDiff`, empty on 404), `participants()` (the core's `GitLabUserBasic`), `closesIssues()` (each issue is loaded as the stream reaches it), `approvalState()`, `approvalRules()`, `approvalRule(id)` and `createApprovalRule(name, approvalsRequired)` or `createApprovalRule(payload)` (Premium, tier errors pass through), `timeStats()`, `estimateTime(Duration)`, `resetEstimate()`, `addSpentTime(Duration)`, `resetSpentTime()` (the same whole-second `Duration` rules as `Issue`; a negative duration throws `IllegalArgumentException` before any request), `delete()`, `refresh()`, `response()` |
@@ -416,7 +419,7 @@ rules from the API. There is no `createApprovalRule(payload)`: the core's payloa
   `GroupUpdate` take the common fields only (see above); anything else needs the core's `MultipartFormData` API.
 - **Stars of a project (`stars()`).** The core decodes `GET /projects/{id}/starrers` as bare users, but the GitLab
   documentation shows `starred_since` and a nested `user` for every item, so every field would come back empty. Not
-  offered; a core follow-up.
+  offered (core follow-up 7).
 - **Search, user administration and the other keys calls.** Search stays out (see above); the administrator calls on
   users (create, block, impersonation, keys and emails of other users) are deferred to the admin API; GPG key
   revocation and the lookups of a single key are not offered.
@@ -447,7 +450,7 @@ rules from the API. There is no `createApprovalRule(payload)`: the core's payloa
   covered. `mergeRequest.startDiscussion(null)` needs a cast, because it overloads the payload variant.
 - **Merge requests.** The `changes` endpoint is not offered: GitLab deprecated it in 15.7 in favour of the paged
   `diffs()`. Also not covered: clearing a milestone (the core's payload cannot send null), the deprecated
-  `approvals_before_merge` update field, `rebase()` returns nothing (GitLab answers `{"rebase_in_progress": true}` and
+  `approvals_before_merge` update field, `rebase()` returns nothing (core follow-up 2: GitLab answers `{"rebase_in_progress": true}` and
   the core declares no body; follow it with `refresh()` and `isRebaseInProgress()`), the raw diff (the core's call
   discards the body), blocking merge requests, status checks, suggested reviewers, reviewer states, to-do, subscribe and
   unsubscribe, the merge ref, resetting the approvals, and the related issues. Use the core for them.
@@ -506,14 +509,14 @@ rules from the API. There is no `createApprovalRule(payload)`: the core's payloa
   only keyset order the GitLab REST docs list for audit events; an oldest-first walk is not available.
 - **Issues.** The issue statistics (`GET /issues_statistics` and its project and group forms): the core's calls return
   nothing (the OpenAPI description has no response schema), so the SDK offers no `issuesStatistics(filter)` on
-  `Project`, `Group` or `GitLabSdk`; use the core client when the request itself is enough. Clearing a milestone or a
+  `Project`, `Group` or `GitLabSdk` (core follow-up 1); use the core client when the request itself is enough. Clearing a milestone or a
   due date on `update()` (the core's payload has no way to send a null), subscribing to an issue, creating a to-do,
   reordering, cloning, metric images and user-agent details are not covered; use the core client.
 - **Repository.** The raw blob (`callBlobsRaw`) and the repository archive (`callArchive`) are not offered: the core's
-  calls return nothing, so a body cannot be read (core follow-up: a streaming variant with `Path` and `OutputStream`
+  calls return nothing, so a body cannot be read (core follow-up 3: a streaming variant with `Path` and `OutputStream`
   like `jobsartifacts().get`, and a drift test for the archive format). Creating a changelog (`createChangelog`) is not
-  offered: the core's payload has no `version`, which GitLab requires (core follow-up: the spec's request body lacks
-  it). `RepositoryFile.info()` (file metadata without the content) is not offered: the core's `head` and `headBlame`
+  offered: the core's payload has no `version`, which GitLab requires (core follow-up 4: the spec's request body lacks
+  it). `RepositoryFile.info()` (file metadata without the content) is not offered (core follow-up 5): the core's `head` and `headBlame`
   return only whether the file exists, not the `X-Gitlab-*` headers. The batch blob, changed paths, diverging
   commits, diff stats and repository health reads, the `unidiff`, `from_project_id` and `with_last_commit` options, and
   ordering contributors are not covered; use the core client.
@@ -565,36 +568,5 @@ or instance-wide), wiki page notes, and snippet notes, discussions and reactions
 
 ## Parity with gitlab4j-api
 
-Each gitlab4j-api class compared with the SDK. Status is filled in as the Phase E tasks land;
-no coverage number is claimed until a row is compared.
-
-| gitlab4j class | Status | Note |
-|---|---|---|
-| `ProjectApi` | compared (lists and account); settings covered, not re-compared | Covered (lists): list all projects with the core's filter (owned, starred, member, search, order), the personal and the starred projects of a user, project users, ancestor and invited groups, events with a filter, star and unstar, languages, housekeeping, templates (list and load). Not offered: `stars()` (the core decodes the starrers wrongly), search by the search API, and the instance and administrator calls. Members, hooks, forks, sharing and variables are covered by the earlier phases. Covered (settings, Task 7): badges (list, load, add, preview, update, delete), push rules (Premium), access tokens (list, load, create, rotate, revoke), remote mirrors (list, load, add, update, sync, delete), the pull mirror (Premium: load, configure, update), approval rules (Premium: list, load, create, update, delete), the approval configuration without its two deprecated settings, the avatar download and the markdown upload. Not offered: avatar upload, custom attributes (administrator API), starting a pull mirror, the public key of a remote mirror (core follow-up 13), and the creation of an access token with the Planner or Security Manager role (core follow-up 11). The gitlab4j method list for these operations was not read again in Task 7; the rows follow the operations of the plan's core-call table. |
-| `GroupApi` | compared (lists and account); settings covered, not re-compared | Covered (lists): list all groups with the core's filter, descendant groups, shared groups; the subgroups, projects, members, labels and variables are covered by the earlier phases. Not offered: group search and the administrator calls. Covered (settings, Task 7): badges (list, load, add, preview, update, delete), push rules (Premium), access tokens (list, load, create, rotate, revoke), approval rules (Premium: list, create, update), the avatar download, the LDAP group links (Premium: list, add by CN or filter, delete) and the SAML group links (Premium: list, load, add, delete). Not offered: `transferProject` (administrators only per GitLab's API description, deferred with the admin API), avatar upload, uploads of a group, custom attributes, delete and load of a group approval rule (core follow-up 12), and the creation of an access token with the Planner or Security Manager role (core follow-up 11). The gitlab4j method list for these operations was not read again in Task 7. |
-| `UserApi` | compared (lists and account) | Covered (non-administrator part): list users with the core's filter, load by id, by username, the signed-in profile, SSH keys, email addresses and GPG keys of the signed-in account (list, add, delete), the associations count. Not offered: the administrator calls (create, modify, block, impersonation tokens, keys and emails of other users), GPG key revocation and single-key lookups. |
-| `IssuesApi` | compared | Covered: list for a project, a group and the instance (with the core's filters), load, create, update (also confidential, milestone, due date), close, delete, move, time estimate and spent time with their resets and the time statistics, links (list, load, create, delete), participants, closing and related merge requests. Covered differently: `closeIssue` is `Issue.close()` and `reopen()`; `assignIssue` is `update().assignees(...)`. Not offered: issue statistics (the core returns no body), clearing a milestone or due date (the core's payload cannot send null), subscribe and unsubscribe, to-do, reorder, clone, metric images, user-agent details, and the epic issue calls (deprecated by GitLab) |
-| `MergeRequestApi` | compared | Covered: list for a project, a group and the instance (with the core's filters), load, create, update (also assignees, reviewers, milestone, squash, remove source branch, discussion lock, allow collaboration), close, reopen, merge, cancel the automatic merge, delete, rebase (asynchronous), approve and unapprove, approvals, the approval state and the approval rules of a merge request (Premium), the diffs, the diff versions, participants, the issues it closes, create a pipeline, the pipelines and the commits, time estimate and spent time with their resets and the time statistics. Covered differently: `getMergeRequestChanges` is `diffs()` (the `changes` endpoint is deprecated since GitLab 15.7 and not offered); `acceptMergeRequest` is `merge(options)`. Not offered: clearing a milestone, raw diffs, blocks, status checks, suggested reviewers, to-do, subscribe, unsubscribe |
-| `PipelineApi` | compared against the core's operations, not the gitlab4j method list | Covered: list, load, create, retry, cancel, delete, jobs of a pipeline, variables (`Pipeline.variables()`), the test report summary, trigger jobs, firing a pipeline with a trigger token (`Project.triggerPipeline`). Not offered: the deprecated bridges operation (`triggerJobs()` replaces it), the full test report (`getTestReport`), pipeline metadata update, latest pipeline, creating a pipeline with variables from the SDK (use `createPipeline(payload)`) |
-| `JobApi` | compared against the core's operations, not the gitlab4j method list | Covered: list, load, retry, cancel, play, erase, the artifacts archive (to a `Path` or stream), the artifact tree, keep and delete artifacts. Not offered: `Job.trace()` (core follow-up 17: `getTrace` decodes a job record, not text), a single artifact file `Job.downloadArtifact(path, ...)` (core follow-up 18: `call` returns nothing) |
-| `CommitsApi` | compared | Covered: list with the core's filter (ref, since, until, path, all, with stats, first parent and the rest of it), load, diffs, comments (list and add, also on a line), statuses (list, also filtered by ref, name and all, and add), create a commit of several files (create, update, delete and move actions, text or binary content), cherry-pick, revert, the merge requests and the refs of a commit, the signature. Covered differently: `getCommitsStream` is `commits(filter)`, and `getCommit` is `commit(sha)` (empty on 404). Not offered: the `chmod` action, `start_branch`, `start_project`, `force`, `author_name` and `author_email` of a multi-file commit, the commit sequence, a dry run or a custom message for a cherry-pick or revert, and filtering statuses by stage, pipeline or order (a status can still be added with a pipeline through `addStatus(payload)`) |
-| `RepositoryApi` | compared | Covered: branches (list, load, create, protect, unprotect, delete, delete merged), tags, tree (path, ref, recursive), compare (straight or from the merge base), contributors, merge base, changelog read. Not offered: raw blob and archive download, changelog creation (the core's calls return nothing or lack `version`), batch and diff-stat reads |
-| `RepositoryFileApi` | compared | Covered: file get at a ref (text or bytes), create, update, delete (text or binary), blame of the whole file or a line range. Not offered: file metadata without content (`RepositoryFile.info()`; the core's `head` returns a boolean only) and the raw file download |
-| `TagsApi` | pending | tags and protected tags |
-| `LabelsApi` | pending | project and group labels, subscriptions |
-| `NotesApi` | pending | notes on issues, merge requests, snippets, epics |
-| `MilestonesApi` | pending | project and group milestones, issues, merge requests |
-| `ReleasesApi` | pending | releases, links, evidences |
-| `EnvironmentsApi` | pending | environments, stop, stale cleanup |
-| `DeploymentsApi` | pending | deployments, approval, merge requests |
-| `DeployKeysApi` | pending | project and instance deploy keys, enabling |
-| `DeployTokensApi` | pending | project and group deploy tokens |
-| `ProtectedBranchesApi` | pending | protected branches and access levels |
-| `DiscussionsApi` | pending | discussions on issues, merge requests, commits, snippets |
-| `AwardEmojiApi` | pending | award emoji on issues, merge requests, notes |
-| `RunnersApi` | pending | runners, registration, jobs, managers |
-| `SnippetsApi` | pending | project and personal snippets, content |
-| `WikisApi` | pending | wiki pages and attachments |
-| `PackagesApi` | pending | packages, files, pipelines |
-| `ContainerRegistryApi` | pending | repositories, tags, bulk delete |
-| `AuditEventApi` | pending | instance, group and project audit events |
+The comparison with gitlab4j-api, class by class, with the reason for each operation the SDK does not offer and the
+numbered list of core follow-ups, is on its own page: [Parity with gitlab4j-api](gitlab4j-parity.md).
