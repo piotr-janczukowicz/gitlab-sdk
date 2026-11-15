@@ -3,7 +3,10 @@ package io.github.piotr_janczukowicz.gitlab.sdk.ci;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiVariable;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabCiBridge;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabCiPipelineWithMetadata;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabTestReportSummaryEntity;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import java.io.IOException;
@@ -136,6 +139,45 @@ public final class Pipeline {
     public Stream<Job> jobs() throws IOException {
         return gitLab().jobs().project().listPipelinesJobs(project.id(), id()).stream()
                 .map(listed -> new Job(project, listed));
+    }
+
+    /**
+     * Lists the trigger jobs of the pipeline, the jobs that start downstream pipelines ({@code GET
+     * /projects/{id}/pipelines/{pipeline_id}/trigger_jobs}). Per GitLab's API description the older "bridges" operation
+     * ({@code GET .../bridges}) is deprecated, so the SDK offers this one. Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}. The entries are the
+     * core's records. Not verified live.
+     *
+     * @return the trigger jobs
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GitLabCiBridge> triggerJobs() throws IOException {
+        return gitLab().pipelines().listTriggerJobs(project.id(), id()).stream();
+    }
+
+    /**
+     * Lists the variables the pipeline was started with ({@code GET /projects/{id}/pipelines/{pipeline_id}/variables}).
+     * The request is sent when this method is called; GitLab answers with one list, not pages. The values can be
+     * secret: do not log them. The core's records print the value as {@code <redacted>}. An unauthorized call, and HTTP
+     * 404, is the core's exception, not an empty result; the permission GitLab requires is not verified here.
+     *
+     * @return the variables, as the core's records
+     * @throws IOException if the transport fails
+     */
+    public Stream<GitLabCiVariable> variables() throws IOException {
+        return gitLab().pipelines().listVariables(project.id(), id()).stream();
+    }
+
+    /**
+     * Loads the test report summary of the pipeline ({@code GET
+     * /projects/{id}/pipelines/{pipeline_id}/test_report_summary}). The answer is the core's record; its totals are a
+     * generic map, as the core types them.
+     *
+     * @return the summary, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GitLabTestReportSummaryEntity> testReportSummary() throws IOException {
+        return gitLab().pipelines().getTestReportSummary(project.id(), id());
     }
 
     /**

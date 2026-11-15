@@ -1,6 +1,7 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.smoke;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
@@ -41,6 +42,20 @@ class PipelinesSmokeIT {
             softly.assertThat(refreshed.id()).isEqualTo(first.id());
             softly.assertThat(jobs).extracting(Job::name).doesNotContainNull();
         });
+    }
+
+    @Test
+    void pipelineReads_shouldAnswerWithoutFailure_whenSandboxHasAPipeline() throws IOException {
+        final List<Pipeline> pipelines = ENV.sandbox().pipelines().limit(1).toList();
+        assumeFalse(pipelines.isEmpty(), "the sandbox has no pipelines");
+        final Pipeline pipeline = pipelines.get(0);
+
+        assertThatCode(() -> {
+                    pipeline.variables().toList();
+                    pipeline.triggerJobs().toList();
+                    pipeline.testReportSummary();
+                })
+                .doesNotThrowAnyException();
     }
 
     @Test

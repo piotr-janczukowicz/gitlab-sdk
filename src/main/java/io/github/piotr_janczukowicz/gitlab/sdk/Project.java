@@ -69,6 +69,7 @@ import io.github.piotr_janczukowicz.gitlab.api.projectpushrules.GitLabProjectPro
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsCreateApprovalRulePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingPayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingTask;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsPipelineRefTriggerPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsSharePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsTransferPayload;
@@ -864,6 +865,47 @@ public final class Project {
         final long created =
                 requireNonNull(sdk.gitLab().pipelines().create(id, payload).id(), "id");
         return pipeline(created).orElseThrow(() -> new IllegalStateException("Pipeline " + created + " is gone"));
+    }
+
+    /**
+     * Starts a pipeline for a branch or tag with a pipeline trigger token ({@code POST
+     * /projects/{id}/ref/{ref}/trigger/pipeline}), without variables, and loads it. See {@link #triggerPipeline(String,
+     * String, Map)}.
+     *
+     * @param token the trigger token; secret, do not log it
+     * @param ref the branch or tag to run the pipeline for
+     * @return the started pipeline
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IllegalStateException if GitLab no longer has the pipeline after starting it
+     * @throws IOException if the transport fails
+     */
+    public Pipeline triggerPipeline(final String token, final String ref) throws IOException {
+        return startTriggered(token, ref, null);
+    }
+
+    /**
+     * Starts a pipeline for a branch or tag with a pipeline trigger token ({@code POST
+     * /projects/{id}/ref/{ref}/trigger/pipeline}) and loads it ({@code GET /projects/{id}/pipelines/{pipeline_id}}),
+     * because GitLab answers the trigger with a smaller record. The ref is part of the path, as per GitLab's API
+     * description, which also lists no deprecation for this operation (the {@code ref}-less operation has no way to
+     * name a ref in the core). The token is a secret: it is sent in the request body, and neither this method nor an
+     * exception of the SDK prints it. Use the token of a trigger from {@link #createPipelineTrigger(String)}. The
+     * variable values are sent as given and may be secret too; the SDK never prints them. A ref with a slash reaches
+     * the core unchanged. Not verified live: the smoke tests only read.
+     *
+     * @param token the trigger token; secret, do not log it
+     * @param ref the branch or tag to run the pipeline for
+     * @param variables the pipeline variables by key; empty sends none
+     * @return the started pipeline
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code token} or {@code ref} is blank
+     * @throws IllegalStateException if GitLab no longer has the pipeline after starting it
+     * @throws IOException if the transport fails
+     */
+    public Pipeline triggerPipeline(final String token, final String ref, final Map<String, String> variables)
+            throws IOException {
+        return startTriggered(token, ref, requireNonNull(variables, "variables"));
     }
 
     /**
@@ -2707,6 +2749,27 @@ public final class Project {
                 .file("file", String.valueOf(name), "application/octet-stream", Files.readAllBytes(file))
                 .build();
         return requireNonNull(sdk.gitLab().markdownuploads().create(id, form).markdown(), "markdown");
+    }
+
+    private Pipeline startTriggered(final String token, final String ref, final Map<String, String> variables)
+            throws IOException {
+        requireNotBlank(token, "token");
+        requireNotBlank(ref, REF);
+        final long started = requireNonNull(
+                sdk.gitLab()
+                        .projects()
+                        .project()
+                        .pipelineRefTrigger(
+                                id,
+                                ref,
+                                GitLabProjectProjectsPipelineRefTriggerPayloadBuilder.builder()
+                                        .token(token)
+                                        .variables(
+                                                variables == null || variables.isEmpty() ? null : Map.copyOf(variables))
+                                        .build())
+                        .id(),
+                "id");
+        return pipeline(started).orElseThrow(() -> new IllegalStateException("Pipeline " + started + " is gone"));
     }
 
     private Badge createBadge(final String linkUrl, final String imageUrl, final @Nullable String name)
