@@ -320,7 +320,7 @@ public final class GitLabSdk {
     }
 
     /**
-     * Lists the users ({@code GET /users}). Per the GitLab documentation a user who is not an administrator gets no
+     * Lists the users ({@code GET /users}). Per GitLab's API description a user who is not an administrator gets no
      * default filter, so every user GitLab shows to the account is listed. GitLab lists a summary of each user, so each
      * one is loaded ({@code GET /users/{id}}) as the stream reaches it, and one that is gone by then is skipped. Pages
      * are fetched only as the stream is consumed; transport failures during iteration are
@@ -427,6 +427,12 @@ public final class GitLabSdk {
                 .flatMap(groupId -> Lookups.find(() -> group(groupId).fetch()).stream());
     }
 
+    /**
+     * Loads each user a list summarized and skips one that is gone by the time the stream reaches it.
+     *
+     * @param listed the summaries as a list returned them
+     * @return the users
+     */
     Stream<User> loadedUsers(final Stream<GitLabUserBasic> listed) {
         return listed.map(item -> requireNonNull(item.id(), "id"))
                 .flatMap(userId -> Lookups.find(() -> user(userId)).stream());

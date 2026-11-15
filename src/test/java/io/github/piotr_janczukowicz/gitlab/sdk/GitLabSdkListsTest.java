@@ -19,6 +19,7 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabGroupBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasicBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabInstanceProjectsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsListFilterBuilder;
@@ -115,11 +116,12 @@ class GitLabSdkListsTest {
                 .starred(true)
                 .membership(true)
                 .build();
-        when(gitLab.projects().project().list(filter).stream()).thenReturn(Stream.empty());
+        when(gitLab.projects().project().list(filter).stream()).thenReturn(Stream.of(listedProject(1L)));
+        when(gitLab.projects().project().get("1")).thenReturn(Optional.of(loadedProject(1L, "one")));
 
-        final long count = sut.projects(filter).count();
+        final List<Project> projects = sut.projects(filter).toList();
 
-        assertThat(count).isZero();
+        assertThat(projects).extracting(Project::id).containsExactly("1");
     }
 
     @Test
@@ -172,12 +174,14 @@ class GitLabSdkListsTest {
 
     @Test
     void groups_shouldPassFilterToCore_whenFilterIsGiven() throws IOException {
-        final GitLabGroupGroupsListFilter filter = GitLabGroupGroupsListFilter.empty();
-        when(gitLab.groups().list(filter).stream()).thenReturn(Stream.empty());
+        final GitLabGroupGroupsListFilter filter =
+                GitLabGroupGroupsListFilterBuilder.builder().owned(true).build();
+        when(gitLab.groups().list(filter).stream()).thenReturn(Stream.of(listedGroup(1L)));
+        when(gitLab.groups().get("1")).thenReturn(Optional.of(loadedGroup(1L, "one")));
 
         final List<Group> groups = sut.groups(filter).toList();
 
-        assertThat(groups).isEmpty();
+        assertThat(groups).extracting(Group::id).containsExactly("1");
     }
 
     @Test
@@ -197,6 +201,18 @@ class GitLabSdkListsTest {
         final List<User> users = sut.users().toList();
 
         assertThat(users).extracting(User::username).containsExactly("two");
+    }
+
+    @Test
+    void users_shouldForwardFilterToCore_whenFilterIsGiven() throws IOException {
+        final GitLabUsersListFilter filter =
+                GitLabUsersListFilterBuilder.builder().search("tan").build();
+        when(gitLab.users().list(filter).stream()).thenReturn(Stream.of(listedUser(3L)));
+        when(gitLab.users().get(3L)).thenReturn(Optional.of(profile(3L, "tanuki")));
+
+        final List<User> users = sut.users(filter).toList();
+
+        assertThat(users).extracting(User::username).containsExactly("tanuki");
     }
 
     @Test

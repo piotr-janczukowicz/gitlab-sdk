@@ -350,8 +350,8 @@ public final class Project {
 
     /**
      * Lists the groups the project is shared with ({@code GET /projects/{id}/invited_groups}); these are the records of
-     * the core, which carry the group's id, name and path. Unauthenticated requests get only public groups. Pages are
-     * fetched only as the stream is consumed; transport failures during iteration are
+     * the core, which carry the group's id, name and path. Per GitLab's API description, unauthenticated requests get
+     * only public groups. Pages are fetched only as the stream is consumed; transport failures during iteration are
      * {@link java.io.UncheckedIOException}. The stream is single-use. Earlier versions of this method called {@code GET
      * /projects/{id}/groups}, which lists the ancestor groups; {@link #groups()} lists those now.
      *
@@ -414,9 +414,8 @@ public final class Project {
 
     /**
      * Stars the project for the account ({@code POST /projects/{id}/star}) and loads it again. The core's OpenAPI
-     * description lists HTTP 304 for this call, which GitLab's documentation names for unstarring a project that is not
-     * starred; how the core's client treats a 304 here is not verified live, so a project that is already starred may
-     * fail with the core's exception.
+     * description lists HTTP 304 for this call; how the core's client treats it is not verified live, so a project that
+     * is already starred may fail with the core's exception.
      *
      * @return the project as GitLab returns it afterwards
      * @throws IllegalStateException if the project is gone when it is loaded again

@@ -6,7 +6,11 @@ import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabLicense;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabTemplateList;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasic;
+import io.github.piotr_janczukowicz.gitlab.api.events.GitLabEvent;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabInstanceProjectsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabPublicGroupDetails;
+import io.github.piotr_janczukowicz.gitlab.sdk.Group;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.TemplateType;
 import io.github.piotr_janczukowicz.gitlab.sdk.User;
@@ -39,53 +43,66 @@ class AccountSmokeIT {
     }
 
     @Test
-    void lists_shouldLoadObjects_whenTokenCanSeeThem() throws IOException {
+    void lists_shouldLoadObjectsWithIds_whenTokenCanSeeThem() throws IOException {
         final List<Project> projects = ENV.sdk().projects().limit(LIMIT).toList();
-        final long groups = ENV.sdk().groups().limit(LIMIT).count();
-        final long users = ENV.sdk().users().limit(LIMIT).count();
+        final List<Group> groups = ENV.sdk().groups().limit(LIMIT).toList();
+        final List<User> users = ENV.sdk().users().limit(LIMIT).toList();
 
         assertSoftly(softly -> {
             softly.assertThat(projects)
                     .allSatisfy(project -> assertThat(project.response().id()).isNotNull());
-            softly.assertThat(groups).isGreaterThanOrEqualTo(0);
-            softly.assertThat(users).isGreaterThanOrEqualTo(0);
+            softly.assertThat(groups)
+                    .allSatisfy(group -> assertThat(group.response().id()).isNotNull());
+            softly.assertThat(users)
+                    .isNotEmpty()
+                    .allSatisfy(user -> assertThat(user.username()).isNotBlank());
         });
     }
 
     @Test
-    void userLists_shouldWork_whenQueriedForTheSignedInUser() throws IOException {
+    void userLists_shouldFindTheSignedInUser_whenQueriedByUsername() throws IOException {
         final User me = ENV.sdk().me().profile();
 
-        final long personal = ENV.sdk()
+        final List<Project> personal = ENV.sdk()
                 .userProjects(me.id(), GitLabInstanceProjectsListFilter.empty())
                 .limit(LIMIT)
-                .count();
-        final long starred = ENV.sdk().starredProjects(me.id()).limit(LIMIT).count();
+                .toList();
+        final List<Project> starred =
+                ENV.sdk().starredProjects(me.id()).limit(LIMIT).toList();
         final Optional<User> byName = ENV.sdk().userByUsername(me.username());
 
         assertSoftly(softly -> {
-            softly.assertThat(personal).isGreaterThanOrEqualTo(0);
-            softly.assertThat(starred).isGreaterThanOrEqualTo(0);
+            softly.assertThat(personal)
+                    .allSatisfy(project -> assertThat(project.response().id()).isNotNull());
+            softly.assertThat(starred)
+                    .allSatisfy(project -> assertThat(project.response().id()).isNotNull());
             softly.assertThat(byName).map(User::id).contains(me.id());
         });
     }
 
     @Test
-    void sandboxReads_shouldWork_whenTokenHasAccess() throws IOException {
+    void sandboxReads_shouldReturnRecordsWithIds_whenTokenHasAccess() throws IOException {
         final Project sandbox = ENV.sandbox();
 
-        final long users = sandbox.users().limit(LIMIT).count();
-        final long ancestors = sandbox.groups().limit(LIMIT).count();
-        final long invited = sandbox.sharedGroups().limit(LIMIT).count();
-        final long events = sandbox.events().limit(LIMIT).count();
+        final List<GitLabUserBasic> users = sandbox.users().limit(LIMIT).toList();
+        final List<GitLabPublicGroupDetails> ancestors =
+                sandbox.groups().limit(LIMIT).toList();
+        final List<GitLabPublicGroupDetails> invited =
+                sandbox.sharedGroups().limit(LIMIT).toList();
+        final List<GitLabEvent> events = sandbox.events().limit(LIMIT).toList();
         final Map<String, Double> languages = sandbox.languages();
 
         assertSoftly(softly -> {
-            softly.assertThat(users).isGreaterThanOrEqualTo(1);
-            softly.assertThat(ancestors).isGreaterThanOrEqualTo(0);
-            softly.assertThat(invited).isGreaterThanOrEqualTo(0);
-            softly.assertThat(events).isGreaterThanOrEqualTo(0);
-            softly.assertThat(languages).isNotNull();
+            softly.assertThat(users)
+                    .isNotEmpty()
+                    .allSatisfy(user -> assertThat(user.id()).isNotNull());
+            softly.assertThat(ancestors)
+                    .allSatisfy(group -> assertThat(group.id()).isNotNull());
+            softly.assertThat(invited)
+                    .allSatisfy(group -> assertThat(group.id()).isNotNull());
+            softly.assertThat(events).allSatisfy(event -> assertThat(event.id()).isNotNull());
+            softly.assertThat(languages.values())
+                    .allSatisfy(share -> assertThat(share).isPositive());
         });
     }
 

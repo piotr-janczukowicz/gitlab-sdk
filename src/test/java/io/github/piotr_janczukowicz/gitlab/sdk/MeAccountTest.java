@@ -6,7 +6,6 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -27,6 +26,7 @@ import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -54,13 +54,23 @@ class MeAccountTest {
     }
 
     @Test
-    void sshKeys_shouldBeLazy_whenNotConsumed() throws IOException {
-        when(gitLab.usersshandgpgkeys().list().stream()).thenReturn(Stream.empty());
+    void sshKeys_shouldBeLazy_whenStreamIsLimited() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.usersshandgpgkeys().list().stream())
+                .thenReturn(Stream.of(1L, 2L).map(id -> {
+                    consumed.incrementAndGet();
+                    return GitLabSSHKeyBuilder.builder().id(id).build();
+                }));
 
         final Stream<SshKey> keys = sut.sshKeys();
+        final int beforeConsuming = consumed.get();
+        final List<SshKey> first = keys.limit(1).toList();
 
-        assertThat(keys).isNotNull();
-        verify(gitLab.usersshandgpgkeys().list(), never()).all();
+        assertSoftly(softly -> {
+            softly.assertThat(beforeConsuming).isZero();
+            softly.assertThat(first).hasSize(1);
+            softly.assertThat(consumed).hasValue(1);
+        });
     }
 
     @Test

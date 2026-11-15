@@ -4,6 +4,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -15,6 +16,8 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabSSHKey;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabSSHKeyBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.keys.GitLabGpgKey;
 import io.github.piotr_janczukowicz.gitlab.api.keys.GitLabGpgKeyBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.keys.GitLabKeysApi;
+import io.github.piotr_janczukowicz.gitlab.api.useremailaddresses.GitLabUserEmailAddressesApi;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
@@ -93,6 +96,28 @@ class AccountKeysTest {
         sut.delete();
 
         verify(gitLab.useremailaddresses()).delete(5L);
+    }
+
+    @Test
+    void emailDelete_shouldPropagateTheCoreException_whenTheCoreFails() throws IOException {
+        final GitLabUserEmailAddressesApi api = gitLab.useremailaddresses();
+        doThrow(new IOException("gone")).when(api).delete(5L);
+        final Email sut = new Email(sdk, GitLabEmailBuilder.builder().id(5L).build());
+
+        final Throwable thrown = catchThrowable(sut::delete);
+
+        assertThat(thrown).isInstanceOf(IOException.class).hasMessage("gone");
+    }
+
+    @Test
+    void gpgKeyDelete_shouldPropagateTheCoreException_whenTheCoreFails() throws IOException {
+        final GitLabKeysApi api = gitLab.keys();
+        doThrow(new IOException("gone")).when(api).deleteUserGpgKey(6L);
+        final GpgKey sut = new GpgKey(sdk, GitLabGpgKeyBuilder.builder().id(6L).build());
+
+        final Throwable thrown = catchThrowable(sut::delete);
+
+        assertThat(thrown).isInstanceOf(IOException.class).hasMessage("gone");
     }
 
     @Test

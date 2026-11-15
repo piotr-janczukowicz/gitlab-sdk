@@ -21,6 +21,7 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasicBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.events.GitLabEvent;
 import io.github.piotr_janczukowicz.gitlab.api.events.GitLabEventBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.events.GitLabProjectEventsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.events.GitLabProjectEventsListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingPayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingTask;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabPublicGroupDetails;
@@ -33,6 +34,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -53,6 +55,72 @@ class ProjectListsTest {
         final List<GitLabUserBasic> users = sut.users().toList();
 
         assertThat(users).singleElement().isSameAs(user);
+    }
+
+    @Test
+    void users_shouldBeLazyAndSingleUse_whenNotConsumed() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.projects().project().listUsers(ID).stream())
+                .thenReturn(Stream.of(4L, 5L).map(id -> {
+                    consumed.incrementAndGet();
+                    return GitLabUserBasicBuilder.builder().id(id).build();
+                }));
+
+        final Stream<GitLabUserBasic> users = sut.users();
+        final int beforeConsuming = consumed.get();
+        final List<GitLabUserBasic> first = users.limit(1).toList();
+        final Throwable thrown = catchThrowable(users::toList);
+
+        assertSoftly(softly -> {
+            softly.assertThat(beforeConsuming).isZero();
+            softly.assertThat(first).hasSize(1);
+            softly.assertThat(consumed).hasValue(1);
+            softly.assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        });
+    }
+
+    @Test
+    void groups_shouldBeLazyAndSingleUse_whenNotConsumed() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.projects().project().listGroups(ID).stream())
+                .thenReturn(Stream.of(1L, 2L).map(id -> {
+                    consumed.incrementAndGet();
+                    return GitLabPublicGroupDetailsBuilder.builder().id(id).build();
+                }));
+
+        final Stream<GitLabPublicGroupDetails> groups = sut.groups();
+        final int beforeConsuming = consumed.get();
+        final List<GitLabPublicGroupDetails> first = groups.limit(1).toList();
+        final Throwable thrown = catchThrowable(groups::toList);
+
+        assertSoftly(softly -> {
+            softly.assertThat(beforeConsuming).isZero();
+            softly.assertThat(first).hasSize(1);
+            softly.assertThat(consumed).hasValue(1);
+            softly.assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        });
+    }
+
+    @Test
+    void templates_shouldBeLazyAndSingleUse_whenNotConsumed() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.projecttemplates().list(ID, GitLabProjectProjectTemplatesListType.LICENSES).stream())
+                .thenReturn(Stream.of("MIT", "Apache").map(key -> {
+                    consumed.incrementAndGet();
+                    return GitLabTemplateListBuilder.builder().key(key).build();
+                }));
+
+        final Stream<GitLabTemplateList> templates = sut.templates(TemplateType.LICENSES);
+        final int beforeConsuming = consumed.get();
+        final List<GitLabTemplateList> first = templates.limit(1).toList();
+        final Throwable thrown = catchThrowable(templates::toList);
+
+        assertSoftly(softly -> {
+            softly.assertThat(beforeConsuming).isZero();
+            softly.assertThat(first).hasSize(1);
+            softly.assertThat(consumed).hasValue(1);
+            softly.assertThat(thrown).isInstanceOf(IllegalStateException.class);
+        });
     }
 
     @Test
@@ -78,12 +146,14 @@ class ProjectListsTest {
 
     @Test
     void events_shouldPassFilterToCore_whenFilterIsGiven() throws IOException {
-        final GitLabProjectEventsListFilter filter = GitLabProjectEventsListFilter.empty();
-        when(gitLab.events().project().list(ID, filter).stream()).thenReturn(Stream.empty());
+        final GitLabProjectEventsListFilter filter =
+                GitLabProjectEventsListFilterBuilder.builder().action("pushed").build();
+        final GitLabEvent event = GitLabEventBuilder.builder().id(8L).build();
+        when(gitLab.events().project().list(ID, filter).stream()).thenReturn(Stream.of(event));
 
-        final long count = sut.events(filter).count();
+        final List<GitLabEvent> events = sut.events(filter).toList();
 
-        assertThat(count).isZero();
+        assertThat(events).singleElement().isSameAs(event);
     }
 
     @Test
