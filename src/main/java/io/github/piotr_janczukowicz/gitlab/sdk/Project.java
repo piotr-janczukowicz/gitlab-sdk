@@ -9,6 +9,7 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabProjectCommitsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommit;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
@@ -81,6 +82,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.CommitDraft;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.RepositoryFile;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Tag;
 import io.github.piotr_janczukowicz.gitlab.sdk.dependencies.Dependencies;
@@ -871,6 +873,37 @@ public final class Project {
         return sdk.gitLab().commits().list(id).stream()
                 .map(listed -> Lookups.find(() -> commit(requireNonNull(listed.id(), "id"))))
                 .flatMap(Optional::stream);
+    }
+
+    /**
+     * Lists the commits of the project that match a filter ({@code GET /projects/{id}/repository/commits}), loading
+     * each one as for {@link #commits()}. Per the GitLab docs, {@code ref_name} "Uses the default branch if not given"
+     * and the {@code order} is reverse chronological unless {@code topo} is asked for. Every commit is loaded with
+     * {@code GET /projects/{id}/repository/commits/{sha}}, which includes the commit statistics by default, so the
+     * filter's {@code with_stats} changes only what GitLab lists, not the commits returned.
+     *
+     * @param filter the query parameters of the core
+     * @return the commits
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Commit> commits(final GitLabProjectCommitsListFilter filter) throws IOException {
+        return sdk.gitLab().commits().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> Lookups.find(() -> commit(requireNonNull(listed.id(), "id"))))
+                .flatMap(Optional::stream);
+    }
+
+    /**
+     * Starts a commit of several file changes to a branch. Nothing is sent until {@link CommitDraft#send()}.
+     *
+     * @param branch the branch to commit to
+     * @param message the commit message
+     * @return the draft, with no change yet
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     */
+    public CommitDraft createCommit(final String branch, final String message) {
+        return new CommitDraft(this, branch, message);
     }
 
     /**

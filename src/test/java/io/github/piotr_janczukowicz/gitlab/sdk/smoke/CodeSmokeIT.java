@@ -3,9 +3,14 @@ package io.github.piotr_janczukowicz.gitlab.sdk.smoke;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabProjectCommitsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabProjectCommitsCreateState;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabProjectCommitsListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.CommitComment;
+import io.github.piotr_janczukowicz.gitlab.sdk.code.CommitStatus;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.RepositoryFile;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.BlameRange;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.Comparison;
@@ -104,6 +109,74 @@ class CodeSmokeIT {
 
         assertThat(first).isPresent();
         assertThat(loaded).map(Commit::sha).isEqualTo(first.map(Commit::sha));
+    }
+
+    @Test
+    void commit_shouldCreateStatusAndComment_whenAMultiFileCommitIsMadeOnABranch() throws IOException {
+        final Project project = ENV.sandbox();
+        final String defaultBranch = project.fetch().orElseThrow().response().defaultBranch();
+        final String branchName = ENV.name("commit");
+        final String textPath = ENV.name("commit-text") + ".txt";
+        final String binaryPath = ENV.name("commit-bin") + ".bin";
+        final String movedPath = ENV.name("commit-moved") + ".txt";
+        final byte[] binary = {0, -1, 10, 13, 127};
+        project.createBranch(branchName, defaultBranch);
+        SmokeCleanup.run(
+                () -> {
+                    final Commit created = project.createCommit(branchName, "smoke: multi-file commit")
+                            .create(textPath, NON_ASCII)
+                            .create(binaryPath, binary)
+                            .send();
+                    final Commit changed = project.createCommit(branchName, "smoke: change files")
+                            .update(textPath, NON_ASCII + " 2")
+                            .move(textPath, movedPath)
+                            .delete(binaryPath)
+                            .send();
+                    final Optional<RepositoryFile> moved = project.file(movedPath, branchName);
+                    final Optional<RepositoryFile> deleted = project.file(binaryPath, branchName);
+                    final CommitComment comment = created.comment("smoke: comment");
+                    final List<CommitComment> comments = created.comments().toList();
+                    final List<Commit> listed = project.commits(GitLabProjectCommitsListFilterBuilder.builder()
+                                    .refName(branchName)
+                                    .build())
+                            .toList();
+
+                    assertSoftly(softly -> {
+                        softly.assertThat(created.sha()).isNotBlank();
+                        softly.assertThat(changed.sha()).isNotEqualTo(created.sha());
+                        softly.assertThat(moved).map(RepositoryFile::text).contains(NON_ASCII + " 2");
+                        softly.assertThat(deleted).isEmpty();
+                        softly.assertThat(comment.body()).contains("smoke: comment");
+                        softly.assertThat(comments)
+                                .extracting(each -> each.body().orElse(""))
+                                .contains("smoke: comment");
+                        softly.assertThat(listed).extracting(Commit::sha).contains(created.sha(), changed.sha());
+                    });
+
+                    final String statusName = ENV.name("status");
+                    final CommitStatus status = SmokeSkips.probe(
+                            "commit statuses",
+                            () -> changed.addStatus(GitLabProjectCommitsCreatePayloadBuilder.builder()
+                                    .state(GitLabProjectCommitsCreateState.SUCCESS)
+                                    .name(statusName)
+                                    .ref(branchName)
+                                    .build()));
+                    final List<CommitStatus> statuses =
+                            changed.statuses(branchName, statusName, true).toList();
+
+                    assertSoftly(softly -> {
+                        softly.assertThat(status.status()).contains("success");
+                        softly.assertThat(statuses)
+                                .extracting(each -> each.name().orElse(""))
+                                .contains(statusName);
+                    });
+                },
+                () -> {
+                    final Optional<Branch> branch = project.branch(branchName);
+                    if (branch.isPresent()) {
+                        branch.get().delete();
+                    }
+                });
     }
 
     @Test

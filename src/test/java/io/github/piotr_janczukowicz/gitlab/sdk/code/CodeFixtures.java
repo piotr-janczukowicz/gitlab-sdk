@@ -2,12 +2,24 @@ package io.github.piotr_janczukowicz.gitlab.sdk.code;
 
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabBranch;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabBranchBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabBasicRef;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabBasicRefBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabCommitNote;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabCommitNoteBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabCommitSignature;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabCommitSignatureBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabCommitStatus;
+import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabCommitStatusBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommit;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitDetail;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommitDetailBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDiff;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDiffBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasic;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasicBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepositoryFilesCreateResponse;
 import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepositoryFilesCreateResponseBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepositoryFilesGetResponse;
@@ -85,5 +97,45 @@ final class CodeFixtures {
 
     static GitLabDiff diff(final String path) {
         return GitLabDiffBuilder.builder().newPath(path).oldPath(path).build();
+    }
+
+    static GitLabCommitStatus commitStatus(final long id, final String status, final String name) {
+        return GitLabCommitStatusBuilder.builder()
+                .id(id)
+                .status(status)
+                .name(name)
+                .ref("main")
+                .description("described")
+                .targetUrl("https://ci.example/1")
+                .build();
+    }
+
+    static GitLabCommitNote commitNote(final String note, final String path, final Integer line, final String type) {
+        return GitLabCommitNoteBuilder.builder()
+                .note(note)
+                .path(path)
+                .line(line)
+                .lineType(type)
+                .build();
+    }
+
+    static GitLabBasicRef ref(final String type, final String name) {
+        return GitLabBasicRefBuilder.builder().type(type).name(name).build();
+    }
+
+    static GitLabCommitSignature signature(final String type) {
+        return GitLabCommitSignatureBuilder.builder().signatureType(type).build();
+    }
+
+    static GitLabMergeRequestBasic basicMergeRequest(final long iid) {
+        return GitLabMergeRequestBasicBuilder.builder().iid(iid).title("t").build();
+    }
+
+    static GitLabMergeRequest mergeRequest(final long iid) {
+        return GitLabMergeRequestBuilder.builder()
+                .iid(iid)
+                .title("t")
+                .state("opened")
+                .build();
     }
 }
