@@ -18,16 +18,16 @@
   <url>https://github.com/piotr-janczukowicz/gitlab-sdk</url>
 
   <properties>
-    <gitlab-rest-client.version>19.6.0-SNAPSHOT</gitlab-rest-client.version>
-    <common-core.version>6</common-core.version>
+    <gitlab-api-internal.version>19.6.0-SNAPSHOT</gitlab-api-internal.version>
+    <common-core.version>8</common-core.version>
     <skipITs>true</skipITs>
   </properties>
 
   <dependencies>
     <dependency>
       <groupId>io.github.piotr-janczukowicz</groupId>
-      <artifactId>gitlab-rest-client</artifactId>
-      <version>${gitlab-rest-client.version}</version>
+      <artifactId>gitlab-api-internal</artifactId>
+      <version>${gitlab-api-internal.version}</version>
       <scope>compile</scope>
     </dependency>
     <dependency>
