@@ -16,13 +16,18 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasic;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasicBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssueBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabGroupMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.util.List;
@@ -239,6 +244,99 @@ class GroupTest {
         final Throwable thrown = catchThrowable(issues::toList);
 
         assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("projectId");
+    }
+
+    @Test
+    void mergeRequests_shouldLoadEachMergeRequestThroughItsProject_andSkipOneThatIsGone() throws IOException {
+        when(gitLab.mergerequests().group().list(eq(ID), any(GitLabGroupMergeRequestsListFilter.class)).stream())
+                .thenReturn(
+                        Stream.of(listedMergeRequest(1L, 5L), listedMergeRequest(2L, 5L), listedMergeRequest(3L, 6L)));
+        when(gitLab.mergerequests().project().get("5", 1L))
+                .thenReturn(
+                        Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
+        when(gitLab.mergerequests().project().get("5", 2L)).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get("6", 3L))
+                .thenReturn(
+                        Optional.of(GitLabMergeRequestBuilder.builder().iid(3L).build()));
+
+        final List<MergeRequest> result = sut.mergeRequests().toList();
+
+        assertSoftly(softly -> {
+            softly.assertThat(result).extracting(MergeRequest::iid).containsExactly(1L, 3L);
+            softly.assertThat(result).extracting(found -> found.project().id()).containsExactly("5", "6");
+        });
+    }
+
+    @Test
+    void mergeRequests_shouldPassFilter_whenFilterIsGiven() throws IOException {
+        final GitLabGroupMergeRequestsListFilter filter = GitLabGroupMergeRequestsListFilter.empty();
+        when(gitLab.mergerequests().group().list(ID, filter).stream())
+                .thenReturn(Stream.of(listedMergeRequest(1L, 5L)));
+        when(gitLab.mergerequests().project().get("5", 1L))
+                .thenReturn(
+                        Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
+
+        final List<MergeRequest> result = sut.mergeRequests(filter).toList();
+
+        assertThat(result).hasSize(1);
+    }
+
+    @Test
+    void mergeRequests_shouldBeLazy_whenOnlyOneIsTaken() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.mergerequests().group().list(eq(ID), any(GitLabGroupMergeRequestsListFilter.class)).stream())
+                .thenReturn(Stream.of(1L, 2L, 3L).map(iid -> {
+                    consumed.incrementAndGet();
+                    return listedMergeRequest(iid, 5L);
+                }));
+        when(gitLab.mergerequests().project().get("5", 1L))
+                .thenReturn(
+                        Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
+
+        final Stream<MergeRequest> result = sut.mergeRequests();
+
+        assertThat(consumed).hasValue(0);
+        assertThat(result.limit(1).toList()).hasSize(1);
+        assertThat(consumed).hasValue(1);
+    }
+
+    @Test
+    void mergeRequests_shouldThrowNullPointerException_whenFilterIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.mergeRequests(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("filter");
+    }
+
+    @Test
+    void mergeRequests_shouldThrowNullPointerException_whenListedMergeRequestNamesNoProject() throws IOException {
+        when(gitLab.mergerequests().group().list(eq(ID), any(GitLabGroupMergeRequestsListFilter.class)).stream())
+                .thenReturn(Stream.of(
+                        GitLabMergeRequestBasicBuilder.builder().iid(1L).build()));
+        final Stream<MergeRequest> result = sut.mergeRequests();
+
+        final Throwable thrown = catchThrowable(result::toList);
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("projectId");
+    }
+
+    @Test
+    void mergeRequests_shouldThrowNullPointerException_whenListedMergeRequestHasNoIid() throws IOException {
+        when(gitLab.mergerequests().group().list(eq(ID), any(GitLabGroupMergeRequestsListFilter.class)).stream())
+                .thenReturn(Stream.of(
+                        GitLabMergeRequestBasicBuilder.builder().projectId(5L).build()));
+        final Stream<MergeRequest> result = sut.mergeRequests();
+
+        final Throwable thrown = catchThrowable(result::toList);
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("iid");
+    }
+
+    private static GitLabMergeRequestBasic listedMergeRequest(final long iid, final long projectId) {
+        return GitLabMergeRequestBasicBuilder.builder()
+                .iid(iid)
+                .projectId(projectId)
+                .title("t")
+                .build();
     }
 
     @Test

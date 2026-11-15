@@ -75,6 +75,71 @@ class MergeRequestUpdateTest {
     }
 
     @Test
+    void send_shouldSendPeopleAndMilestone_whenSet() throws IOException {
+        when(gitLab.mergerequests()
+                        .project()
+                        .update(eq(ID), eq(IID), any(GitLabProjectMergeRequestsUpdatePayload.class)))
+                .thenReturn(mergeRequest(IID, "Old", "opened"));
+
+        mergeRequest
+                .update()
+                .assignees(List.of(1L, 2L))
+                .reviewers(List.of(3L))
+                .milestone(9L)
+                .send();
+
+        final ArgumentCaptor<GitLabProjectMergeRequestsUpdatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestsUpdatePayload.class);
+        verify(gitLab.mergerequests().project()).update(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().assigneeIds()).containsExactly(1L, 2L);
+            softly.assertThat(payload.getValue().reviewerIds()).containsExactly(3L);
+            softly.assertThat(payload.getValue().milestoneId()).isEqualTo(9L);
+            softly.assertThat(payload.getValue().title()).isNull();
+        });
+    }
+
+    @Test
+    void send_shouldSendTheSwitches_whenSet() throws IOException {
+        when(gitLab.mergerequests()
+                        .project()
+                        .update(eq(ID), eq(IID), any(GitLabProjectMergeRequestsUpdatePayload.class)))
+                .thenReturn(mergeRequest(IID, "Old", "opened"));
+
+        mergeRequest
+                .update()
+                .squash(true)
+                .removeSourceBranch(true)
+                .discussionLocked(true)
+                .allowCollaboration(false)
+                .send();
+
+        final ArgumentCaptor<GitLabProjectMergeRequestsUpdatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestsUpdatePayload.class);
+        verify(gitLab.mergerequests().project()).update(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().squash()).isTrue();
+            softly.assertThat(payload.getValue().removeSourceBranch()).isTrue();
+            softly.assertThat(payload.getValue().discussionLocked()).isTrue();
+            softly.assertThat(payload.getValue().allowCollaboration()).isFalse();
+        });
+    }
+
+    @Test
+    void assigneesAndReviewers_shouldThrowNullPointerException_whenListIsNull() {
+        final MergeRequestUpdate update = mergeRequest.update();
+
+        assertSoftly(softly -> {
+            softly.assertThat(catchThrowable(() -> update.assignees(null)))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("userIds");
+            softly.assertThat(catchThrowable(() -> update.reviewers(null)))
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("userIds");
+        });
+    }
+
+    @Test
     void send_shouldThrowIllegalStateException_whenNothingSet() {
         final GitLab untouched = mock(GitLab.class);
         final MergeRequest other =

@@ -1,0 +1,127 @@
+package io.github.piotr_janczukowicz.gitlab.sdk.approvals;
+
+import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
+import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
+
+import io.github.piotr_janczukowicz.gitlab.api.mergerequestapprovals.GitLabProjectMergeRequestApprovalsUpdateMergeRequestsApprovalRulePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Arguments;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.UpdateState;
+import java.io.IOException;
+import java.util.List;
+
+/**
+ * Collects changes to a {@link MergeRequestApprovalRule} and sends them in one request. Only the fields that were set
+ * are sent, and nothing is sent until {@link #send()}.
+ */
+public final class MergeRequestApprovalRuleUpdate {
+
+    private final MergeRequestApprovalRule rule;
+    private final GitLabProjectMergeRequestApprovalsUpdateMergeRequestsApprovalRulePayloadBuilder payload =
+            GitLabProjectMergeRequestApprovalsUpdateMergeRequestsApprovalRulePayloadBuilder.builder();
+    private final UpdateState state = new UpdateState();
+
+    /**
+     * Starts a change of one object. Applications normally get it from the {@code update()} method of that object.
+     * Nothing is sent until {@code send()}.
+     *
+     * @param rule the rule to change
+     * @throws NullPointerException if {@code rule} is {@code null}
+     */
+    public MergeRequestApprovalRuleUpdate(final MergeRequestApprovalRule rule) {
+        this.rule = requireNonNull(rule, "rule");
+    }
+
+    /**
+     * Sets the name.
+     *
+     * @param name the new name
+     * @return this update
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     */
+    public MergeRequestApprovalRuleUpdate name(final String name) {
+        payload.name(requireNotBlank(name, "name"));
+        return changed();
+    }
+
+    /**
+     * Sets the number of approvals the rule needs.
+     *
+     * @param approvalsRequired the number required
+     * @return this update
+     * @throws IllegalArgumentException if {@code approvalsRequired} is negative
+     */
+    public MergeRequestApprovalRuleUpdate approvalsRequired(final int approvalsRequired) {
+        if (approvalsRequired < 0) {
+            throw new IllegalArgumentException("approvalsRequired must not be negative");
+        }
+        payload.approvalsRequired(approvalsRequired);
+        return changed();
+    }
+
+    /**
+     * Replaces the users who can approve. An empty list removes them all.
+     *
+     * @param userIds the numeric user ids
+     * @return this update
+     * @throws NullPointerException if {@code userIds} or an id is {@code null}
+     */
+    public MergeRequestApprovalRuleUpdate users(final List<Long> userIds) {
+        payload.userIds(List.copyOf(requireNonNull(userIds, "userIds")));
+        return changed();
+    }
+
+    /**
+     * Replaces the groups whose members can approve. An empty list removes them all.
+     *
+     * @param groupIds the numeric group ids
+     * @return this update
+     * @throws NullPointerException if {@code groupIds} or an id is {@code null}
+     */
+    public MergeRequestApprovalRuleUpdate groups(final List<Long> groupIds) {
+        payload.groupIds(List.copyOf(requireNonNull(groupIds, "groupIds")));
+        return changed();
+    }
+
+    /**
+     * Replaces the users who can approve, by user name. An empty list removes them all.
+     *
+     * @param usernames the user names
+     * @return this update
+     * @throws NullPointerException if {@code usernames} or a name is {@code null}
+     * @throws IllegalArgumentException if a name is blank
+     */
+    public MergeRequestApprovalRuleUpdate usernames(final List<String> usernames) {
+        payload.usernames(Arguments.requireNotBlankElements(usernames, "usernames"));
+        return changed();
+    }
+
+    /**
+     * Sets whether groups the caller cannot see are removed from the rule.
+     *
+     * @param removeHiddenGroups {@code true} to remove hidden groups
+     * @return this update
+     */
+    public MergeRequestApprovalRuleUpdate removeHiddenGroups(final boolean removeHiddenGroups) {
+        payload.removeHiddenGroups(removeHiddenGroups);
+        return changed();
+    }
+
+    /**
+     * Sends the changes ({@code PUT /projects/{id}/merge_requests/{merge_request_iid}/approval_rules/{rule_id}}). The
+     * rule this update was made from is not changed.
+     *
+     * @return the rule as GitLab returned it after the update
+     * @throws IllegalStateException if nothing was set
+     * @throws IOException if the transport fails
+     */
+    public MergeRequestApprovalRule send() throws IOException {
+        state.requireChange();
+        return rule.apply(payload.build());
+    }
+
+    private MergeRequestApprovalRuleUpdate changed() {
+        state.mark();
+        return this;
+    }
+}

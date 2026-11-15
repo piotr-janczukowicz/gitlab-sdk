@@ -4,13 +4,17 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserPublic;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabInstanceIssuesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabInstanceMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabCaller;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.snippets.PersonalSnippets;
 import java.io.IOException;
@@ -187,6 +191,33 @@ public final class GitLabSdk {
     }
 
     /**
+     * Lists the merge requests on the instance that GitLab shows to the caller ({@code GET /merge_requests}). Without a
+     * filter GitLab lists only the merge requests the account created. GitLab lists a summary of each merge request, so
+     * each one is loaded ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}) through the project GitLab
+     * names for it as the stream reaches it, and one that is gone by then is skipped. Pages are fetched only as the
+     * stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the merge requests
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<MergeRequest> mergeRequests() throws IOException {
+        return mergeRequests(GitLabInstanceMergeRequestsListFilter.empty());
+    }
+
+    /**
+     * Lists the merge requests on the instance that match a filter ({@code GET /merge_requests}). Each one is loaded as
+     * the stream reaches it, and one that is gone by then is skipped, as for {@link #mergeRequests()}.
+     *
+     * @param filter the query parameters of the core
+     * @return the merge requests
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<MergeRequest> mergeRequests(final GitLabInstanceMergeRequestsListFilter filter) throws IOException {
+        return loadMergeRequests(gitlab.mergerequests().instance().list(requireNonNull(filter, "filter")).stream());
+    }
+
+    /**
      * Asks GitLab for the id of the account the client signs in as ({@code GET /user}).
      *
      * @return the id
@@ -206,6 +237,20 @@ public final class GitLabSdk {
      */
     Issue issueOf(final GitLabIssue listed) {
         return new Issue(project(String.valueOf(requireNonNull(listed.projectId(), "projectId"))), listed);
+    }
+
+    /**
+     * Loads each merge request a list summarized, through the project GitLab names for it, and skips one that is gone
+     * by the time the stream reaches it.
+     *
+     * @param listed the summaries as a list returned them
+     * @return the merge requests
+     */
+    Stream<MergeRequest> loadMergeRequests(final Stream<GitLabMergeRequestBasic> listed) {
+        return listed.map(summary ->
+                        Lookups.find(() -> project(String.valueOf(requireNonNull(summary.projectId(), "projectId")))
+                                .mergeRequest(requireNonNull(summary.iid(), "iid"))))
+                .flatMap(Optional::stream);
     }
 
     /**

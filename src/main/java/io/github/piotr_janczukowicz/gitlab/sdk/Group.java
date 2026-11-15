@@ -32,6 +32,7 @@ import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWeb
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabGroupMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditEvents;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployTokenScope;
@@ -44,6 +45,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.milestones.GroupMilestone;
 import io.github.piotr_janczukowicz.gitlab.sdk.packages.ProjectPackage;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.GroupProtectedBranch;
@@ -828,6 +830,35 @@ public final class Group {
     public Stream<Issue> issues(final GitLabGroupIssuesListFilter filter) throws IOException {
         return sdk.gitLab().issues().group().list(id, requireNonNull(filter, FILTER)).stream()
                 .map(sdk::issueOf);
+    }
+
+    /**
+     * Lists the merge requests of the group and its subgroups ({@code GET /groups/{id}/merge_requests}). GitLab lists a
+     * summary of each merge request, so each one is loaded ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}}) through the project GitLab names for it as the stream reaches
+     * it, and one that is gone by then is skipped. Pages are fetched only as the stream is consumed; transport failures
+     * during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the merge requests
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<MergeRequest> mergeRequests() throws IOException {
+        return mergeRequests(GitLabGroupMergeRequestsListFilter.empty());
+    }
+
+    /**
+     * Lists the merge requests of the group and its subgroups that match a filter ({@code GET
+     * /groups/{id}/merge_requests}). Each one is loaded as the stream reaches it, and one that is gone by then is
+     * skipped, as for {@link #mergeRequests()}.
+     *
+     * @param filter the query parameters of the core
+     * @return the merge requests
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<MergeRequest> mergeRequests(final GitLabGroupMergeRequestsListFilter filter) throws IOException {
+        return sdk.loadMergeRequests(
+                sdk.gitLab().mergerequests().group().list(id, requireNonNull(filter, FILTER)).stream());
     }
 
     private GroupMember createMember(

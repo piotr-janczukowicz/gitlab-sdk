@@ -30,6 +30,7 @@ import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateIss
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateIssuesNotesPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.discussions.IssueDiscussion;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Arguments;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
@@ -294,7 +295,7 @@ public final class Issue {
      */
     public TimeStats estimateTime(final Duration estimate) throws IOException {
         final GitLabProjectIssuesTimeEstimatePayload payload = GitLabProjectIssuesTimeEstimatePayloadBuilder.builder()
-                .duration(seconds(estimate, "estimate"))
+                .duration(Arguments.seconds(estimate, "estimate"))
                 .build();
         return new TimeStats(gitLab().issues().project().timeEstimate(project.id(), iid(), payload));
     }
@@ -321,7 +322,7 @@ public final class Issue {
      */
     public TimeStats addSpentTime(final Duration spent) throws IOException {
         final GitLabProjectIssuesAddSpentTimePayload payload = GitLabProjectIssuesAddSpentTimePayloadBuilder.builder()
-                .duration(seconds(spent, "spent"))
+                .duration(Arguments.seconds(spent, "spent"))
                 .build();
         return new TimeStats(gitLab().issues().project().addSpentTime(project.id(), iid(), payload));
     }
@@ -513,14 +514,6 @@ public final class Issue {
             return project;
         }
         return Internals.sdk(project).project(String.valueOf(listedIn));
-    }
-
-    private static String seconds(final Duration duration, final String name) {
-        final long seconds = requireNonNull(duration, name).toSeconds();
-        if (seconds < 0) {
-            throw new IllegalArgumentException(name + " must not be negative");
-        }
-        return seconds + "s";
     }
 
     private GitLab gitLab() {

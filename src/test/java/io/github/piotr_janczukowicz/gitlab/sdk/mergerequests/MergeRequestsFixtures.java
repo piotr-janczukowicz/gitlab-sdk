@@ -1,5 +1,7 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.mergerequests;
 
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabIssuableTimeStats;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabIssuableTimeStatsBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestApprovals;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestApprovalsBuilder;
@@ -28,6 +30,21 @@ final class MergeRequestsFixtures {
 
     static GitLabMergeRequestBasic basic(final long iid) {
         return GitLabMergeRequestBasicBuilder.builder().iid(iid).title("t").build();
+    }
+
+    static GitLabMergeRequestBasic basic(final long iid, final long projectId) {
+        return GitLabMergeRequestBasicBuilder.builder()
+                .iid(iid)
+                .projectId(projectId)
+                .title("t")
+                .build();
+    }
+
+    static GitLabIssuableTimeStats timeStats(final int estimate, final int spent) {
+        return GitLabIssuableTimeStatsBuilder.builder()
+                .timeEstimate(estimate)
+                .totalTimeSpent(spent)
+                .build();
     }
 
     static GitLabMergeRequestApprovals approvals(final boolean approved, final int left) {

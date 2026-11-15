@@ -3,14 +3,19 @@ package io.github.piotr_janczukowicz.gitlab.sdk.smoke;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDiff;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasic;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
+import io.github.piotr_janczukowicz.gitlab.sdk.issues.TimeStats;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.DiffVersion;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.DraftNote;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequestNote;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequestState;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeAll;
@@ -87,6 +92,67 @@ class MergeRequestsSmokeIT {
                                     softly.assertThat(drafts)
                                             .extracting(DraftNote::id)
                                             .contains(draft.id());
+                                });
+                            },
+                            merge::delete);
+                },
+                () -> {
+                    final Optional<Branch> branch = project.branch(source);
+                    if (branch.isPresent()) {
+                        branch.get().delete();
+                    }
+                });
+    }
+
+    @Test
+    void mergeRequest_shouldReadDiffsTrackTimeAndRebase_whenItHasAChange() throws IOException {
+        final Project project = ENV.sandbox();
+        final String target = project.fetch().orElseThrow().response().defaultBranch();
+        final String source = ENV.name("mr-parity");
+        project.createBranch(source, target);
+        SmokeCleanup.run(
+                () -> {
+                    project.createFile(
+                            ENV.name("mr-parity") + ".txt", source, "smoke", "smoke: change for a merge request");
+                    final MergeRequest merge =
+                            project.createMergeRequest(GitLabProjectMergeRequestsCreatePayloadBuilder.builder()
+                                    .title(ENV.name("merge-request-parity"))
+                                    .sourceBranch(source)
+                                    .targetBranch(target)
+                                    .build());
+                    SmokeCleanup.run(
+                            () -> {
+                                final List<GitLabDiff> diffs = SmokeSkips.probe(
+                                        "merge request diffs",
+                                        () -> merge.diffs().limit(20).toList());
+                                final List<DiffVersion> versions = SmokeSkips.probe(
+                                        "merge request versions",
+                                        () -> merge.versions().limit(20).toList());
+                                final List<GitLabUserBasic> participants =
+                                        merge.participants().limit(20).toList();
+                                final TimeStats estimated = merge.estimateTime(Duration.ofHours(1));
+                                final TimeStats spent = merge.addSpentTime(Duration.ofMinutes(30));
+                                final Optional<TimeStats> loaded = merge.timeStats();
+                                final TimeStats spentReset = merge.resetSpentTime();
+                                final TimeStats estimateReset = merge.resetEstimate();
+                                final Optional<MergeRequest> rebased = SmokeSkips.probe("rebase", () -> {
+                                    merge.rebase();
+                                    return Optional.of(merge.refresh());
+                                });
+                                final List<MergeRequest> listed =
+                                        ENV.sdk().mergeRequests().limit(5).toList();
+
+                                assertSoftly(softly -> {
+                                    softly.assertThat(diffs).isNotEmpty();
+                                    softly.assertThat(versions).isNotEmpty();
+                                    softly.assertThat(participants).isNotNull();
+                                    softly.assertThat(estimated.estimate()).isEqualTo(Duration.ofHours(1));
+                                    softly.assertThat(spent.totalSpent()).isEqualTo(Duration.ofMinutes(30));
+                                    softly.assertThat(loaded).isPresent();
+                                    softly.assertThat(spentReset.totalSpent()).isEqualTo(Duration.ZERO);
+                                    softly.assertThat(estimateReset.estimate()).isEqualTo(Duration.ZERO);
+                                    softly.assertThat(rebased).isPresent();
+                                    softly.assertThat(listed).isNotNull();
                                 });
                             },
                             merge::delete);

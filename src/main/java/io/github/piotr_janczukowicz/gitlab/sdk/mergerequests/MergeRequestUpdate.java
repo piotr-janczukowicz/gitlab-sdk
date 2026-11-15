@@ -15,6 +15,8 @@ import java.util.List;
  */
 public final class MergeRequestUpdate {
 
+    private static final String USER_IDS = "userIds";
+
     private final MergeRequest mergeRequest;
     private final GitLabProjectMergeRequestsUpdatePayloadBuilder payload =
             GitLabProjectMergeRequestsUpdatePayloadBuilder.builder();
@@ -79,6 +81,85 @@ public final class MergeRequestUpdate {
      */
     public MergeRequestUpdate labels(final List<String> names) {
         payload.labels(Arguments.requireNotBlankElements(names, "names"));
+        return changed();
+    }
+
+    /**
+     * Replaces the assignees. An empty list removes all assignees.
+     *
+     * @param userIds the numeric user ids
+     * @return this update
+     * @throws NullPointerException if {@code userIds} or an id is {@code null}
+     */
+    public MergeRequestUpdate assignees(final List<Long> userIds) {
+        payload.assigneeIds(List.copyOf(requireNonNull(userIds, USER_IDS)));
+        return changed();
+    }
+
+    /**
+     * Replaces the reviewers. An empty list removes all reviewers.
+     *
+     * @param userIds the numeric user ids
+     * @return this update
+     * @throws NullPointerException if {@code userIds} or an id is {@code null}
+     */
+    public MergeRequestUpdate reviewers(final List<Long> userIds) {
+        payload.reviewerIds(List.copyOf(requireNonNull(userIds, USER_IDS)));
+        return changed();
+    }
+
+    /**
+     * Sets the milestone. The core offers no way to remove a milestone, so this SDK has none either.
+     *
+     * @param milestoneId the numeric id of the milestone
+     * @return this update
+     */
+    public MergeRequestUpdate milestone(final long milestoneId) {
+        payload.milestoneId(milestoneId);
+        return changed();
+    }
+
+    /**
+     * Sets whether the commits are squashed when the merge request merges.
+     *
+     * @param squash {@code true} to squash
+     * @return this update
+     */
+    public MergeRequestUpdate squash(final boolean squash) {
+        payload.squash(squash);
+        return changed();
+    }
+
+    /**
+     * Sets whether the source branch is removed when the merge request merges.
+     *
+     * @param removeSourceBranch {@code true} to remove the source branch
+     * @return this update
+     */
+    public MergeRequestUpdate removeSourceBranch(final boolean removeSourceBranch) {
+        payload.removeSourceBranch(removeSourceBranch);
+        return changed();
+    }
+
+    /**
+     * Locks or unlocks the discussion, so that only project members can comment while it is locked.
+     *
+     * @param discussionLocked {@code true} to lock the discussion
+     * @return this update
+     */
+    public MergeRequestUpdate discussionLocked(final boolean discussionLocked) {
+        payload.discussionLocked(discussionLocked);
+        return changed();
+    }
+
+    /**
+     * Sets whether members of the target project can push to the source branch.
+     *
+     * @param allowCollaboration {@code true} to allow it
+     * @return this update
+     */
+    public MergeRequestUpdate allowCollaboration(final boolean allowCollaboration) {
+        payload.allowCollaboration(allowCollaboration);
         return changed();
     }
 
