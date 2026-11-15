@@ -11,6 +11,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 
 /**
@@ -166,7 +167,7 @@ public final class RemoteMirror {
                 ? List.of()
                 : keys.stream()
                         .map(GitLabMirrorHostKey::fingerprintSha256)
-                        .filter(java.util.Objects::nonNull)
+                        .filter(Objects::nonNull)
                         .toList();
     }
 

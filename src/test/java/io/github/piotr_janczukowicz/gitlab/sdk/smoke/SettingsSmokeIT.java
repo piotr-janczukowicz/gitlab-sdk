@@ -55,7 +55,7 @@ class SettingsSmokeIT {
         final List<Badge> badges = project.badges().limit(LIMIT).toList();
         final GitLabBasicBadgeDetails preview =
                 project.previewBadge("https://example.test/%{project_path}", "https://example.test/badge.svg");
-        final Optional<Badge> missing = project.badge(Long.MAX_VALUE);
+        final Optional<Badge> missing = SmokeSkips.probe("project badges", () -> project.badge(Long.MAX_VALUE));
 
         assertSoftly(softly -> {
             softly.assertThat(badges).allSatisfy(badge -> {
@@ -88,7 +88,8 @@ class SettingsSmokeIT {
         final List<AccessToken> tokens = SmokeSkips.probe(
                 "project access tokens",
                 () -> project.accessTokens().limit(LIMIT).toList());
-        final Optional<AccessToken> missing = project.accessToken(Long.MAX_VALUE);
+        final Optional<AccessToken> missing =
+                SmokeSkips.probe("project access tokens", () -> project.accessToken(Long.MAX_VALUE));
 
         assertSoftly(softly -> {
             softly.assertThat(tokens).allSatisfy(token -> {

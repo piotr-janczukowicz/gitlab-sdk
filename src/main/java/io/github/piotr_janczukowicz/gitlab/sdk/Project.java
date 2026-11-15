@@ -66,7 +66,6 @@ import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectPr
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projectpushrules.GitLabProjectProjectPushRulesCreatePayload;
-import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsCreateApprovalRulePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsCreateApprovalRulePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingPayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingTask;
@@ -117,6 +116,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployTokenScope;
 import io.github.piotr_janczukowicz.gitlab.sdk.environments.Deployment;
 import io.github.piotr_janczukowicz.gitlab.sdk.environments.DeploymentStatus;
 import io.github.piotr_janczukowicz.gitlab.sdk.environments.Environment;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Arguments;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
@@ -2587,10 +2587,10 @@ public final class Project {
     }
 
     /**
-     * Creates an approval rule ({@code POST /projects/{id}/approval_rules}). The rule has no approvers yet; use
-     * {@link ProjectApprovalRule#update()} or
-     * {@link #createApprovalRule(GitLabProjectProjectsCreateApprovalRulePayload)} to name them. No rule type is sent,
-     * because GitLab's API description says not to use it. Premium, as above.
+     * Creates an approval rule that has no approvers yet ({@code POST /projects/{id}/approval_rules}). Name the
+     * approvers with {@link #createApprovalRule(String, int, List, List, List)} or later with
+     * {@link ProjectApprovalRule#update()}. No rule type is sent, because GitLab's API description says not to use it.
+     * Premium, as above.
      *
      * @param name the rule name
      * @param approvalsRequired the number of approvals the rule needs
@@ -2600,30 +2600,49 @@ public final class Project {
      * @throws IOException if the transport fails
      */
     public ProjectApprovalRule createApprovalRule(final String name, final int approvalsRequired) throws IOException {
-        if (approvalsRequired < 0) {
-            throw new IllegalArgumentException("approvalsRequired must not be negative");
-        }
-        return createApprovalRule(GitLabProjectProjectsCreateApprovalRulePayloadBuilder.builder()
-                .name(requireNotBlank(name, NAME))
-                .approvalsRequired(approvalsRequired)
-                .build());
+        return createApprovalRule(name, approvalsRequired, List.of(), List.of(), List.of());
     }
 
     /**
-     * Creates an approval rule from the core's payload, which also carries the approvers, the protected branches and
-     * the report fields ({@code POST /projects/{id}/approval_rules}). The payload record also has {@code users} and
-     * {@code groups}, which GitLab's API description marks as deprecated; use {@code userIds} and {@code groupIds}.
-     * Premium, as above.
+     * Creates an approval rule with its approvers ({@code POST /projects/{id}/approval_rules}). An empty list sends
+     * nothing for that field. Only the current approver fields are offered: the core's payload also has {@code users}
+     * and {@code groups}, which GitLab's API description marks as deprecated. No rule type is sent. Premium, as above.
      *
-     * @param payload the core payload
+     * @param name the rule name
+     * @param approvalsRequired the number of approvals the rule needs
+     * @param userIds the numeric ids of the approving users
+     * @param groupIds the numeric ids of the groups whose members approve
+     * @param usernames the user names of the approvers
      * @return the created rule
-     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws NullPointerException if an argument, an id or a name is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank, {@code approvalsRequired} is negative or a user name
+     *     is blank
      * @throws IOException if the transport fails
      */
-    public ProjectApprovalRule createApprovalRule(final GitLabProjectProjectsCreateApprovalRulePayload payload)
+    public ProjectApprovalRule createApprovalRule(
+            final String name,
+            final int approvalsRequired,
+            final List<Long> userIds,
+            final List<Long> groupIds,
+            final List<String> usernames)
             throws IOException {
-        final GitLabProjectProjectsCreateApprovalRulePayload checked = requireNonNull(payload, PAYLOAD);
-        return new ProjectApprovalRule(this, sdk.gitLab().projects().project().createApprovalRule(id, checked));
+        if (approvalsRequired < 0) {
+            throw new IllegalArgumentException("approvalsRequired must not be negative");
+        }
+        final GitLabProjectProjectsCreateApprovalRulePayloadBuilder builder =
+                GitLabProjectProjectsCreateApprovalRulePayloadBuilder.builder()
+                        .name(requireNotBlank(name, NAME))
+                        .approvalsRequired(approvalsRequired);
+        if (!requireNonNull(userIds, "userIds").isEmpty()) {
+            builder.userIds(List.copyOf(userIds));
+        }
+        if (!requireNonNull(groupIds, "groupIds").isEmpty()) {
+            builder.groupIds(List.copyOf(groupIds));
+        }
+        if (!requireNonNull(usernames, "usernames").isEmpty()) {
+            builder.usernames(Arguments.requireNotBlankElements(usernames, "usernames"));
+        }
+        return new ProjectApprovalRule(this, sdk.gitLab().projects().project().createApprovalRule(id, builder.build()));
     }
 
     /**

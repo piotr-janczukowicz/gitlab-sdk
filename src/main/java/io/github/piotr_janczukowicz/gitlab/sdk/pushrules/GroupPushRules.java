@@ -126,7 +126,7 @@ public final class GroupPushRules {
     }
 
     /**
-     * Tells whether the author of a commit must be a member of the project.
+     * Tells whether the author of a commit must be a member of the group.
      *
      * @return {@code true} when the response says so
      */

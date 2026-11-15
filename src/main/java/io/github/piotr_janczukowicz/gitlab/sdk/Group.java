@@ -29,7 +29,6 @@ import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupM
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.grouppushrules.GitLabGroupGroupPushRulesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
-import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsCreateApprovalRulePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsCreateApprovalRulePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListPackagesFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListRunnersFilter;
@@ -93,6 +92,7 @@ import java.io.OutputStream;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -1122,9 +1122,9 @@ public final class Group {
     }
 
     /**
-     * Creates an approval rule ({@code POST /groups/{id}/approval_rules}). The rule has no approvers yet; use
-     * {@link GroupApprovalRule#update()} or {@link #createApprovalRule(GitLabGroupGroupsCreateApprovalRulePayload)} to
-     * name them. No rule type is sent, because GitLab's API description says not to use it. Premium, as above.
+     * Creates an approval rule that has no approvers yet ({@code POST /groups/{id}/approval_rules}). Name the approvers
+     * with {@link #createApprovalRule(String, int, List, List)} or later with {@link GroupApprovalRule#update()}. No
+     * rule type is sent, because GitLab's API description says not to use it. Premium, as above.
      *
      * @param name the rule name
      * @param approvalsRequired the number of approvals the rule needs
@@ -1134,28 +1134,40 @@ public final class Group {
      * @throws IOException if the transport fails
      */
     public GroupApprovalRule createApprovalRule(final String name, final int approvalsRequired) throws IOException {
-        if (approvalsRequired < 0) {
-            throw new IllegalArgumentException("approvalsRequired must not be negative");
-        }
-        return createApprovalRule(GitLabGroupGroupsCreateApprovalRulePayloadBuilder.builder()
-                .name(requireNotBlank(name, NAME))
-                .approvalsRequired(approvalsRequired)
-                .build());
+        return createApprovalRule(name, approvalsRequired, List.of(), List.of());
     }
 
     /**
-     * Creates an approval rule from the core's payload, which also carries the approving users and groups ({@code POST
-     * /groups/{id}/approval_rules}). Premium, as above.
+     * Creates an approval rule with its approvers ({@code POST /groups/{id}/approval_rules}). An empty list sends
+     * nothing for that field. Only the current approver fields are offered: the core's payload also has {@code users}
+     * and {@code groups}, which GitLab's API description marks as deprecated. No rule type is sent. Premium, as above.
      *
-     * @param payload the core payload
+     * @param name the rule name
+     * @param approvalsRequired the number of approvals the rule needs
+     * @param userIds the numeric ids of the approving users
+     * @param groupIds the numeric ids of the groups whose members approve
      * @return the created rule
-     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws NullPointerException if an argument, an id is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank, {@code approvalsRequired} is negative
      * @throws IOException if the transport fails
      */
-    public GroupApprovalRule createApprovalRule(final GitLabGroupGroupsCreateApprovalRulePayload payload)
+    public GroupApprovalRule createApprovalRule(
+            final String name, final int approvalsRequired, final List<Long> userIds, final List<Long> groupIds)
             throws IOException {
-        final GitLabGroupGroupsCreateApprovalRulePayload checked = requireNonNull(payload, PAYLOAD);
-        return new GroupApprovalRule(this, sdk.gitLab().groups().createApprovalRule(id, checked));
+        if (approvalsRequired < 0) {
+            throw new IllegalArgumentException("approvalsRequired must not be negative");
+        }
+        final GitLabGroupGroupsCreateApprovalRulePayloadBuilder builder =
+                GitLabGroupGroupsCreateApprovalRulePayloadBuilder.builder()
+                        .name(requireNotBlank(name, NAME))
+                        .approvalsRequired(approvalsRequired);
+        if (!requireNonNull(userIds, "userIds").isEmpty()) {
+            builder.userIds(List.copyOf(userIds));
+        }
+        if (!requireNonNull(groupIds, "groupIds").isEmpty()) {
+            builder.groupIds(List.copyOf(groupIds));
+        }
+        return new GroupApprovalRule(this, sdk.gitLab().groups().createApprovalRule(id, builder.build()));
     }
 
     /**

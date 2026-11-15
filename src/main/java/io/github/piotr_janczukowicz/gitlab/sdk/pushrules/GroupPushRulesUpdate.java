@@ -121,7 +121,7 @@ public final class GroupPushRulesUpdate {
     }
 
     /**
-     * Sets whether the author of a commit must be a member of the project.
+     * Sets whether the author of a commit must be a member of the group.
      *
      * @param enabled {@code true} to require it
      * @return this update
