@@ -18,6 +18,7 @@ import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdateP
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -79,6 +80,50 @@ class IssueUpdateTest {
             softly.assertThat(payload.getValue().description()).isEqualTo("Text");
             softly.assertThat(payload.getValue().assigneeIds()).containsExactly(3L, 4L);
         });
+    }
+
+    @Test
+    void send_shouldSendConfidentialMilestoneAndDueDate_whenSet() throws IOException {
+        when(gitLab.issues().project().update(eq(ID), eq(IID), any(GitLabProjectIssuesUpdatePayload.class)))
+                .thenReturn(issue(IID, "Old", "opened"));
+
+        issue.update()
+                .confidential(true)
+                .milestone(5L)
+                .dueDate(LocalDate.of(2026, 12, 1))
+                .send();
+
+        final ArgumentCaptor<GitLabProjectIssuesUpdatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssuesUpdatePayload.class);
+        verify(gitLab.issues().project()).update(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().confidential()).isTrue();
+            softly.assertThat(payload.getValue().milestoneId()).isEqualTo(5L);
+            softly.assertThat(payload.getValue().dueDate()).isEqualTo("2026-12-01");
+            softly.assertThat(payload.getValue().title()).isNull();
+        });
+    }
+
+    @Test
+    void send_shouldSendConfidentialFalse_whenSetToFalse() throws IOException {
+        when(gitLab.issues().project().update(eq(ID), eq(IID), any(GitLabProjectIssuesUpdatePayload.class)))
+                .thenReturn(issue(IID, "Old", "opened"));
+
+        issue.update().confidential(false).send();
+
+        final ArgumentCaptor<GitLabProjectIssuesUpdatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssuesUpdatePayload.class);
+        verify(gitLab.issues().project()).update(eq(ID), eq(IID), payload.capture());
+        assertThat(payload.getValue().confidential()).isFalse();
+    }
+
+    @Test
+    void dueDate_shouldThrowNullPointerException_whenDateIsNull() {
+        final IssueUpdate update = issue.update();
+
+        final Throwable thrown = catchThrowable(() -> update.dueDate(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("dueDate");
     }
 
     @Test

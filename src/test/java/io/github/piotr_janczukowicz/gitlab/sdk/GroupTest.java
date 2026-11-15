@@ -17,8 +17,12 @@ import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssueBuilder;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
 import java.util.List;
@@ -34,6 +38,15 @@ class GroupTest {
 
     private final GitLab gitLab = mock(GitLab.class, RETURNS_DEEP_STUBS);
     private final Group sut = GitLabSdk.of(gitLab).group(ID);
+
+    private static GitLabIssue listedIssue(final long iid, final long projectId) {
+        return GitLabIssueBuilder.builder()
+                .iid(iid)
+                .projectId(projectId)
+                .title("t")
+                .state("opened")
+                .build();
+    }
 
     @Test
     void fetch_shouldReturnLoadedGroup_whenGitLabHasIt() throws IOException {
@@ -169,6 +182,63 @@ class GroupTest {
         assertThat(groups.limit(1).toList()).hasSize(1);
         assertThat(consumed).hasValue(1);
         verify(gitLab.groups(), never()).get("9");
+    }
+
+    @Test
+    void issues_shouldWrapEachIssueWithItsProject_whenGroupHasIssues() throws IOException {
+        when(gitLab.issues().group().list(eq(ID), any(GitLabGroupIssuesListFilter.class)).stream())
+                .thenReturn(Stream.of(listedIssue(1L, 5L), listedIssue(2L, 6L)));
+
+        final List<Issue> issues = sut.issues().toList();
+
+        assertSoftly(softly -> {
+            softly.assertThat(issues).extracting(Issue::iid).containsExactly(1L, 2L);
+            softly.assertThat(issues).extracting(issue -> issue.project().id()).containsExactly("5", "6");
+        });
+    }
+
+    @Test
+    void issues_shouldPassFilter_whenFilterIsGiven() throws IOException {
+        final GitLabGroupIssuesListFilter filter = GitLabGroupIssuesListFilter.empty();
+        when(gitLab.issues().group().list(ID, filter).stream()).thenReturn(Stream.of(listedIssue(1L, 5L)));
+
+        final List<Issue> issues = sut.issues(filter).toList();
+
+        assertThat(issues).hasSize(1);
+    }
+
+    @Test
+    void issues_shouldBeLazy_whenOnlyOneIsTaken() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.issues().group().list(eq(ID), any(GitLabGroupIssuesListFilter.class)).stream())
+                .thenReturn(Stream.of(1L, 2L, 3L).map(iid -> {
+                    consumed.incrementAndGet();
+                    return listedIssue(iid, 5L);
+                }));
+
+        final Stream<Issue> issues = sut.issues();
+
+        assertThat(consumed).hasValue(0);
+        assertThat(issues.limit(1).toList()).hasSize(1);
+        assertThat(consumed).hasValue(1);
+    }
+
+    @Test
+    void issues_shouldThrowNullPointerException_whenFilterIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.issues(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("filter");
+    }
+
+    @Test
+    void issues_shouldThrowNullPointerException_whenListedIssueNamesNoProject() throws IOException {
+        when(gitLab.issues().group().list(eq(ID), any(GitLabGroupIssuesListFilter.class)).stream())
+                .thenReturn(Stream.of(GitLabIssueBuilder.builder().iid(1L).build()));
+        final Stream<Issue> issues = sut.issues();
+
+        final Throwable thrown = catchThrowable(issues::toList);
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("projectId");
     }
 
     @Test

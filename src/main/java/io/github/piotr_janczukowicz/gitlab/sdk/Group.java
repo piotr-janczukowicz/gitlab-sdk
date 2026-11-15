@@ -29,6 +29,7 @@ import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsSharePayl
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsTransferPayload;
 import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWebhooksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWebhooksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
@@ -39,6 +40,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.GroupLabel;
+import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
@@ -797,6 +799,33 @@ public final class Group {
      */
     public AuditEvents auditEvents() {
         return AuditEvents.forGroup(this);
+    }
+
+    /**
+     * Lists the issues of the group and its subgroups ({@code GET /groups/{id}/issues}). Each issue is addressed
+     * through the project GitLab names for it. Pages are fetched only as the stream is consumed; transport failures
+     * during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the issues
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Issue> issues() throws IOException {
+        return issues(GitLabGroupIssuesListFilter.empty());
+    }
+
+    /**
+     * Lists the issues of the group and its subgroups that match a filter ({@code GET /groups/{id}/issues}). Each issue
+     * is addressed through the project GitLab names for it. Pages are fetched only as the stream is consumed; transport
+     * failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the query parameters of the core
+     * @return the issues
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Issue> issues(final GitLabGroupIssuesListFilter filter) throws IOException {
+        return sdk.gitLab().issues().group().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(sdk::issueOf);
     }
 
     private GroupMember createMember(

@@ -5,13 +5,17 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserPublic;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabInstanceIssuesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabCaller;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.snippets.PersonalSnippets;
 import java.io.IOException;
 import java.util.Optional;
+import java.util.stream.Stream;
 
 /**
  * Entry point of the object layer. It wraps an existing {@link GitLab} client, so authentication, base URI, tier and
@@ -156,6 +160,33 @@ public final class GitLabSdk {
     }
 
     /**
+     * Lists the issues the account can see on the instance ({@code GET /issues}); by default GitLab limits them to the
+     * ones the account created. Each issue is addressed through the project GitLab names for it. Pages are fetched only
+     * as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the issues
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Issue> issues() throws IOException {
+        return issues(GitLabInstanceIssuesListFilter.empty());
+    }
+
+    /**
+     * Lists the issues on the instance that match a filter ({@code GET /issues}). Each issue is addressed through the
+     * project GitLab names for it. Pages are fetched only as the stream is consumed; transport failures during
+     * iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param filter the query parameters of the core
+     * @return the issues
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Issue> issues(final GitLabInstanceIssuesListFilter filter) throws IOException {
+        return gitlab.issues().instance().list(requireNonNull(filter, "filter")).stream()
+                .map(this::issueOf);
+    }
+
+    /**
      * Asks GitLab for the id of the account the client signs in as ({@code GET /user}).
      *
      * @return the id
@@ -165,6 +196,16 @@ public final class GitLabSdk {
     long currentUserId() throws IOException {
         final GitLabUserPublic current = gitlab.users().getUser();
         return requireNonNull(current.id(), "id");
+    }
+
+    /**
+     * Wraps a listed issue with the handle of the project GitLab names for it.
+     *
+     * @param listed the issue as a list returned it
+     * @return the issue
+     */
+    Issue issueOf(final GitLabIssue listed) {
+        return new Issue(project(String.valueOf(requireNonNull(listed.projectId(), "projectId"))), listed);
     }
 
     /**

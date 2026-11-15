@@ -4,11 +4,22 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasic;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasic;
 import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateIssuesDiscussionsPayload;
 import io.github.piotr_janczukowicz.gitlab.api.discussions.GitLabProjectDiscussionsCreateIssuesDiscussionsPayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateIssuesAwardEmojiPayload;
 import io.github.piotr_janczukowicz.gitlab.api.emojireactions.GitLabProjectEmojiReactionsCreateIssuesAwardEmojiPayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreateLinkType;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesAddSpentTimePayload;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesAddSpentTimePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesMovePayload;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesMovePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesTimeEstimatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesTimeEstimatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdateStateEvent;
@@ -17,11 +28,15 @@ import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateIss
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.discussions.IssueDiscussion;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.reactions.Reaction;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
+import org.jspecify.annotations.Nullable;
 
 /**
  * An issue of a {@link Project}, as GitLab returned it. The object is immutable: it keeps the data of the moment it was
@@ -254,6 +269,173 @@ public final class Issue {
     }
 
     /**
+     * Loads the time tracking of the issue ({@code GET /projects/{id}/issues/{issue_iid}/time_stats}).
+     *
+     * @return the time statistics, or empty when GitLab answers 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<TimeStats> timeStats() throws IOException {
+        return gitLab().issues().project().getTimeStats(project.id(), iid()).map(TimeStats::new);
+    }
+
+    /**
+     * Sets the time estimate of the issue ({@code POST /projects/{id}/issues/{issue_iid}/time_estimate}). Whole seconds
+     * are sent; this object is not changed.
+     *
+     * @param estimate the estimate
+     * @return the time statistics as GitLab returned them after the change
+     * @throws NullPointerException if {@code estimate} is {@code null}
+     * @throws IllegalArgumentException if {@code estimate} is negative; nothing is sent
+     * @throws IOException if the transport fails
+     */
+    public TimeStats estimateTime(final Duration estimate) throws IOException {
+        final GitLabProjectIssuesTimeEstimatePayload payload = GitLabProjectIssuesTimeEstimatePayloadBuilder.builder()
+                .duration(seconds(estimate, "estimate"))
+                .build();
+        return new TimeStats(gitLab().issues().project().timeEstimate(project.id(), iid(), payload));
+    }
+
+    /**
+     * Removes the time estimate of the issue ({@code POST /projects/{id}/issues/{issue_iid}/reset_time_estimate}).
+     *
+     * @return the time statistics as GitLab returned them after the change
+     * @throws IOException if the transport fails
+     */
+    public TimeStats resetEstimate() throws IOException {
+        return new TimeStats(gitLab().issues().project().resetTimeEstimate(project.id(), iid()));
+    }
+
+    /**
+     * Adds spent time to the issue ({@code POST /projects/{id}/issues/{issue_iid}/add_spent_time}). Whole seconds are
+     * sent; this object is not changed.
+     *
+     * @param spent the time spent
+     * @return the time statistics as GitLab returned them after the change
+     * @throws NullPointerException if {@code spent} is {@code null}
+     * @throws IllegalArgumentException if {@code spent} is negative; nothing is sent
+     * @throws IOException if the transport fails
+     */
+    public TimeStats addSpentTime(final Duration spent) throws IOException {
+        final GitLabProjectIssuesAddSpentTimePayload payload = GitLabProjectIssuesAddSpentTimePayloadBuilder.builder()
+                .duration(seconds(spent, "spent"))
+                .build();
+        return new TimeStats(gitLab().issues().project().addSpentTime(project.id(), iid(), payload));
+    }
+
+    /**
+     * Removes the spent time of the issue ({@code POST /projects/{id}/issues/{issue_iid}/reset_spent_time}).
+     *
+     * @return the time statistics as GitLab returned them after the change
+     * @throws IOException if the transport fails
+     */
+    public TimeStats resetSpentTime() throws IOException {
+        return new TimeStats(gitLab().issues().project().resetSpentTime(project.id(), iid()));
+    }
+
+    /**
+     * Lists the links of the issue to other issues ({@code GET /projects/{id}/issues/{issue_iid}/links}). GitLab lists
+     * a summary of each linked issue, so each link is loaded ({@code GET /projects/{id}/issues/{issue_iid}/links/{id}})
+     * as the stream reaches it, and one that is gone by then is skipped. Transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the links
+     * @throws IOException if the list cannot be loaded
+     */
+    public Stream<IssueLink> links() throws IOException {
+        return gitLab().issuelinks().list(project.id(), iid()).stream()
+                .map(listed -> Lookups.find(() -> link(requireNonNull(listed.issueLinkId(), "issueLinkId"))))
+                .flatMap(Optional::stream);
+    }
+
+    /**
+     * Looks up a link of the issue ({@code GET /projects/{id}/issues/{issue_iid}/links/{issue_link_id}}).
+     *
+     * @param linkId the id of the link
+     * @return the link, or empty when GitLab answers 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<IssueLink> link(final long linkId) throws IOException {
+        return gitLab().issuelinks()
+                .get(project.id(), iid(), String.valueOf(linkId))
+                .map(loaded -> new IssueLink(this, loaded));
+    }
+
+    /**
+     * Links the issue to another issue ({@code POST /projects/{id}/issues/{issue_iid}/links}). The target may be in
+     * another project. The link type is read from this issue: {@link IssueLinkType#BLOCKS} means this issue blocks the
+     * target.
+     *
+     * @param target the issue to link to
+     * @param type the kind of link
+     * @return the created link
+     * @throws NullPointerException if {@code target} or {@code type} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public IssueLink linkTo(final Issue target, final IssueLinkType type) throws IOException {
+        final Issue linked = requireNonNull(target, "target");
+        final GitLabProjectIssueLinksCreatePayload payload = GitLabProjectIssueLinksCreatePayloadBuilder.builder()
+                .targetProjectId(linked.project().id())
+                .targetIssueIid(String.valueOf(linked.iid()))
+                .linkType(GitLabProjectIssueLinksCreateLinkType.fromWire(
+                        requireNonNull(type, "type").value()))
+                .build();
+        return new IssueLink(this, gitLab().issuelinks().create(project.id(), iid(), payload));
+    }
+
+    /**
+     * Lists the users taking part in the issue ({@code GET /projects/{id}/issues/{issue_iid}/participants}). GitLab
+     * answers in one piece, so the stream only walks the list.
+     *
+     * @return the participants as the core describes them
+     * @throws IOException if the transport fails
+     */
+    public Stream<GitLabUserBasic> participants() throws IOException {
+        return gitLab().issues().project().listParticipants(project.id(), iid()).stream();
+    }
+
+    /**
+     * Lists the merge requests that close the issue when they merge ({@code GET
+     * /projects/{id}/issues/{issue_iid}/closed_by}). GitLab lists a summary of each merge request, so each one is
+     * loaded ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}) as the stream reaches it, and one that is
+     * gone by then is skipped. Transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the merge requests
+     * @throws IOException if the list cannot be loaded
+     */
+    public Stream<MergeRequest> closedByMergeRequests() throws IOException {
+        return mergeRequests(gitLab().issues().project().listClosedBy(project.id(), iid()));
+    }
+
+    /**
+     * Lists the merge requests that mention the issue ({@code GET
+     * /projects/{id}/issues/{issue_iid}/related_merge_requests}). GitLab lists a summary of each merge request, so each
+     * one is loaded ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}) as the stream reaches it, and one
+     * that is gone by then is skipped. Transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the merge requests
+     * @throws IOException if the list cannot be loaded
+     */
+    public Stream<MergeRequest> relatedMergeRequests() throws IOException {
+        return mergeRequests(gitLab().issues().project().listRelatedMergeRequests(project.id(), iid()));
+    }
+
+    /**
+     * Moves the issue to another project ({@code POST /projects/{id}/issues/{issue_iid}/move}). The issue gets a new
+     * {@code iid} there; this object is not changed.
+     *
+     * @param targetProjectId the numeric id of the project to move the issue to
+     * @return the issue as GitLab returned it, in the target project
+     * @throws IOException if the transport fails
+     */
+    public Issue move(final long targetProjectId) throws IOException {
+        final GitLabProjectIssuesMovePayload payload = GitLabProjectIssuesMovePayloadBuilder.builder()
+                .toProjectId(targetProjectId)
+                .build();
+        final GitLabIssue moved = gitLab().issues().project().move(project.id(), iid(), payload);
+        return new Issue(Internals.sdk(project).project(String.valueOf(targetProjectId)), moved);
+    }
+
+    /**
      * Deletes the issue ({@code DELETE /projects/{id}/issues/{issue_iid}}).
      *
      * @throws IOException if the transport fails
@@ -290,6 +472,28 @@ public final class Issue {
         return apply(GitLabProjectIssuesUpdatePayloadBuilder.builder()
                 .stateEvent(event)
                 .build());
+    }
+
+    private Stream<MergeRequest> mergeRequests(final List<GitLabMergeRequestBasic> listed) {
+        return listed.stream()
+                .map(summary -> Lookups.find(
+                        () -> projectOf(summary.projectId()).mergeRequest(requireNonNull(summary.iid(), "iid"))))
+                .flatMap(Optional::stream);
+    }
+
+    private Project projectOf(final @Nullable Long listedIn) {
+        if (listedIn == null || project.id().equals(String.valueOf(listedIn))) {
+            return project;
+        }
+        return Internals.sdk(project).project(String.valueOf(listedIn));
+    }
+
+    private static String seconds(final Duration duration, final String name) {
+        final long seconds = requireNonNull(duration, name).toSeconds();
+        if (seconds < 0) {
+            throw new IllegalArgumentException(name + " must not be negative");
+        }
+        return seconds + "s";
     }
 
     private GitLab gitLab() {

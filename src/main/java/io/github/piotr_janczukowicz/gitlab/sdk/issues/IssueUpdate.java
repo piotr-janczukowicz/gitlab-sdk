@@ -7,6 +7,7 @@ import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdateP
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Arguments;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.UpdateState;
 import java.io.IOException;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -88,6 +89,40 @@ public final class IssueUpdate {
      */
     public IssueUpdate assignees(final List<Long> userIds) {
         payload.assigneeIds(List.copyOf(requireNonNull(userIds, "userIds")));
+        return changed();
+    }
+
+    /**
+     * Makes the issue confidential or public.
+     *
+     * @param confidential {@code true} for a confidential issue
+     * @return this update
+     */
+    public IssueUpdate confidential(final boolean confidential) {
+        payload.confidential(confidential);
+        return changed();
+    }
+
+    /**
+     * Sets the milestone. The core offers no way to remove a milestone, so this SDK has none either.
+     *
+     * @param milestoneId the numeric id of the milestone
+     * @return this update
+     */
+    public IssueUpdate milestone(final long milestoneId) {
+        payload.milestoneId(milestoneId);
+        return changed();
+    }
+
+    /**
+     * Sets the due date. The core offers no way to remove a due date, so this SDK has none either.
+     *
+     * @param dueDate the new due date
+     * @return this update
+     * @throws NullPointerException if {@code dueDate} is {@code null}
+     */
+    public IssueUpdate dueDate(final LocalDate dueDate) {
+        payload.dueDate(requireNonNull(dueDate, "dueDate").toString());
         return changed();
     }
 

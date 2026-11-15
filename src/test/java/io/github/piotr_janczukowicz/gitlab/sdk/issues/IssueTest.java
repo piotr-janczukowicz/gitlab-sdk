@@ -1,7 +1,13 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.issues;
 
 import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.issue;
+import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.issueLink;
+import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.mergeRequest;
+import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.mergeRequestBasic;
 import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.note;
+import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.relatedIssue;
+import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.timeStats;
+import static io.github.piotr_janczukowicz.gitlab.sdk.issues.IssuesFixtures.user;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
@@ -10,18 +16,29 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabIssuableTimeStats;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasic;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabIssueLink;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreateLinkType;
+import io.github.piotr_janczukowicz.gitlab.api.issuelinks.GitLabProjectIssueLinksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssueBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesAddSpentTimePayload;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesMovePayload;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesTimeEstimatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesUpdateStateEvent;
 import io.github.piotr_janczukowicz.gitlab.api.notes.GitLabProjectNotesCreateIssuesNotesPayload;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
+import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
+import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -183,6 +200,281 @@ class IssueTest {
         final List<Note> notes = sut.notes().toList();
 
         assertThat(notes).isEmpty();
+    }
+
+    @Test
+    void timeStats_shouldWrapResponse_whenGitLabHasIt() throws IOException {
+        final GitLabIssuableTimeStats stats = timeStats(3600, 1800);
+        when(gitLab.issues().project().getTimeStats(ID, IID)).thenReturn(Optional.of(stats));
+
+        final Optional<TimeStats> found = sut.timeStats();
+
+        assertThat(found)
+                .hasValueSatisfying(value -> assertThat(value.response()).isSameAs(stats));
+    }
+
+    @Test
+    void timeStats_shouldReturnEmpty_whenGitLabAnswers404() throws IOException {
+        when(gitLab.issues().project().getTimeStats(ID, IID)).thenReturn(Optional.empty());
+
+        final Optional<TimeStats> found = sut.timeStats();
+
+        assertThat(found).isEmpty();
+    }
+
+    @Test
+    void estimateTime_shouldSendWholeSeconds_whenDurationIsGiven() throws IOException {
+        final GitLabIssuableTimeStats stats = timeStats(5400, 0);
+        when(gitLab.issues().project().timeEstimate(eq(ID), eq(IID), any(GitLabProjectIssuesTimeEstimatePayload.class)))
+                .thenReturn(stats);
+
+        final TimeStats result = sut.estimateTime(Duration.ofMinutes(90).plusMillis(900));
+
+        final ArgumentCaptor<GitLabProjectIssuesTimeEstimatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssuesTimeEstimatePayload.class);
+        verify(gitLab.issues().project()).timeEstimate(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().duration()).isEqualTo("5400s");
+            softly.assertThat(result.response()).isSameAs(stats);
+        });
+    }
+
+    @Test
+    void estimateTime_shouldThrowIllegalArgumentException_whenDurationIsNegative() {
+        final GitLab untouched = mock(GitLab.class);
+        final Issue other = new Issue(GitLabSdk.of(untouched).project(ID), response);
+
+        final Throwable thrown = catchThrowable(() -> other.estimateTime(Duration.ofSeconds(-1)));
+
+        assertThat(thrown).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("estimate");
+        verifyNoInteractions(untouched);
+    }
+
+    @Test
+    void estimateTime_shouldThrowNullPointerException_whenDurationIsNull() {
+        final Throwable thrown = catchThrowable(() -> sut.estimateTime(null));
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("estimate");
+    }
+
+    @Test
+    void resetEstimate_shouldWrapResponse_whenCalled() throws IOException {
+        final GitLabIssuableTimeStats stats = timeStats(0, 0);
+        when(gitLab.issues().project().resetTimeEstimate(ID, IID)).thenReturn(stats);
+
+        final TimeStats result = sut.resetEstimate();
+
+        assertThat(result.response()).isSameAs(stats);
+    }
+
+    @Test
+    void addSpentTime_shouldSendWholeSeconds_whenDurationIsGiven() throws IOException {
+        final GitLabIssuableTimeStats stats = timeStats(0, 1800);
+        when(gitLab.issues().project().addSpentTime(eq(ID), eq(IID), any(GitLabProjectIssuesAddSpentTimePayload.class)))
+                .thenReturn(stats);
+
+        final TimeStats result = sut.addSpentTime(Duration.ofMinutes(30));
+
+        final ArgumentCaptor<GitLabProjectIssuesAddSpentTimePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssuesAddSpentTimePayload.class);
+        verify(gitLab.issues().project()).addSpentTime(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().duration()).isEqualTo("1800s");
+            softly.assertThat(result.response()).isSameAs(stats);
+        });
+    }
+
+    @Test
+    void addSpentTime_shouldThrowIllegalArgumentException_whenDurationIsNegative() {
+        final GitLab untouched = mock(GitLab.class);
+        final Issue other = new Issue(GitLabSdk.of(untouched).project(ID), response);
+
+        final Throwable thrown = catchThrowable(() -> other.addSpentTime(Duration.ofSeconds(-1)));
+
+        assertThat(thrown).isInstanceOf(IllegalArgumentException.class).hasMessageContaining("spent");
+        verifyNoInteractions(untouched);
+    }
+
+    @Test
+    void addSpentTime_shouldSendZeroSeconds_whenDurationIsZero() throws IOException {
+        when(gitLab.issues().project().addSpentTime(eq(ID), eq(IID), any(GitLabProjectIssuesAddSpentTimePayload.class)))
+                .thenReturn(timeStats(0, 0));
+
+        sut.addSpentTime(Duration.ZERO);
+
+        final ArgumentCaptor<GitLabProjectIssuesAddSpentTimePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssuesAddSpentTimePayload.class);
+        verify(gitLab.issues().project()).addSpentTime(eq(ID), eq(IID), payload.capture());
+        assertThat(payload.getValue().duration()).isEqualTo("0s");
+    }
+
+    @Test
+    void resetSpentTime_shouldWrapResponse_whenCalled() throws IOException {
+        final GitLabIssuableTimeStats stats = timeStats(3600, 0);
+        when(gitLab.issues().project().resetSpentTime(ID, IID)).thenReturn(stats);
+
+        final TimeStats result = sut.resetSpentTime();
+
+        assertThat(result.response()).isSameAs(stats);
+    }
+
+    @Test
+    void links_shouldLoadEachLink_andSkipOneThatIsGone() throws IOException {
+        when(gitLab.issuelinks().list(ID, IID).stream())
+                .thenReturn(Stream.of(relatedIssue(11L), relatedIssue(12L), relatedIssue(13L)));
+        when(gitLab.issuelinks().get(ID, IID, "11")).thenReturn(Optional.of(issueLink(11L, "relates_to")));
+        when(gitLab.issuelinks().get(ID, IID, "12")).thenReturn(Optional.empty());
+        when(gitLab.issuelinks().get(ID, IID, "13")).thenReturn(Optional.of(issueLink(13L, "blocks")));
+
+        final List<IssueLink> links = sut.links().toList();
+
+        assertSoftly(softly -> {
+            softly.assertThat(links).extracting(IssueLink::id).containsExactly(11L, 13L);
+            softly.assertThat(links).allSatisfy(link -> assertThat(link.issue()).isSameAs(sut));
+        });
+    }
+
+    @Test
+    void links_shouldBeLazy_whenOnlyOneIsTaken() throws IOException {
+        final AtomicInteger consumed = new AtomicInteger();
+        when(gitLab.issuelinks().list(ID, IID).stream())
+                .thenReturn(Stream.of(1L, 2L, 3L).map(id -> {
+                    consumed.incrementAndGet();
+                    return relatedIssue(id);
+                }));
+        when(gitLab.issuelinks().get(eq(ID), eq(IID), any(String.class)))
+                .thenReturn(Optional.of(issueLink(1L, "relates_to")));
+
+        final Stream<IssueLink> links = sut.links();
+
+        assertThat(consumed).hasValue(0);
+        assertThat(links.limit(1).toList()).hasSize(1);
+        assertThat(consumed).hasValue(1);
+    }
+
+    @Test
+    void links_shouldThrowNullPointerException_whenListedLinkHasNoId() throws IOException {
+        when(gitLab.issuelinks().list(ID, IID).stream()).thenReturn(Stream.of(relatedIssue(null)));
+        final Stream<IssueLink> links = sut.links();
+
+        final Throwable thrown = catchThrowable(links::toList);
+
+        assertThat(thrown).isInstanceOf(NullPointerException.class).hasMessageContaining("issueLinkId");
+    }
+
+    @Test
+    void link_shouldReturnLink_whenGitLabHasIt() throws IOException {
+        final GitLabIssueLink loaded = issueLink(11L, "relates_to");
+        when(gitLab.issuelinks().get(ID, IID, "11")).thenReturn(Optional.of(loaded));
+
+        final Optional<IssueLink> found = sut.link(11L);
+
+        assertThat(found).hasValueSatisfying(link -> assertThat(link.response()).isSameAs(loaded));
+    }
+
+    @Test
+    void link_shouldReturnEmpty_whenGitLabAnswers404() throws IOException {
+        when(gitLab.issuelinks().get(ID, IID, "11")).thenReturn(Optional.empty());
+
+        final Optional<IssueLink> found = sut.link(11L);
+
+        assertThat(found).isEmpty();
+    }
+
+    @Test
+    void linkTo_shouldSendTargetAndType_whenTargetIsInAnotherProject() throws IOException {
+        final Issue target = new Issue(GitLabSdk.of(gitLab).project("99"), issue(3L, "Other", "opened"));
+        final GitLabIssueLink created = issueLink(21L, "blocks");
+        when(gitLab.issuelinks().create(eq(ID), eq(IID), any(GitLabProjectIssueLinksCreatePayload.class)))
+                .thenReturn(created);
+
+        final IssueLink result = sut.linkTo(target, IssueLinkType.BLOCKS);
+
+        final ArgumentCaptor<GitLabProjectIssueLinksCreatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssueLinksCreatePayload.class);
+        verify(gitLab.issuelinks()).create(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().targetProjectId()).isEqualTo("99");
+            softly.assertThat(payload.getValue().targetIssueIid()).isEqualTo("3");
+            softly.assertThat(payload.getValue().linkType()).isEqualTo(GitLabProjectIssueLinksCreateLinkType.BLOCKS);
+            softly.assertThat(result.response()).isSameAs(created);
+            softly.assertThat(result.issue()).isSameAs(sut);
+        });
+    }
+
+    @Test
+    void linkTo_shouldThrowNullPointerException_whenTargetOrTypeIsNull() {
+        final GitLab untouched = mock(GitLab.class);
+        final Issue other = new Issue(GitLabSdk.of(untouched).project(ID), response);
+
+        final Throwable noTarget = catchThrowable(() -> other.linkTo(null, IssueLinkType.RELATES_TO));
+        final Throwable noType = catchThrowable(() -> other.linkTo(other, null));
+
+        assertSoftly(softly -> {
+            softly.assertThat(noTarget).isInstanceOf(NullPointerException.class).hasMessageContaining("target");
+            softly.assertThat(noType).isInstanceOf(NullPointerException.class).hasMessageContaining("type");
+        });
+        verifyNoInteractions(untouched);
+    }
+
+    @Test
+    void participants_shouldReturnCoreUsers_whenCalled() throws IOException {
+        when(gitLab.issues().project().listParticipants(ID, IID)).thenReturn(List.of(user(1L), user(2L)));
+
+        final List<GitLabUserBasic> participants = sut.participants().toList();
+
+        assertThat(participants).extracting(GitLabUserBasic::id).containsExactly(1L, 2L);
+    }
+
+    @Test
+    void closedByMergeRequests_shouldLoadEachMergeRequest_andSkipOneThatIsGone() throws IOException {
+        when(gitLab.issues().project().listClosedBy(ID, IID))
+                .thenReturn(
+                        List.of(mergeRequestBasic(1L, null), mergeRequestBasic(2L, null), mergeRequestBasic(3L, 99L)));
+        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.of(mergeRequest(1L)));
+        when(gitLab.mergerequests().project().get(ID, 2L)).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get("99", 3L)).thenReturn(Optional.of(mergeRequest(3L)));
+
+        final List<MergeRequest> result = sut.closedByMergeRequests().toList();
+
+        assertSoftly(softly -> {
+            softly.assertThat(result).extracting(MergeRequest::iid).containsExactly(1L, 3L);
+            softly.assertThat(result.get(0).project()).isSameAs(project);
+            softly.assertThat(result.get(1).project().id()).isEqualTo("99");
+        });
+    }
+
+    @Test
+    void relatedMergeRequests_shouldLoadThroughOwnProject_whenSummaryNamesTheOwningProject() throws IOException {
+        final Project numeric = GitLabSdk.of(gitLab).project("42");
+        final Issue inNumeric = new Issue(numeric, response);
+        when(gitLab.issues().project().listRelatedMergeRequests("42", IID))
+                .thenReturn(List.of(mergeRequestBasic(5L, 42L)));
+        when(gitLab.mergerequests().project().get("42", 5L)).thenReturn(Optional.of(mergeRequest(5L)));
+
+        final List<MergeRequest> result = inNumeric.relatedMergeRequests().toList();
+
+        assertThat(result)
+                .singleElement()
+                .satisfies(found -> assertThat(found.project()).isSameAs(numeric));
+    }
+
+    @Test
+    void move_shouldReturnIssueInTargetProject_whenCalled() throws IOException {
+        final GitLabIssue moved = issue(2L, "Broken", "opened");
+        when(gitLab.issues().project().move(eq(ID), eq(IID), any(GitLabProjectIssuesMovePayload.class)))
+                .thenReturn(moved);
+
+        final Issue result = sut.move(99L);
+
+        final ArgumentCaptor<GitLabProjectIssuesMovePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssuesMovePayload.class);
+        verify(gitLab.issues().project()).move(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().toProjectId()).isEqualTo(99L);
+            softly.assertThat(result.response()).isSameAs(moved);
+            softly.assertThat(result.project().id()).isEqualTo("99");
+        });
     }
 
     @Test
