@@ -405,3 +405,39 @@ These are not deprecated; the SDK leaves them out as out of scope, and the core 
 exports (the core's call only creates the export and discards the body), the instance audit events (an administrator
 API), snippet repository storage moves, user-agent details and the instance-wide and public snippet lists (administrator
 or instance-wide), wiki page notes, and snippet notes, discussions and reactions.
+
+## Parity with gitlab4j-api
+
+Each gitlab4j-api class compared with the SDK. Status is filled in as the Phase E tasks land;
+no coverage number is claimed until a row is compared.
+
+| gitlab4j class | Status | Note |
+|---|---|---|
+| `ProjectApi` | pending | projects, members, hooks, forks, sharing, variables |
+| `GroupApi` | pending | groups, members, subgroups, labels, variables |
+| `UserApi` | pending | user lookup, profile, keys, emails |
+| `IssuesApi` | pending | issues, links, time tracking, participants |
+| `MergeRequestApi` | pending | merge requests, changes and diffs, approvals, rebase |
+| `PipelineApi` | pending | pipelines, variables, test reports, schedules |
+| `JobApi` | pending | jobs, traces, artifacts |
+| `CommitsApi` | pending | commits, diffs, comments, statuses, cherry-pick |
+| `RepositoryApi` | pending | branches, tree, compare, archive, contributors |
+| `RepositoryFileApi` | pending | file get, create, update, delete, blame |
+| `TagsApi` | pending | tags and protected tags |
+| `LabelsApi` | pending | project and group labels, subscriptions |
+| `NotesApi` | pending | notes on issues, merge requests, snippets, epics |
+| `MilestonesApi` | pending | project and group milestones, issues, merge requests |
+| `ReleasesApi` | pending | releases, links, evidences |
+| `EnvironmentsApi` | pending | environments, stop, stale cleanup |
+| `DeploymentsApi` | pending | deployments, approval, merge requests |
+| `DeployKeysApi` | pending | project and instance deploy keys, enabling |
+| `DeployTokensApi` | pending | project and group deploy tokens |
+| `ProtectedBranchesApi` | pending | protected branches and access levels |
+| `DiscussionsApi` | pending | discussions on issues, merge requests, commits, snippets |
+| `AwardEmojiApi` | pending | award emoji on issues, merge requests, notes |
+| `RunnersApi` | pending | runners, registration, jobs, managers |
+| `SnippetsApi` | pending | project and personal snippets, content |
+| `WikisApi` | pending | wiki pages and attachments |
+| `PackagesApi` | pending | packages, files, pipelines |
+| `ContainerRegistryApi` | pending | repositories, tags, bulk delete |
+| `AuditEventApi` | pending | instance, group and project audit events |
