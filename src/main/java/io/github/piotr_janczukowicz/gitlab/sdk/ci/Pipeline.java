@@ -158,8 +158,8 @@ public final class Pipeline {
     /**
      * Lists the variables the pipeline was started with ({@code GET /projects/{id}/pipelines/{pipeline_id}/variables}).
      * The request is sent when this method is called; GitLab answers with one list, not pages. The values can be
-     * secret: do not log them. The core's records print the value as {@code <redacted>}. An unauthorized call, and HTTP
-     * 404, is the core's exception, not an empty result; the permission GitLab requires is not verified here.
+     * secret: do not log them. The core's records print the value as {@code <redacted>}. What the core does for an
+     * unauthorized call or an HTTP 404, and which permission GitLab requires, is not verified here.
      *
      * @return the variables, as the core's records
      * @throws IOException if the transport fails
@@ -173,7 +173,7 @@ public final class Pipeline {
      * /projects/{id}/pipelines/{pipeline_id}/test_report_summary}). The answer is the core's record; its totals are a
      * generic map, as the core types them.
      *
-     * @return the summary, or empty when GitLab answers HTTP 404
+     * @return the summary, or empty when the core reports no summary (HTTP 404 per the core)
      * @throws IOException if the transport fails
      */
     public Optional<GitLabTestReportSummaryEntity> testReportSummary() throws IOException {

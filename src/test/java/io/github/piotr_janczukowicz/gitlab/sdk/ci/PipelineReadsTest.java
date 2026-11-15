@@ -110,7 +110,7 @@ class PipelineReadsTest {
     }
 
     @Test
-    void testReportSummary_shouldReturnEmpty_whenGitLabAnswers404() throws IOException {
+    void testReportSummary_shouldReturnEmpty_whenCoreReturnsEmpty() throws IOException {
         when(gitLab.pipelines().getTestReportSummary(ID, PIPELINE_ID)).thenReturn(Optional.empty());
 
         final Optional<GitLabTestReportSummaryEntity> result = sut.testReportSummary();

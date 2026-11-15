@@ -1,10 +1,12 @@
 package io.github.piotr_janczukowicz.gitlab.sdk.smoke;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiVariable;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabCiBridge;
+import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabTestReportSummaryEntity;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
@@ -45,17 +47,23 @@ class PipelinesSmokeIT {
     }
 
     @Test
-    void pipelineReads_shouldAnswerWithoutFailure_whenSandboxHasAPipeline() throws IOException {
+    void pipelineReads_shouldAnswer_whenSandboxHasAPipeline() throws IOException {
         final List<Pipeline> pipelines = ENV.sandbox().pipelines().limit(1).toList();
         assumeFalse(pipelines.isEmpty(), "the sandbox has no pipelines");
         final Pipeline pipeline = pipelines.get(0);
 
-        assertThatCode(() -> {
-                    pipeline.variables().toList();
-                    pipeline.triggerJobs().toList();
-                    pipeline.testReportSummary();
-                })
-                .doesNotThrowAnyException();
+        final List<GitLabCiVariable> variables = SmokeSkips.probe(
+                "pipeline variables", () -> pipeline.variables().toList());
+        final List<GitLabCiBridge> triggerJobs = SmokeSkips.probe(
+                "pipeline trigger jobs", () -> pipeline.triggerJobs().toList());
+        final Optional<GitLabTestReportSummaryEntity> summary =
+                SmokeSkips.probe("pipeline test report summary", pipeline::testReportSummary);
+
+        assertSoftly(softly -> {
+            softly.assertThat(variables).extracting(GitLabCiVariable::key).doesNotContainNull();
+            softly.assertThat(triggerJobs).extracting(GitLabCiBridge::name).doesNotContainNull();
+            softly.assertThat(summary).isNotNull();
+        });
     }
 
     @Test

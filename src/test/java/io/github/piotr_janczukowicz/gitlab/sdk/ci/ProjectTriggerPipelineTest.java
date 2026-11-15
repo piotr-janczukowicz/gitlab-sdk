@@ -72,7 +72,7 @@ class ProjectTriggerPipelineTest {
     void triggerPipeline_shouldThrowIllegalArgumentExceptionWithoutRequest_whenTokenIsBlank() throws IOException {
         final Throwable thrown = catchThrowable(() -> sut.triggerPipeline(" ", "main", Map.of()));
 
-        assertThat(thrown).isInstanceOf(IllegalArgumentException.class);
+        assertThat(thrown).isInstanceOf(IllegalArgumentException.class).hasMessageNotContaining(TOKEN);
         verify(gitLab.projects().project(), never()).pipelineRefTrigger(anyString(), anyString(), any());
     }
 
