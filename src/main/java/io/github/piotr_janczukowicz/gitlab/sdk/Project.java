@@ -13,6 +13,9 @@ import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabProjectCommitsListF
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommit;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabLicense;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabTemplateList;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasic;
 import io.github.piotr_janczukowicz.gitlab.api.containerregistry.GitLabProjectContainerRegistryListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayloadBuilder;
@@ -25,6 +28,8 @@ import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabProjectDeployT
 import io.github.piotr_janczukowicz.gitlab.api.environments.GitLabProjectEnvironmentsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.environments.GitLabProjectEnvironmentsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.environments.GitLabProjectEnvironmentsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.events.GitLabEvent;
+import io.github.piotr_janczukowicz.gitlab.api.events.GitLabProjectEventsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabProjectIssuesListFilter;
@@ -54,6 +59,8 @@ import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProje
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingPayload;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingTask;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsShareGroupAccess;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsSharePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsTransferPayload;
@@ -126,7 +133,10 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -339,15 +349,164 @@ public final class Project {
     }
 
     /**
-     * Lists the groups the project is shared with ({@code GET /projects/{id}/groups}); these are the records of the
-     * core, which carry the group's id, name and path. Pages are fetched only as the stream is consumed; transport
-     * failures during iteration are {@link java.io.UncheckedIOException}.
+     * Lists the groups the project is shared with ({@code GET /projects/{id}/invited_groups}); these are the records of
+     * the core, which carry the group's id, name and path. Unauthenticated requests get only public groups. Pages are
+     * fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}. The stream is single-use. Earlier versions of this method called {@code GET
+     * /projects/{id}/groups}, which lists the ancestor groups; {@link #groups()} lists those now.
      *
      * @return the groups, as the core returns them
      * @throws IOException if the first page cannot be loaded
      */
     public Stream<GitLabPublicGroupDetails> sharedGroups() throws IOException {
+        return sdk.gitLab().projects().project().listInvitedGroups(id).stream();
+    }
+
+    /**
+     * Lists the users with access to the project ({@code GET /projects/{id}/users}); these are the records of the core.
+     * Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}. The stream is single-use.
+     *
+     * @return the users, as the core returns them
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GitLabUserBasic> users() throws IOException {
+        return sdk.gitLab().projects().project().listUsers(id).stream();
+    }
+
+    /**
+     * Lists the ancestor groups of the project ({@code GET /projects/{id}/groups}); these are the records of the core,
+     * which carry the group's id, name and path. Pages are fetched only as the stream is consumed; transport failures
+     * during iteration are {@link java.io.UncheckedIOException}. The stream is single-use.
+     *
+     * @return the groups, as the core returns them
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GitLabPublicGroupDetails> groups() throws IOException {
         return sdk.gitLab().projects().project().listGroups(id).stream();
+    }
+
+    /**
+     * Lists the visible events of the project ({@code GET /projects/{id}/events}); these are the records of the core.
+     * Per the GitLab documentation the default order is newest first. Pages are fetched only as the stream is consumed;
+     * transport failures during iteration are {@link java.io.UncheckedIOException}. The stream is single-use.
+     *
+     * @return the events, as the core returns them
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GitLabEvent> events() throws IOException {
+        return sdk.gitLab().events().project().list(id).stream();
+    }
+
+    /**
+     * Lists the events of the project that match a filter ({@code GET /projects/{id}/events}), as described at
+     * {@link #events()}.
+     *
+     * @param filter the query parameters of the core ({@code action}, {@code target_type}, {@code before},
+     *     {@code after} and {@code sort})
+     * @return the events, as the core returns them
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GitLabEvent> events(final GitLabProjectEventsListFilter filter) throws IOException {
+        return sdk.gitLab().events().project().list(id, requireNonNull(filter, FILTER)).stream();
+    }
+
+    /**
+     * Stars the project for the account ({@code POST /projects/{id}/star}) and loads it again. The core's OpenAPI
+     * description lists HTTP 304 for this call, which GitLab's documentation names for unstarring a project that is not
+     * starred; how the core's client treats a 304 here is not verified live, so a project that is already starred may
+     * fail with the core's exception.
+     *
+     * @return the project as GitLab returns it afterwards
+     * @throws IllegalStateException if the project is gone when it is loaded again
+     * @throws IOException if the transport fails
+     */
+    public Project star() throws IOException {
+        sdk.gitLab().projectstarring().createStar(id);
+        return refresh();
+    }
+
+    /**
+     * Removes the account's star from the project ({@code POST /projects/{id}/unstar}) and loads it again. GitLab's
+     * documentation names HTTP 304 for a project that is not starred; how the core's client treats it is not verified
+     * live, so such a call may fail with the core's exception.
+     *
+     * @return the project as GitLab returns it afterwards
+     * @throws IllegalStateException if the project is gone when it is loaded again
+     * @throws IOException if the transport fails
+     */
+    public Project unstar() throws IOException {
+        sdk.gitLab().projectstarring().createUnstar(id);
+        return refresh();
+    }
+
+    /**
+     * Returns the share of each programming language in the project ({@code GET /projects/{id}/languages}).
+     *
+     * @return the language names with their percentage, as an unmodifiable copy
+     * @throws IOException if the transport fails
+     */
+    public Map<String, Double> languages() throws IOException {
+        return Collections.unmodifiableMap(
+                new LinkedHashMap<>(sdk.gitLab().projects().project().getLanguages(id)));
+    }
+
+    /**
+     * Starts the housekeeping of the repository ({@code POST /projects/{id}/housekeeping}) with GitLab's default task;
+     * GitLab runs it asynchronously. It runs maintenance on the real repository, so it is never run by the smoke tests.
+     *
+     * @throws IOException if the transport fails
+     */
+    public void housekeeping() throws IOException {
+        housekeeping(null);
+    }
+
+    /**
+     * Starts a specific housekeeping task of the repository ({@code POST /projects/{id}/housekeeping}); GitLab runs it
+     * asynchronously. It runs maintenance on the real repository, so it is never run by the smoke tests.
+     *
+     * @param task the task ({@code EAGER} or {@code PRUNE}), or {@code null} for GitLab's default
+     * @throws IOException if the transport fails
+     */
+    public void housekeeping(final @Nullable GitLabProjectProjectsHousekeepingTask task) throws IOException {
+        sdk.gitLab().projects().project().housekeeping(id, new GitLabProjectProjectsHousekeepingPayload(task));
+    }
+
+    /**
+     * Lists the templates of a kind that the project can use ({@code GET /projects/{id}/templates/{type}}); these are
+     * the records of the core, with the key and name of each. Pages are fetched only as the stream is consumed;
+     * transport failures during iteration are {@link java.io.UncheckedIOException}. The stream is single-use.
+     *
+     * @param type the kind of template
+     * @return the templates, as the core returns them
+     * @throws NullPointerException if {@code type} is {@code null}
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GitLabTemplateList> templates(final TemplateType type) throws IOException {
+        return sdk
+                .gitLab()
+                .projecttemplates()
+                .list(id, requireNonNull(type, "type").toListType())
+                .stream();
+    }
+
+    /**
+     * Loads one template ({@code GET /projects/{id}/templates/{type}/{name}}). The core types the answer of every kind
+     * as its license record: {@code name} and {@code content} are filled for every kind, the other fields only for
+     * licenses.
+     *
+     * @param type the kind of template
+     * @param name the name (key) of the template, as {@link #templates(TemplateType)} lists it
+     * @return the template, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code type} or {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank; no request is made
+     * @throws IOException if the transport fails
+     */
+    public Optional<GitLabLicense> template(final TemplateType type, final String name) throws IOException {
+        return sdk.gitLab()
+                .projecttemplates()
+                .get(id, requireNonNull(type, "type").toGetType(), requireNotBlank(name, "name"));
     }
 
     /**

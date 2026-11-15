@@ -81,10 +81,10 @@ class ProjectSharingTest {
     }
 
     @Test
-    void sharedGroups_shouldPassRecordsThrough_whenListed() throws IOException {
+    void sharedGroups_shouldListInvitedGroups_whenListed() throws IOException {
         final GitLabPublicGroupDetails group =
                 GitLabPublicGroupDetailsBuilder.builder().id(9L).fullPath("a/b").build();
-        when(gitLab.projects().project().listGroups(ID).stream()).thenReturn(Stream.of(group));
+        when(gitLab.projects().project().listInvitedGroups(ID).stream()).thenReturn(Stream.of(group));
 
         final List<GitLabPublicGroupDetails> groups = sut.sharedGroups().toList();
 

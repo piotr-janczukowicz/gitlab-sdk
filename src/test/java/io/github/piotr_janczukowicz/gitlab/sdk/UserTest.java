@@ -9,6 +9,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
+import io.github.piotr_janczukowicz.gitlab.api.users.GitLabUserAssociationsCount;
 import io.github.piotr_janczukowicz.gitlab.api.users.GitLabUserProfile;
 import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import java.io.IOException;
@@ -67,6 +68,25 @@ class UserTest {
         final Throwable thrown = catchThrowable(loaded::refresh);
 
         assertThat(thrown).isInstanceOf(IllegalStateException.class).hasMessageContaining("is gone");
+    }
+
+    @Test
+    void associationsCount_shouldReturnCounts_whenGitLabHasTheUser() throws IOException {
+        final GitLabUserAssociationsCount counts = new GitLabUserAssociationsCount(1, 2, 3, 4);
+        when(gitLab.users().getAssociationsCount(5L)).thenReturn(Optional.of(counts));
+        final User user = new User(sdk, profile(5L, "tanuki"));
+
+        final Optional<GitLabUserAssociationsCount> result = user.associationsCount();
+
+        assertThat(result).containsSame(counts);
+    }
+
+    @Test
+    void associationsCount_shouldReturnEmpty_whenGitLabAnswers404() throws IOException {
+        when(gitLab.users().getAssociationsCount(5L)).thenReturn(Optional.empty());
+        final User user = new User(sdk, profile(5L, "tanuki"));
+
+        assertThat(user.associationsCount()).isEmpty();
     }
 
     @Test

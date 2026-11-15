@@ -342,6 +342,36 @@ public final class Group {
     }
 
     /**
+     * Lists all visible descendant groups, at any depth ({@code GET /groups/{id}/descendant_groups}). Per the GitLab
+     * documentation, unauthenticated requests get only public groups, {@code all_available} defaults to {@code false}
+     * for a user, and the order is by name ascending. GitLab lists a summary of each group, so each one is loaded
+     * ({@code GET /groups/{id}}) as the stream reaches it, and one that was deleted in the meantime is skipped. Pages
+     * are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}. The stream is single-use.
+     *
+     * @return the loaded groups
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Group> descendantGroups() throws IOException {
+        return sdk.loadedGroups(sdk.gitLab().groups().listDescendantGroups(id).stream());
+    }
+
+    /**
+     * Lists the groups the GitLab documentation calls shared with this group ({@code GET /groups/{id}/groups/shared}),
+     * ordered by name ascending; unauthenticated requests get only public groups. Which side of the sharing the listed
+     * groups are on is read from that documentation and not verified live. GitLab lists a summary of each group, so
+     * each one is loaded ({@code GET /groups/{id}}) as the stream reaches it, and one that was deleted in the meantime
+     * is skipped. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}. The stream is single-use.
+     *
+     * @return the loaded groups
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Group> sharedGroups() throws IOException {
+        return sdk.loadedGroups(sdk.gitLab().groups().listShared(id).stream());
+    }
+
+    /**
      * Lists the webhooks of the group ({@code GET /groups/{id}/hooks}). Premium. Pages are fetched only as the stream
      * is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
      *

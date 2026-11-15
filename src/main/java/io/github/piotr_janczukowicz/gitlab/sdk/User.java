@@ -2,8 +2,10 @@ package io.github.piotr_janczukowicz.gitlab.sdk;
 
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 
+import io.github.piotr_janczukowicz.gitlab.api.users.GitLabUserAssociationsCount;
 import io.github.piotr_janczukowicz.gitlab.api.users.GitLabUserProfile;
 import java.io.IOException;
+import java.util.Optional;
 
 /**
  * A GitLab user, as GitLab returned it. The object is immutable, and {@link #response()} gives the complete response
@@ -54,6 +56,19 @@ public final class User {
      */
     public User refresh() throws IOException {
         return sdk.user(id()).orElseThrow(() -> new IllegalStateException("User " + id() + " is gone"));
+    }
+
+    /**
+     * Counts the groups, projects, issues and merge requests associated with the user ({@code GET
+     * /users/{id}/associations_count}). Per the GitLab documentation, administrators can query any user and other users
+     * only themselves; the SDK does not check this, so for anyone else GitLab's refusal reaches the caller as the
+     * core's exception. Not verified live.
+     *
+     * @return the counts, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GitLabUserAssociationsCount> associationsCount() throws IOException {
+        return sdk.gitLab().users().getAssociationsCount(id());
     }
 
     /**
