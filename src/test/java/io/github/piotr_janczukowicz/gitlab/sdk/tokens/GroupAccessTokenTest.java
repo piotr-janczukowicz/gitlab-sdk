@@ -102,7 +102,7 @@ class GroupAccessTokenTest {
         when(gitLab.accesstokens().group().rotate(eq(ID), eq("7"), any(GitLabGroupAccessTokensRotatePayload.class)))
                 .thenReturn(created(8L, "ci"));
 
-        final CreatedGroupAccessToken result = sut(token(7L, "ci")).rotate();
+        final GroupCreatedAccessToken result = sut(token(7L, "ci")).rotate();
 
         final java.time.LocalDate sentExpiry = sentRotate().expiresAt();
         assertSoftly(softly -> {

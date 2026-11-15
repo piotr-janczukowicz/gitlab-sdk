@@ -274,8 +274,8 @@ class GroupMilestoneTest {
     void mergeRequests_shouldLoadEachItemThroughItsProject_whenGroupMilestone() throws IOException {
         when(gitLab.groupmilestones().listMergeRequests(ID, MILESTONE_ID).stream())
                 .thenReturn(Stream.of(mergeRequestBasic(5, 11L), mergeRequestBasic(5, 22L)));
-        when(gitLab.mergerequests().project().get("11", 5L)).thenReturn(Optional.of(mergeRequest(5)));
-        when(gitLab.mergerequests().project().get("22", 5L)).thenReturn(Optional.of(mergeRequest(5)));
+        when(gitLab.mergerequests().project().get(eq("11"), eq(5L), any())).thenReturn(Optional.of(mergeRequest(5)));
+        when(gitLab.mergerequests().project().get(eq("22"), eq(5L), any())).thenReturn(Optional.of(mergeRequest(5)));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
 
@@ -290,9 +290,9 @@ class GroupMilestoneTest {
                         mergeRequestBasic(2, 11L),
                         mergeRequestBasic(3, null),
                         mergeRequestBasic(4, 22L)));
-        when(gitLab.mergerequests().project().get("11", 1L)).thenReturn(Optional.of(mergeRequest(1)));
-        when(gitLab.mergerequests().project().get("11", 2L)).thenReturn(Optional.empty());
-        when(gitLab.mergerequests().project().get("22", 4L)).thenReturn(Optional.of(mergeRequest(4)));
+        when(gitLab.mergerequests().project().get(eq("11"), eq(1L), any())).thenReturn(Optional.of(mergeRequest(1)));
+        when(gitLab.mergerequests().project().get(eq("11"), eq(2L), any())).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq("22"), eq(4L), any())).thenReturn(Optional.of(mergeRequest(4)));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
 
@@ -307,7 +307,8 @@ class GroupMilestoneTest {
                     consumed.incrementAndGet();
                     return mergeRequestBasic(iid, 11L);
                 }));
-        when(gitLab.mergerequests().project().get(eq("11"), any(Long.class))).thenReturn(Optional.of(mergeRequest(1)));
+        when(gitLab.mergerequests().project().get(eq("11"), any(Long.class), any()))
+                .thenReturn(Optional.of(mergeRequest(1)));
 
         final Stream<MergeRequest> stream = sut.mergeRequests();
 

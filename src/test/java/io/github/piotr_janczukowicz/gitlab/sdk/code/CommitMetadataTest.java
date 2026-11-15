@@ -11,6 +11,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
@@ -239,8 +240,8 @@ class CommitMetadataTest {
     void mergeRequests_shouldLoadEachOne_whenGitLabListsBasicRecords() throws IOException {
         when(gitLab.commits().listMergeRequests(ID, SHA).stream())
                 .thenReturn(Stream.of(basicMergeRequest(1L), basicMergeRequest(2L)));
-        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.of(mergeRequest(1L)));
-        when(gitLab.mergerequests().project().get(ID, 2L)).thenReturn(Optional.of(mergeRequest(2L)));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(1L), any())).thenReturn(Optional.of(mergeRequest(1L)));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(2L), any())).thenReturn(Optional.of(mergeRequest(2L)));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
 
@@ -251,8 +252,8 @@ class CommitMetadataTest {
     void mergeRequests_shouldSkipOne_whenGoneBeforeLoaded() throws IOException {
         when(gitLab.commits().listMergeRequests(ID, SHA).stream())
                 .thenReturn(Stream.of(basicMergeRequest(1L), basicMergeRequest(2L)));
-        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.empty());
-        when(gitLab.mergerequests().project().get(ID, 2L)).thenReturn(Optional.of(mergeRequest(2L)));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(1L), any())).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq(ID), eq(2L), any())).thenReturn(Optional.of(mergeRequest(2L)));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
 

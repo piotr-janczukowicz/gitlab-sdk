@@ -64,6 +64,7 @@ class ProjectApprovalRulesTest {
         when(gitLab.projects().project().getApprovalRule(PROJECT_ID, 4L)).thenReturn(Optional.empty());
 
         assertThat(project.approvalRule(4L)).isEmpty();
+        verify(gitLab.projects().project()).getApprovalRule(PROJECT_ID, 4L);
     }
 
     @Test

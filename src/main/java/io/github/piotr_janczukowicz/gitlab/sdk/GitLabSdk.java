@@ -227,7 +227,7 @@ public final class GitLabSdk {
     }
 
     /**
-     * Lists the projects the account can see ({@code GET /projects}). Per the GitLab documentation the default is every
+     * Lists the projects the account can see ({@code GET /projects}). Per GitLab's API description the default is every
      * project the account can access, newest first ({@code order_by=created_at}, {@code sort=desc}); on a large
      * instance that is a great many projects, so limit the stream or pass a filter. GitLab lists a summary of each
      * project, so each one is loaded ({@code GET /projects/{id}}) as the stream reaches it, one GET per project, and
@@ -257,10 +257,10 @@ public final class GitLabSdk {
     }
 
     /**
-     * Lists the personal projects of a user ({@code GET /users/{user_id}/projects}): per the GitLab documentation only
+     * Lists the personal projects of a user ({@code GET /users/{user_id}/projects}): per GitLab's API description only
      * the projects in the user's personal namespace, not group projects, and a private profile gives an empty list.
      * They are loaded one by one as described at {@link #projects()}. The filter's {@code owned}, {@code starred} and
-     * {@code membership} flags have the meaning they have for {@link #projects()}; the GitLab documentation does not
+     * {@code membership} flags have the meaning they have for {@link #projects()}; GitLab's API description does not
      * say here whether they refer to the user or to the account of the client, and that is not verified live.
      *
      * @param userId the id of the user
@@ -289,7 +289,7 @@ public final class GitLabSdk {
     }
 
     /**
-     * Lists the groups the account can see ({@code GET /groups}). Per the GitLab documentation, for a user who is not
+     * Lists the groups the account can see ({@code GET /groups}). Per GitLab's API description, for a user who is not
      * an administrator {@code all_available} defaults to {@code false}, so only the groups the account is a member of
      * are listed, ordered by name ascending; for an administrator it defaults to {@code true}. GitLab lists a summary
      * of each group, so each one is loaded ({@code GET /groups/{id}}) as the stream reaches it, and one that is gone by
@@ -348,8 +348,8 @@ public final class GitLabSdk {
     }
 
     /**
-     * Finds a user by username ({@code GET /users?username=...}, then {@code GET /users/{id}}). Per the GitLab
-     * documentation the lookup is case-insensitive.
+     * Finds a user by username ({@code GET /users?username=...}, then {@code GET /users/{id}}). Per GitLab's API
+     * description the lookup is case-insensitive.
      *
      * @param username the username
      * @return the user, or empty when no user has that username

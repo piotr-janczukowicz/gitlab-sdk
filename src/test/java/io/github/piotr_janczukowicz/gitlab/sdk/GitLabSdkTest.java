@@ -4,8 +4,10 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
@@ -14,9 +16,13 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasicBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabInstanceIssuesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabInstanceIssuesListFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabInstanceIssuesListScope;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssueBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabInstanceMergeRequestsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabInstanceMergeRequestsListFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabInstanceMergeRequestsListScope;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabAuthenticationProviders;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabCaller;
 import io.github.piotr_janczukowicz.gitlab.client.GitLabClient;
@@ -96,6 +102,8 @@ class GitLabSdkTest {
 
         final List<Issue> issues = sut.issues().toList();
 
+        verify(gitlab.issues().instance()).list(GitLabInstanceIssuesListFilter.empty());
+
         assertSoftly(softly -> {
             softly.assertThat(issues).extracting(Issue::iid).containsExactly(1L, 2L);
             softly.assertThat(issues).extracting(issue -> issue.project().id()).containsExactly("5", "6");
@@ -103,9 +111,11 @@ class GitLabSdkTest {
     }
 
     @Test
-    void issues_shouldPassFilter_whenFilterIsGiven() throws IOException {
+    void issues_shouldPassTheScope_whenFilterGivesOne() throws IOException {
         final GitLab gitlab = mock(GitLab.class, RETURNS_DEEP_STUBS);
-        final GitLabInstanceIssuesListFilter filter = GitLabInstanceIssuesListFilter.empty();
+        final GitLabInstanceIssuesListFilter filter = GitLabInstanceIssuesListFilterBuilder.builder()
+                .scope(GitLabInstanceIssuesListScope.ALL)
+                .build();
         when(gitlab.issues().instance().list(filter).stream()).thenReturn(Stream.of(listedIssue(1L, 5L)));
         final GitLabSdk sut = GitLabSdk.of(gitlab);
 
@@ -159,16 +169,18 @@ class GitLabSdkTest {
         when(gitlab.mergerequests().instance().list(any(GitLabInstanceMergeRequestsListFilter.class)).stream())
                 .thenReturn(
                         Stream.of(listedMergeRequest(1L, 5L), listedMergeRequest(2L, 5L), listedMergeRequest(3L, 6L)));
-        when(gitlab.mergerequests().project().get("5", 1L))
+        when(gitlab.mergerequests().project().get(eq("5"), eq(1L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
-        when(gitlab.mergerequests().project().get("5", 2L)).thenReturn(Optional.empty());
-        when(gitlab.mergerequests().project().get("6", 3L))
+        when(gitlab.mergerequests().project().get(eq("5"), eq(2L), any())).thenReturn(Optional.empty());
+        when(gitlab.mergerequests().project().get(eq("6"), eq(3L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(3L).build()));
         final GitLabSdk sut = GitLabSdk.of(gitlab);
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
+
+        verify(gitlab.mergerequests().instance()).list(GitLabInstanceMergeRequestsListFilter.empty());
 
         assertSoftly(softly -> {
             softly.assertThat(result).extracting(MergeRequest::iid).containsExactly(1L, 3L);
@@ -177,11 +189,13 @@ class GitLabSdkTest {
     }
 
     @Test
-    void mergeRequests_shouldPassFilter_whenFilterIsGiven() throws IOException {
+    void mergeRequests_shouldPassTheScope_whenFilterGivesOne() throws IOException {
         final GitLab gitlab = mock(GitLab.class, RETURNS_DEEP_STUBS);
-        final GitLabInstanceMergeRequestsListFilter filter = GitLabInstanceMergeRequestsListFilter.empty();
+        final GitLabInstanceMergeRequestsListFilter filter = GitLabInstanceMergeRequestsListFilterBuilder.builder()
+                .scope(GitLabInstanceMergeRequestsListScope.ALL)
+                .build();
         when(gitlab.mergerequests().instance().list(filter).stream()).thenReturn(Stream.of(listedMergeRequest(1L, 5L)));
-        when(gitlab.mergerequests().project().get("5", 1L))
+        when(gitlab.mergerequests().project().get(eq("5"), eq(1L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
         final GitLabSdk sut = GitLabSdk.of(gitlab);
@@ -200,7 +214,7 @@ class GitLabSdkTest {
                     consumed.incrementAndGet();
                     return listedMergeRequest(iid, 5L);
                 }));
-        when(gitlab.mergerequests().project().get("5", 1L))
+        when(gitlab.mergerequests().project().get(eq("5"), eq(1L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
         final GitLabSdk sut = GitLabSdk.of(gitlab);

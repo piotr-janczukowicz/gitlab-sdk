@@ -66,7 +66,7 @@ public final class MergeRequestApprovalRuleUpdate {
      * @return this update
      * @throws NullPointerException if {@code userIds} or an id is {@code null}
      */
-    public MergeRequestApprovalRuleUpdate users(final List<Long> userIds) {
+    public MergeRequestApprovalRuleUpdate userIds(final List<Long> userIds) {
         payload.userIds(List.copyOf(requireNonNull(userIds, "userIds")));
         return changed();
     }
@@ -78,7 +78,7 @@ public final class MergeRequestApprovalRuleUpdate {
      * @return this update
      * @throws NullPointerException if {@code groupIds} or an id is {@code null}
      */
-    public MergeRequestApprovalRuleUpdate groups(final List<Long> groupIds) {
+    public MergeRequestApprovalRuleUpdate groupIds(final List<Long> groupIds) {
         payload.groupIds(List.copyOf(requireNonNull(groupIds, "groupIds")));
         return changed();
     }

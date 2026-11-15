@@ -95,8 +95,8 @@ class MergeRequestApprovalRuleUpdateTest {
                 .thenReturn(GitLabMergeRequestApprovalRuleBuilder.builder().build());
 
         rule.update()
-                .users(List.of(1L))
-                .groups(List.of(2L))
+                .userIds(List.of(1L))
+                .groupIds(List.of(2L))
                 .usernames(List.of("alice"))
                 .removeHiddenGroups(true)
                 .send();
@@ -149,8 +149,8 @@ class MergeRequestApprovalRuleUpdateTest {
             softly.assertThat(catchThrowable(() -> update.name(" "))).isInstanceOf(IllegalArgumentException.class);
             softly.assertThat(catchThrowable(() -> update.approvalsRequired(-1)))
                     .isInstanceOf(IllegalArgumentException.class);
-            softly.assertThat(catchThrowable(() -> update.users(null))).isInstanceOf(NullPointerException.class);
-            softly.assertThat(catchThrowable(() -> update.groups(null))).isInstanceOf(NullPointerException.class);
+            softly.assertThat(catchThrowable(() -> update.userIds(null))).isInstanceOf(NullPointerException.class);
+            softly.assertThat(catchThrowable(() -> update.groupIds(null))).isInstanceOf(NullPointerException.class);
             softly.assertThat(catchThrowable(() -> update.usernames(List.of(" "))))
                     .isInstanceOf(IllegalArgumentException.class);
         });

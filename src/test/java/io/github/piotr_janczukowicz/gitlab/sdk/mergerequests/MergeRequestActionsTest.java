@@ -99,12 +99,12 @@ class MergeRequestActionsTest {
         final GitLabMergeRequest rebasing = GitLabMergeRequestBuilder.builder(response)
                 .rebaseInProgress(true)
                 .build();
-        when(gitLab.mergerequests().project().get(ID, IID)).thenReturn(Optional.of(rebasing));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(IID), any())).thenReturn(Optional.of(rebasing));
 
         sut.rebase();
 
         verify(gitLab.mergerequests().project()).rebase(eq(ID), eq(IID), any());
-        verify(gitLab.mergerequests().project(), never()).get(any(), eq(IID));
+        verify(gitLab.mergerequests().project(), never()).get(any(), eq(IID), any());
         assertSoftly(softly -> {
             softly.assertThat(sut.isRebaseInProgress()).isFalse();
             softly.assertThatCode(

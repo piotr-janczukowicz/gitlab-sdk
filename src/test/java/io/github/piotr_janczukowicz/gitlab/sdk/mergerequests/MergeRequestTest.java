@@ -22,6 +22,7 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsApprovePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsGetFilter;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsMergePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsUpdatePayload;
@@ -383,7 +384,7 @@ class MergeRequestTest {
     @Test
     void refresh_shouldReturnNewMergeRequest_whenGitLabHasIt() throws IOException {
         final GitLabMergeRequest reloaded = mergeRequest(IID, "Renamed", "opened");
-        when(gitLab.mergerequests().project().get(ID, IID)).thenReturn(Optional.of(reloaded));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(IID), any())).thenReturn(Optional.of(reloaded));
 
         final MergeRequest refreshed = sut.refresh();
 
@@ -394,8 +395,21 @@ class MergeRequestTest {
     }
 
     @Test
+    void refresh_shouldAskForTheRebaseState_whenCalled() throws IOException {
+        when(gitLab.mergerequests().project().get(eq(ID), eq(IID), any()))
+                .thenReturn(Optional.of(mergeRequest(IID, "Renamed", "opened")));
+        final ArgumentCaptor<GitLabProjectMergeRequestsGetFilter> filter =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestsGetFilter.class);
+
+        sut.refresh();
+
+        verify(gitLab.mergerequests().project()).get(eq(ID), eq(IID), filter.capture());
+        assertThat(filter.getValue().includeRebaseInProgress()).isTrue();
+    }
+
+    @Test
     void refresh_shouldThrowIllegalStateException_whenGone() throws IOException {
-        when(gitLab.mergerequests().project().get(ID, IID)).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq(ID), eq(IID), any())).thenReturn(Optional.empty());
 
         final Throwable thrown = catchThrowable(sut::refresh);
 

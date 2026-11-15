@@ -109,13 +109,25 @@ public final class MergeRequestUpdate {
     }
 
     /**
-     * Sets the milestone. The core offers no way to remove a milestone, so this SDK has none either.
+     * Sets the milestone. To remove it, use {@link #clearMilestone()}.
      *
      * @param milestoneId the numeric id of the milestone
      * @return this update
      */
     public MergeRequestUpdate milestone(final long milestoneId) {
         payload.milestoneId(milestoneId);
+        return changed();
+    }
+
+    /**
+     * Removes the milestone by sending {@code milestone_id=0}; per docs.gitlab.com/api/merge_requests, "Set to
+     * {@code 0} or provide an empty value to unassign a milestone." The last call of {@link #milestone(long)} and this
+     * method wins.
+     *
+     * @return this update
+     */
+    public MergeRequestUpdate clearMilestone() {
+        payload.milestoneId(0L);
         return changed();
     }
 

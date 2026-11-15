@@ -99,7 +99,7 @@ class GroupAccessTokensTest {
     void createAccessToken_shouldSendNameScopesExpiryAndLevel_whenAllGiven() throws IOException {
         stubCreate();
 
-        final CreatedGroupAccessToken result = group.createAccessToken(
+        final GroupCreatedAccessToken result = group.createAccessToken(
                 "ci",
                 List.of(AccessTokenScope.API, AccessTokenScope.READ_REPOSITORY),
                 LocalDate.of(2026, 12, 31),

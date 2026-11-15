@@ -100,6 +100,21 @@ class MergeRequestUpdateTest {
     }
 
     @Test
+    void send_shouldSendMilestoneZero_whenMilestoneIsCleared() throws IOException {
+        when(gitLab.mergerequests()
+                        .project()
+                        .update(eq(ID), eq(IID), any(GitLabProjectMergeRequestsUpdatePayload.class)))
+                .thenReturn(mergeRequest(IID, "Old", "opened"));
+
+        mergeRequest.update().clearMilestone().send();
+
+        final ArgumentCaptor<GitLabProjectMergeRequestsUpdatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestsUpdatePayload.class);
+        verify(gitLab.mergerequests().project()).update(eq(ID), eq(IID), payload.capture());
+        assertThat(payload.getValue().milestoneId()).isEqualTo(0L);
+    }
+
+    @Test
     void send_shouldSendTheSwitches_whenSet() throws IOException {
         when(gitLab.mergerequests()
                         .project()

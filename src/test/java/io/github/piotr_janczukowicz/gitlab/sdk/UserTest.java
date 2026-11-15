@@ -6,6 +6,7 @@ import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -87,6 +88,7 @@ class UserTest {
         final User user = new User(sdk, profile(5L, "tanuki"));
 
         assertThat(user.associationsCount()).isEmpty();
+        verify(gitLab.users()).getAssociationsCount(5L);
     }
 
     @Test

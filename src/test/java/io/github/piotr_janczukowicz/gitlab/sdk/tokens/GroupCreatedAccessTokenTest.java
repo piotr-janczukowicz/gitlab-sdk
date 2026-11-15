@@ -16,14 +16,14 @@ import io.github.piotr_janczukowicz.testsupport.UnitTest;
 import org.junit.jupiter.api.Test;
 
 @UnitTest
-class CreatedGroupAccessTokenTest {
+class GroupCreatedAccessTokenTest {
 
     private static final String ID = "my-group";
 
     private final GitLab gitLab = mock(GitLab.class, RETURNS_DEEP_STUBS);
 
-    private CreatedGroupAccessToken sut(final GitLabResourceAccessTokenWithToken response) {
-        return new CreatedGroupAccessToken(GitLabSdk.of(gitLab).group(ID), response);
+    private GroupCreatedAccessToken sut(final GitLabResourceAccessTokenWithToken response) {
+        return new GroupCreatedAccessToken(GitLabSdk.of(gitLab).group(ID), response);
     }
 
     @Test
@@ -48,7 +48,7 @@ class CreatedGroupAccessTokenTest {
 
     @Test
     void toString_shouldNotContainSecret_whenPrinted() {
-        final CreatedGroupAccessToken sut = sut(created(8L, "ci"));
+        final GroupCreatedAccessToken sut = sut(created(8L, "ci"));
 
         assertSoftly(softly -> {
             softly.assertThat(sut.toString())

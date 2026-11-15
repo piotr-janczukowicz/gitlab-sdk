@@ -21,6 +21,7 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabUserBasicBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabInstanceProjectsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabInstanceProjectsListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectWithAccess;
@@ -133,7 +134,8 @@ class GitLabSdkListsTest {
 
     @Test
     void userProjects_shouldListByUserIdAndLoadEach_whenListed() throws IOException {
-        final GitLabInstanceProjectsListFilter filter = GitLabInstanceProjectsListFilter.empty();
+        final GitLabInstanceProjectsListFilter filter =
+                GitLabInstanceProjectsListFilterBuilder.builder().owned(true).build();
         when(gitLab.projects().instance().list("7", filter).stream()).thenReturn(Stream.of(listedProject(3L)));
         when(gitLab.projects().project().get("3")).thenReturn(Optional.of(loadedProject(3L, "three")));
 

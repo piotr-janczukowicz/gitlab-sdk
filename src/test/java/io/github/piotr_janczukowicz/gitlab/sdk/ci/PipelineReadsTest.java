@@ -7,6 +7,7 @@ import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -116,6 +117,7 @@ class PipelineReadsTest {
         final Optional<GitLabTestReportSummaryEntity> result = sut.testReportSummary();
 
         assertThat(result).isEmpty();
+        verify(gitLab.pipelines()).getTestReportSummary(ID, PIPELINE_ID);
     }
 
     private static GitLabCiBridge bridge(final String name) {

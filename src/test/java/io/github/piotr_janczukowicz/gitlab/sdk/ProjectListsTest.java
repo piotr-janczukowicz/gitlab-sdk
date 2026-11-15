@@ -4,7 +4,6 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.ProjectsFixtures.loadedPro
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
@@ -274,9 +273,11 @@ class ProjectListsTest {
 
     @Test
     void template_shouldReturnEmpty_whenGitLabAnswers404() throws IOException {
-        when(gitLab.projecttemplates().get(any(), any(), any())).thenReturn(Optional.empty());
+        when(gitLab.projecttemplates().get(ID, GitLabProjectProjectTemplatesGetType.ISSUES, "Bug"))
+                .thenReturn(Optional.empty());
 
         assertThat(sut.template(TemplateType.ISSUES, "Bug")).isEmpty();
+        verify(gitLab.projecttemplates()).get(ID, GitLabProjectProjectTemplatesGetType.ISSUES, "Bug");
     }
 
     @Test

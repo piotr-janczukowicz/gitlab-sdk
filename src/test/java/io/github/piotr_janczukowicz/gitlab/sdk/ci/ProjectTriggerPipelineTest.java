@@ -102,7 +102,7 @@ class ProjectTriggerPipelineTest {
 
         assertThat(thrown)
                 .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining("Pipeline 9 is gone")
+                .hasMessageContaining("Pipeline 9 was started by the trigger")
                 .hasMessageNotContaining(TOKEN);
     }
 }

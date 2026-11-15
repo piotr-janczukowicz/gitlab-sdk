@@ -213,14 +213,14 @@ class DeploymentTest {
         when(gitLab.deployments().listMergeRequests(ID, DEPLOYMENT_ID).stream())
                 .thenReturn(
                         Stream.of(mergeRequestBasic(1, null), mergeRequestBasic(2, null), mergeRequestBasic(3, null)));
-        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.of(mergeRequest(1)));
-        when(gitLab.mergerequests().project().get(ID, 2L)).thenReturn(Optional.empty());
-        when(gitLab.mergerequests().project().get(ID, 3L)).thenReturn(Optional.of(mergeRequest(3)));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(1L), any())).thenReturn(Optional.of(mergeRequest(1)));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(2L), any())).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq(ID), eq(3L), any())).thenReturn(Optional.of(mergeRequest(3)));
         final Project numeric = GitLabSdk.of(gitLab).project("42");
         final Deployment inNumeric = new Deployment(numeric, response);
         when(gitLab.deployments().listMergeRequests("42", DEPLOYMENT_ID).stream())
                 .thenReturn(Stream.of(mergeRequestBasic(2, 42L)));
-        when(gitLab.mergerequests().project().get("42", 2L)).thenReturn(Optional.of(mergeRequest(2)));
+        when(gitLab.mergerequests().project().get(eq("42"), eq(2L), any())).thenReturn(Optional.of(mergeRequest(2)));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
         final List<MergeRequest> viaNumeric = inNumeric.mergeRequests().toList();
@@ -238,7 +238,7 @@ class DeploymentTest {
     void mergeRequests_shouldLoadThroughOtherProject_whenSummaryNamesAnotherProject() throws IOException {
         when(gitLab.deployments().listMergeRequests(ID, DEPLOYMENT_ID).stream())
                 .thenReturn(Stream.of(mergeRequestBasic(5, 99L)));
-        when(gitLab.mergerequests().project().get("99", 5L)).thenReturn(Optional.of(mergeRequest(5)));
+        when(gitLab.mergerequests().project().get(eq("99"), eq(5L), any())).thenReturn(Optional.of(mergeRequest(5)));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
 
@@ -255,7 +255,8 @@ class DeploymentTest {
                     consumed.incrementAndGet();
                     return mergeRequestBasic(iid, null);
                 }));
-        when(gitLab.mergerequests().project().get(eq(ID), any(Long.class))).thenReturn(Optional.of(mergeRequest(1)));
+        when(gitLab.mergerequests().project().get(eq(ID), any(Long.class), any()))
+                .thenReturn(Optional.of(mergeRequest(1)));
 
         final Stream<MergeRequest> stream = sut.mergeRequests();
 

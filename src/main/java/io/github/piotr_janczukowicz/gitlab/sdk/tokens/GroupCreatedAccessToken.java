@@ -10,7 +10,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Group;
  * this answer, so {@link #token()} is the only place the SDK exposes it; keep it, because it cannot be loaded again.
  * The secret is never part of {@link #toString()}.
  */
-public final class CreatedGroupAccessToken {
+public final class GroupCreatedAccessToken {
 
     private final GroupAccessToken accessToken;
     private final GitLabResourceAccessTokenWithToken response;
@@ -23,7 +23,7 @@ public final class CreatedGroupAccessToken {
      * @param response the answer of the creation
      * @throws NullPointerException if an argument is {@code null}
      */
-    public CreatedGroupAccessToken(final Group group, final GitLabResourceAccessTokenWithToken response) {
+    public GroupCreatedAccessToken(final Group group, final GitLabResourceAccessTokenWithToken response) {
         this.response = requireNonNull(response, "response");
         this.accessToken = new GroupAccessToken(requireNonNull(group, "group"), TokenValues.withoutSecret(response));
     }
@@ -59,6 +59,6 @@ public final class CreatedGroupAccessToken {
 
     @Override
     public String toString() {
-        return TokenValues.describe("CreatedGroupAccessToken", response);
+        return TokenValues.describe("GroupCreatedAccessToken", response);
     }
 }

@@ -45,6 +45,8 @@ import io.github.piotr_janczukowicz.gitlab.api.labels.GitLabProjectLabelsListFil
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabProjectMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsGetFilter;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsGetFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.packages.GitLabProjectPackagesListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.pipelines.GitLabProjectPipelinesCreatePayload;
@@ -91,6 +93,7 @@ import io.github.piotr_janczukowicz.gitlab.api.remotemirrors.GitLabProjectRemote
 import io.github.piotr_janczukowicz.gitlab.api.remotemirrors.GitLabProjectRemoteMirrorsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesGetChangelogFilter;
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesGetCompareFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepositoryFilesGetRawFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
@@ -183,6 +186,10 @@ public final class Project {
     private static final String TAG_NAME = "tagName";
     private static final String REF = "ref";
     private static final int BAD_REQUEST = 400;
+    private static final GitLabProjectMergeRequestsGetFilter WITH_REBASE_STATE =
+            GitLabProjectMergeRequestsGetFilterBuilder.builder()
+                    .includeRebaseInProgress(true)
+                    .build();
 
     static {
         Internals.registerProjectAccess(project -> project.sdk);
@@ -379,11 +386,12 @@ public final class Project {
     }
 
     /**
-     * Lists the groups the project is shared with ({@code GET /projects/{id}/invited_groups}); these are the records of
-     * the core, which carry the group's id, name and path. Per GitLab's API description, unauthenticated requests get
-     * only public groups. Pages are fetched only as the stream is consumed; transport failures during iteration are
-     * {@link java.io.UncheckedIOException}. The stream is single-use. Earlier versions of this method called {@code GET
-     * /projects/{id}/groups}, which lists the ancestor groups; {@link #groups()} lists those now.
+     * Lists the groups invited into the project, that is, the groups it is shared with ({@code GET
+     * /projects/{id}/invited_groups}; the same relation as {@link Group#invitedGroups()} for a group); these are the
+     * records of the core, which carry the group's id, name and path. Per GitLab's API description, unauthenticated
+     * requests get only public groups. Pages are fetched only as the stream is consumed; transport failures during
+     * iteration are {@link java.io.UncheckedIOException}. The stream is single-use. Earlier versions of this method
+     * called {@code GET /projects/{id}/groups}, which lists the ancestor groups; {@link #groups()} lists those now.
      *
      * @return the groups, as the core returns them
      * @throws IOException if the first page cannot be loaded
@@ -418,7 +426,7 @@ public final class Project {
 
     /**
      * Lists the visible events of the project ({@code GET /projects/{id}/events}); these are the records of the core.
-     * Per the GitLab documentation the default order is newest first. Pages are fetched only as the stream is consumed;
+     * Per GitLab's API description the default order is newest first. Pages are fetched only as the stream is consumed;
      * transport failures during iteration are {@link java.io.UncheckedIOException}. The stream is single-use.
      *
      * @return the events, as the core returns them
@@ -457,8 +465,8 @@ public final class Project {
     }
 
     /**
-     * Removes the account's star from the project ({@code POST /projects/{id}/unstar}) and loads it again. GitLab's
-     * documentation names HTTP 304 for a project that is not starred; how the core's client treats it is not verified
+     * Removes the account's star from the project ({@code POST /projects/{id}/unstar}) and loads it again. GitLab's API
+     * description names HTTP 304 for a project that is not starred; how the core's client treats it is not verified
      * live, so such a call may fail with the core's exception.
      *
      * @return the project as GitLab returns it afterwards
@@ -774,14 +782,20 @@ public final class Project {
     }
 
     /**
-     * Loads a merge request ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}).
+     * Loads a merge request ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}), asking GitLab for the
+     * rebase state ({@code include_rebase_in_progress=true}; per docs.gitlab.com/api/merge_requests, GitLab includes
+     * whether a rebase is in progress only then), so that {@code isRebaseInProgress()} of the result can be true.
      *
      * @param iid the merge request number within the project
      * @return the merge request, or empty when GitLab answers HTTP 404
      * @throws IOException if the transport fails
      */
     public Optional<MergeRequest> mergeRequest(final long iid) throws IOException {
-        return sdk.gitLab().mergerequests().project().get(id, iid).map(loaded -> new MergeRequest(this, loaded));
+        return sdk.gitLab()
+                .mergerequests()
+                .project()
+                .get(id, iid, WITH_REBASE_STATE)
+                .map(loaded -> new MergeRequest(this, loaded));
     }
 
     /**
@@ -877,7 +891,10 @@ public final class Project {
      * @return the started pipeline
      * @throws NullPointerException if an argument is {@code null}
      * @throws IllegalArgumentException if an argument is blank
-     * @throws IllegalStateException if GitLab no longer has the pipeline after starting it
+     * @throws IllegalStateException if the pipeline cannot be loaded after the trigger succeeded: the pipeline HAS been
+     *     started (its id is in the message), but the follow-up load uses the client's own authentication, not the
+     *     trigger token, and GitLab answered HTTP 404, for example because that account cannot read the project's
+     *     pipelines or the pipeline is already gone; do not trigger again on this exception
      * @throws IOException if the transport fails
      */
     public Pipeline triggerPipeline(final String token, final String ref) throws IOException {
@@ -900,7 +917,10 @@ public final class Project {
      * @return the started pipeline
      * @throws NullPointerException if an argument is {@code null}
      * @throws IllegalArgumentException if {@code token} or {@code ref} is blank
-     * @throws IllegalStateException if GitLab no longer has the pipeline after starting it
+     * @throws IllegalStateException if the pipeline cannot be loaded after the trigger succeeded: the pipeline HAS been
+     *     started (its id is in the message), but the follow-up load uses the client's own authentication, not the
+     *     trigger token, and GitLab answered HTTP 404, for example because that account cannot read the project's
+     *     pipelines or the pipeline is already gone; do not trigger again on this exception
      * @throws IOException if the transport fails
      */
     public Pipeline triggerPipeline(final String token, final String ref, final Map<String, String> variables)
@@ -987,6 +1007,64 @@ public final class Project {
         requireNotBlank(ref, "ref");
         requireNotBlank(jobName, "jobName");
         return sdk.gitLab().jobs().project().getArtifactsDownload(id, ref, jobName, requireNonNull(out, "out"));
+    }
+
+    /**
+     * Streams the raw content of a file at a ref into a stream ({@code GET
+     * /projects/{id}/repository/files/{file_path}/raw?ref=...}), with the core's streaming download; nothing is held in
+     * memory. The path is passed to the core as it is; the core encodes it. The stream is the caller's: the SDK never
+     * closes it, and it may hold a partial body when the transfer fails. Not verified live.
+     *
+     * @param path the path of the file within the repository
+     * @param ref the branch, tag or commit to read the file at
+     * @param out the stream to write to
+     * @return the number of bytes written
+     * @throws IllegalArgumentException if {@code path} or {@code ref} is blank
+     * @throws NullPointerException if {@code out} is {@code null}
+     * @throws IOException if the transport fails or the stream cannot be written
+     */
+    public long rawFile(final String path, final String ref, final OutputStream out) throws IOException {
+        requireNotBlank(path, "path");
+        requireNotBlank(ref, REF);
+        requireNonNull(out, "out");
+        return sdk.gitLab()
+                .repositoryfiles()
+                .getRaw(
+                        id,
+                        path,
+                        GitLabProjectRepositoryFilesGetRawFilterBuilder.builder()
+                                .ref(ref)
+                                .build(),
+                        out);
+    }
+
+    /**
+     * Writes the raw content of a file at a ref to a local file ({@code GET
+     * /projects/{id}/repository/files/{file_path}/raw?ref=...}), with the core's download into a {@link Path}; the
+     * guarantees of that download (for example whether a failed transfer leaves a partial file) are the core's and not
+     * verified live here. The path is passed to the core as it is; the core encodes it.
+     *
+     * @param path the path of the file within the repository
+     * @param ref the branch, tag or commit to read the file at
+     * @param target the local file to write
+     * @return {@code target}, as the core returns it
+     * @throws IllegalArgumentException if {@code path} or {@code ref} is blank
+     * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IOException if the transport fails or the file cannot be written
+     */
+    public Path rawFile(final String path, final String ref, final Path target) throws IOException {
+        requireNotBlank(path, "path");
+        requireNotBlank(ref, REF);
+        requireNonNull(target, "target");
+        return sdk.gitLab()
+                .repositoryfiles()
+                .getRaw(
+                        id,
+                        path,
+                        GitLabProjectRepositoryFilesGetRawFilterBuilder.builder()
+                                .ref(ref)
+                                .build(),
+                        target);
     }
 
     /**
@@ -2769,7 +2847,9 @@ public final class Project {
                                         .build())
                         .id(),
                 "id");
-        return pipeline(started).orElseThrow(() -> new IllegalStateException("Pipeline " + started + " is gone"));
+        return pipeline(started)
+                .orElseThrow(() -> new IllegalStateException("Pipeline " + started
+                        + " was started by the trigger but cannot be loaded with this client's credentials"));
     }
 
     private Badge createBadge(final String linkUrl, final String imageUrl, final @Nullable String name)

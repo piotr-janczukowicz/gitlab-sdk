@@ -69,6 +69,7 @@ class ProjectBadgesTest {
         when(gitLab.projectbadges().get(ID, 5L)).thenReturn(Optional.empty());
 
         assertThat(project.badge(5L)).isEmpty();
+        verify(gitLab.projectbadges()).get(ID, 5L);
     }
 
     @Test

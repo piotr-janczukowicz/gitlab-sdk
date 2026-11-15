@@ -16,6 +16,7 @@ import io.github.piotr_janczukowicz.gitlab.api.GitLab;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequest;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsGetFilter;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabProjectMergeRequestsListFilter;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
@@ -26,6 +27,7 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 @UnitTest
 class ProjectMergeRequestsTest {
@@ -38,7 +40,7 @@ class ProjectMergeRequestsTest {
     @Test
     void mergeRequest_shouldReturnLoadedMergeRequest_whenGitLabHasIt() throws IOException {
         final GitLabMergeRequest response = mergeRequest(7L, "Fix", "opened");
-        when(gitLab.mergerequests().project().get(ID, 7L)).thenReturn(Optional.of(response));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(7L), any())).thenReturn(Optional.of(response));
 
         final Optional<MergeRequest> found = sut.mergeRequest(7L);
 
@@ -50,8 +52,21 @@ class ProjectMergeRequestsTest {
     }
 
     @Test
+    void mergeRequest_shouldAskForTheRebaseState_whenLoaded() throws IOException {
+        when(gitLab.mergerequests().project().get(eq(ID), eq(7L), any(GitLabProjectMergeRequestsGetFilter.class)))
+                .thenReturn(Optional.of(mergeRequest(7L, "Fix", "opened")));
+        final ArgumentCaptor<GitLabProjectMergeRequestsGetFilter> filter =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestsGetFilter.class);
+
+        sut.mergeRequest(7L);
+
+        verify(gitLab.mergerequests().project()).get(eq(ID), eq(7L), filter.capture());
+        assertThat(filter.getValue().includeRebaseInProgress()).isTrue();
+    }
+
+    @Test
     void mergeRequest_shouldReturnEmpty_whenGitLabAnswers404() throws IOException {
-        when(gitLab.mergerequests().project().get(ID, 7L)).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq(ID), eq(7L), any())).thenReturn(Optional.empty());
 
         final Optional<MergeRequest> found = sut.mergeRequest(7L);
 
@@ -61,7 +76,8 @@ class ProjectMergeRequestsTest {
     @Test
     void mergeRequest_shouldPassNumericProjectIdUnchanged_whenProjectIsNumeric() throws IOException {
         final GitLab other = mock(GitLab.class, RETURNS_DEEP_STUBS);
-        when(other.mergerequests().project().get("42", 3L)).thenReturn(Optional.of(mergeRequest(3L, "Fix", "opened")));
+        when(other.mergerequests().project().get(eq("42"), eq(3L), any()))
+                .thenReturn(Optional.of(mergeRequest(3L, "Fix", "opened")));
 
         final Optional<MergeRequest> found = GitLabSdk.of(other).project("42").mergeRequest(3L);
 
@@ -72,8 +88,10 @@ class ProjectMergeRequestsTest {
     void mergeRequests_shouldLoadEachItem_whenListReturnsBasicRecords() throws IOException {
         when(gitLab.mergerequests().project().list(eq(ID), any(GitLabProjectMergeRequestsListFilter.class)).stream())
                 .thenReturn(Stream.of(basic(1L), basic(2L)));
-        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.of(mergeRequest(1L, "One", "opened")));
-        when(gitLab.mergerequests().project().get(ID, 2L)).thenReturn(Optional.of(mergeRequest(2L, "Two", "merged")));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(1L), any()))
+                .thenReturn(Optional.of(mergeRequest(1L, "One", "opened")));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(2L), any()))
+                .thenReturn(Optional.of(mergeRequest(2L, "Two", "merged")));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
 
@@ -92,9 +110,11 @@ class ProjectMergeRequestsTest {
         final GitLabProjectMergeRequestsListFilter filter = GitLabProjectMergeRequestsListFilter.empty();
         when(gitLab.mergerequests().project().list(ID, filter).stream())
                 .thenReturn(Stream.of(basic(1L), basic(2L), basic(3L)));
-        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.of(mergeRequest(1L, "One", "opened")));
-        when(gitLab.mergerequests().project().get(ID, 2L)).thenReturn(Optional.empty());
-        when(gitLab.mergerequests().project().get(ID, 3L)).thenReturn(Optional.of(mergeRequest(3L, "Three", "closed")));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(1L), any()))
+                .thenReturn(Optional.of(mergeRequest(1L, "One", "opened")));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(2L), any())).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq(ID), eq(3L), any()))
+                .thenReturn(Optional.of(mergeRequest(3L, "Three", "closed")));
 
         final List<MergeRequest> result = sut.mergeRequests(filter).toList();
 
@@ -110,7 +130,8 @@ class ProjectMergeRequestsTest {
                     consumed.incrementAndGet();
                     return basic(iid);
                 }));
-        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.of(mergeRequest(1L, "One", "opened")));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(1L), any()))
+                .thenReturn(Optional.of(mergeRequest(1L, "One", "opened")));
 
         final Stream<MergeRequest> stream = sut.mergeRequests(filter);
 

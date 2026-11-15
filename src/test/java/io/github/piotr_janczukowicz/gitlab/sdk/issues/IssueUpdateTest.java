@@ -105,6 +105,19 @@ class IssueUpdateTest {
     }
 
     @Test
+    void send_shouldSendMilestoneZero_whenMilestoneIsCleared() throws IOException {
+        when(gitLab.issues().project().update(eq(ID), eq(IID), any(GitLabProjectIssuesUpdatePayload.class)))
+                .thenReturn(issue(IID, "Old", "opened"));
+
+        issue.update().clearMilestone().send();
+
+        final ArgumentCaptor<GitLabProjectIssuesUpdatePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectIssuesUpdatePayload.class);
+        verify(gitLab.issues().project()).update(eq(ID), eq(IID), payload.capture());
+        assertThat(payload.getValue().milestoneId()).isEqualTo(0L);
+    }
+
+    @Test
     void send_shouldSendConfidentialFalse_whenSetToFalse() throws IOException {
         when(gitLab.issues().project().update(eq(ID), eq(IID), any(GitLabProjectIssuesUpdatePayload.class)))
                 .thenReturn(issue(IID, "Old", "opened"));

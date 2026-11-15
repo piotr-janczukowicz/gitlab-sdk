@@ -229,8 +229,8 @@ public final class Commit {
 
     /**
      * Comments on the commit as a whole ({@code POST /projects/{id}/repository/commits/{sha}/comments}). The core
-     * requires a line type, so {@code line_type=new}, the default GitLab documents, is sent; no path and no line are
-     * sent.
+     * requires a line type, so {@code line_type=new}, the default GitLab's API description gives, is sent; no path and
+     * no line are sent.
      *
      * @param body the text of the comment
      * @return the comment, as GitLab answered

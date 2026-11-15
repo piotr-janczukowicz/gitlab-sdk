@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -173,6 +174,48 @@ class MergeRequestApprovalRulesTest {
             softly.assertThat(payload.getValue().userIds()).isNull();
             softly.assertThat(result.response()).isSameAs(created);
         });
+    }
+
+    @Test
+    void createApprovalRule_shouldSendTheApproverIds_whenGivenUsersAndGroups() throws IOException {
+        final GitLabMergeRequestApprovalRule created = rule(9L, "Security");
+        when(gitLab.mergerequestapprovals()
+                        .createMergeRequestsApprovalRule(
+                                eq(ID),
+                                eq(IID),
+                                any(GitLabProjectMergeRequestApprovalsCreateMergeRequestsApprovalRulePayload.class)))
+                .thenReturn(created);
+
+        final MergeRequestApprovalRule result = sut.createApprovalRule("Security", 2, List.of(3L, 4L), List.of(5L));
+
+        final ArgumentCaptor<GitLabProjectMergeRequestApprovalsCreateMergeRequestsApprovalRulePayload> payload =
+                ArgumentCaptor.forClass(GitLabProjectMergeRequestApprovalsCreateMergeRequestsApprovalRulePayload.class);
+        verify(gitLab.mergerequestapprovals()).createMergeRequestsApprovalRule(eq(ID), eq(IID), payload.capture());
+        assertSoftly(softly -> {
+            softly.assertThat(payload.getValue().name()).isEqualTo("Security");
+            softly.assertThat(payload.getValue().approvalsRequired()).isEqualTo(2);
+            softly.assertThat(payload.getValue().userIds()).containsExactly(3L, 4L);
+            softly.assertThat(payload.getValue().groupIds()).containsExactly(5L);
+            softly.assertThat(result.response()).isSameAs(created);
+        });
+    }
+
+    @Test
+    void createApprovalRule_shouldRefuseBeforeAnyRequest_whenTheListsAreNullOrTheCountIsNegative() {
+        final Throwable nullUsers = catchThrowable(() -> sut.createApprovalRule("Security", 1, null, List.of()));
+        final Throwable nullGroups = catchThrowable(() -> sut.createApprovalRule("Security", 1, List.of(), null));
+        final Throwable negative = catchThrowable(() -> sut.createApprovalRule("Security", -1, List.of(), List.of()));
+
+        assertSoftly(softly -> {
+            softly.assertThat(nullUsers)
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("userIds");
+            softly.assertThat(nullGroups)
+                    .isInstanceOf(NullPointerException.class)
+                    .hasMessageContaining("groupIds");
+            softly.assertThat(negative).isInstanceOf(IllegalArgumentException.class);
+        });
+        verifyNoInteractions(gitLab.mergerequestapprovals());
     }
 
     @Test

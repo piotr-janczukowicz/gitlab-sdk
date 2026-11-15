@@ -18,7 +18,7 @@ import java.util.Optional;
 /**
  * An access token of a {@link Group}, as GitLab returned it. The object is immutable, and {@link #response()} gives the
  * complete response. The secret of a token is returned only when the token is created or rotated, and only by
- * {@link CreatedGroupAccessToken#token()}; GitLab never returns it again.
+ * {@link GroupCreatedAccessToken#token()}; GitLab never returns it again.
  */
 public final class GroupAccessToken {
 
@@ -154,7 +154,7 @@ public final class GroupAccessToken {
      * @return the new token with its secret
      * @throws IOException if the transport fails
      */
-    public CreatedGroupAccessToken rotate() throws IOException {
+    public GroupCreatedAccessToken rotate() throws IOException {
         return rotateWith(GitLabGroupAccessTokensRotatePayloadBuilder.builder().build());
     }
 
@@ -167,7 +167,7 @@ public final class GroupAccessToken {
      * @throws NullPointerException if {@code expiresAt} is {@code null}
      * @throws IOException if the transport fails
      */
-    public CreatedGroupAccessToken rotate(final LocalDate expiresAt) throws IOException {
+    public GroupCreatedAccessToken rotate(final LocalDate expiresAt) throws IOException {
         return rotateWith(GitLabGroupAccessTokensRotatePayloadBuilder.builder()
                 .expiresAt(requireNonNull(expiresAt, "expiresAt"))
                 .build());
@@ -203,8 +203,8 @@ public final class GroupAccessToken {
         return response;
     }
 
-    private CreatedGroupAccessToken rotateWith(final GitLabGroupAccessTokensRotatePayload payload) throws IOException {
-        return new CreatedGroupAccessToken(
+    private GroupCreatedAccessToken rotateWith(final GitLabGroupAccessTokensRotatePayload payload) throws IOException {
+        return new GroupCreatedAccessToken(
                 group, gitLab().accesstokens().group().rotate(group.id(), String.valueOf(id()), payload));
     }
 

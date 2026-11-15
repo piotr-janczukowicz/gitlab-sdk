@@ -48,14 +48,39 @@ class GroupListsTest {
     }
 
     @Test
-    void sharedGroups_shouldLoadEachListedGroup_whenListed() throws IOException {
+    void invitedToGroups_shouldLoadEachListedGroup_whenListed() throws IOException {
         when(gitLab.groups().listShared(ID).stream()).thenReturn(Stream.of(listedGroup(3L)));
         when(gitLab.groups().get("3")).thenReturn(Optional.of(loadedGroup(3L, "three")));
 
-        final List<Group> groups = sut.sharedGroups().toList();
+        final List<Group> groups = sut.invitedToGroups().toList();
 
         assertThat(groups)
                 .singleElement()
                 .satisfies(group -> assertThat(group.response().path()).isEqualTo("three"));
+        verify(gitLab.groups(), never()).listInvitedGroups(ID);
+    }
+
+    @Test
+    void invitedGroups_shouldLoadEachListedGroup_whenListed() throws IOException {
+        when(gitLab.groups().listInvitedGroups(ID).stream()).thenReturn(Stream.of(listedGroup(4L)));
+        when(gitLab.groups().get("4")).thenReturn(Optional.of(loadedGroup(4L, "four")));
+
+        final List<Group> groups = sut.invitedGroups().toList();
+
+        assertThat(groups)
+                .singleElement()
+                .satisfies(group -> assertThat(group.response().path()).isEqualTo("four"));
+        verify(gitLab.groups(), never()).listShared(ID);
+    }
+
+    @Test
+    void invitedGroups_shouldSkipAGroupThatIsGone_whenListed() throws IOException {
+        when(gitLab.groups().listInvitedGroups(ID).stream()).thenReturn(Stream.of(listedGroup(4L), listedGroup(5L)));
+        when(gitLab.groups().get("4")).thenReturn(Optional.empty());
+        when(gitLab.groups().get("5")).thenReturn(Optional.of(loadedGroup(5L, "five")));
+
+        final List<Group> groups = sut.invitedGroups().toList();
+
+        assertThat(groups).extracting(group -> group.response().path()).containsExactly("five");
     }
 }

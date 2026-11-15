@@ -60,7 +60,7 @@ public final class User {
 
     /**
      * Counts the groups, projects, issues and merge requests associated with the user ({@code GET
-     * /users/{id}/associations_count}). Per the GitLab documentation, administrators can query any user and other users
+     * /users/{id}/associations_count}). Per GitLab's API description, administrators can query any user and other users
      * only themselves; the SDK does not check this, so for anyone else GitLab's refusal reaches the caller as the
      * core's exception. Not verified live.
      *

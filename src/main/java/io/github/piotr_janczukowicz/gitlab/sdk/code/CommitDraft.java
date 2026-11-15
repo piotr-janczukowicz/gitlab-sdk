@@ -15,8 +15,8 @@ import java.util.List;
  * Collects the file changes of a commit and creates the commit in one request when {@link #send()} is called
  * ({@code POST /projects/{id}/repository/commits}, the changes sent as {@code actions[][...]} form fields in the order
  * they were added). Adding a change makes no request. The core sends the {@code actions[][...]} fields as multipart
- * form fields; GitLab documents JSON and form bodies, so the multipart encoding is covered by unit tests only and has
- * not been verified against a live GitLab.
+ * form fields; GitLab's API description lists JSON and form bodies, so the multipart encoding is covered by unit tests
+ * only and has not been verified against a live GitLab.
  */
 public final class CommitDraft {
 

@@ -21,9 +21,13 @@ import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBasicBui
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabMergeRequestBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListScope;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssue;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabIssueBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabGroupMergeRequestsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabGroupMergeRequestsListFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabGroupMergeRequestsListScope;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
@@ -196,6 +200,8 @@ class GroupTest {
 
         final List<Issue> issues = sut.issues().toList();
 
+        verify(gitLab.issues().group()).list(ID, GitLabGroupIssuesListFilter.empty());
+
         assertSoftly(softly -> {
             softly.assertThat(issues).extracting(Issue::iid).containsExactly(1L, 2L);
             softly.assertThat(issues).extracting(issue -> issue.project().id()).containsExactly("5", "6");
@@ -203,8 +209,10 @@ class GroupTest {
     }
 
     @Test
-    void issues_shouldPassFilter_whenFilterIsGiven() throws IOException {
-        final GitLabGroupIssuesListFilter filter = GitLabGroupIssuesListFilter.empty();
+    void issues_shouldPassTheScope_whenFilterGivesOne() throws IOException {
+        final GitLabGroupIssuesListFilter filter = GitLabGroupIssuesListFilterBuilder.builder()
+                .scope(GitLabGroupIssuesListScope.ALL)
+                .build();
         when(gitLab.issues().group().list(ID, filter).stream()).thenReturn(Stream.of(listedIssue(1L, 5L)));
 
         final List<Issue> issues = sut.issues(filter).toList();
@@ -251,15 +259,17 @@ class GroupTest {
         when(gitLab.mergerequests().group().list(eq(ID), any(GitLabGroupMergeRequestsListFilter.class)).stream())
                 .thenReturn(
                         Stream.of(listedMergeRequest(1L, 5L), listedMergeRequest(2L, 5L), listedMergeRequest(3L, 6L)));
-        when(gitLab.mergerequests().project().get("5", 1L))
+        when(gitLab.mergerequests().project().get(eq("5"), eq(1L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
-        when(gitLab.mergerequests().project().get("5", 2L)).thenReturn(Optional.empty());
-        when(gitLab.mergerequests().project().get("6", 3L))
+        when(gitLab.mergerequests().project().get(eq("5"), eq(2L), any())).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq("6"), eq(3L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(3L).build()));
 
         final List<MergeRequest> result = sut.mergeRequests().toList();
+
+        verify(gitLab.mergerequests().group()).list(ID, GitLabGroupMergeRequestsListFilter.empty());
 
         assertSoftly(softly -> {
             softly.assertThat(result).extracting(MergeRequest::iid).containsExactly(1L, 3L);
@@ -268,11 +278,13 @@ class GroupTest {
     }
 
     @Test
-    void mergeRequests_shouldPassFilter_whenFilterIsGiven() throws IOException {
-        final GitLabGroupMergeRequestsListFilter filter = GitLabGroupMergeRequestsListFilter.empty();
+    void mergeRequests_shouldPassTheScope_whenFilterGivesOne() throws IOException {
+        final GitLabGroupMergeRequestsListFilter filter = GitLabGroupMergeRequestsListFilterBuilder.builder()
+                .scope(GitLabGroupMergeRequestsListScope.ALL)
+                .build();
         when(gitLab.mergerequests().group().list(ID, filter).stream())
                 .thenReturn(Stream.of(listedMergeRequest(1L, 5L)));
-        when(gitLab.mergerequests().project().get("5", 1L))
+        when(gitLab.mergerequests().project().get(eq("5"), eq(1L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
 
@@ -289,7 +301,7 @@ class GroupTest {
                     consumed.incrementAndGet();
                     return listedMergeRequest(iid, 5L);
                 }));
-        when(gitLab.mergerequests().project().get("5", 1L))
+        when(gitLab.mergerequests().project().get(eq("5"), eq(1L), any()))
                 .thenReturn(
                         Optional.of(GitLabMergeRequestBuilder.builder().iid(1L).build()));
 

@@ -12,10 +12,12 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.RepositoryRequests;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.BlameRange;
 import io.github.piotr_janczukowicz.http.MultipartFormData;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.Path;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.regex.Pattern;
@@ -226,6 +228,32 @@ public final class RepositoryFile {
         }
         return gitLab().repositoryfiles().listBlame(project.id(), path(), ref, start, end).stream()
                 .map(BlameRange::new);
+    }
+
+    /**
+     * Streams the raw content of this file at its ref into a stream; see {@link Project#rawFile(String, String,
+     * OutputStream)}.
+     *
+     * @param out the stream to write to
+     * @return the number of bytes written
+     * @throws NullPointerException if {@code out} is {@code null}
+     * @throws IOException if the transport fails or the stream cannot be written
+     */
+    public long raw(final OutputStream out) throws IOException {
+        return project.rawFile(path(), ref, out);
+    }
+
+    /**
+     * Writes the raw content of this file at its ref to a local file; see {@link Project#rawFile(String, String,
+     * Path)}.
+     *
+     * @param target the local file to write
+     * @return {@code target}, as the core returns it
+     * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IOException if the transport fails or the file cannot be written
+     */
+    public Path raw(final Path target) throws IOException {
+        return project.rawFile(path(), ref, target);
     }
 
     /**

@@ -81,8 +81,8 @@ import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.tokens.AccessTokenScope;
-import io.github.piotr_janczukowicz.gitlab.sdk.tokens.CreatedGroupAccessToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.tokens.GroupAccessToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.tokens.GroupCreatedAccessToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.GroupVariable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
@@ -396,9 +396,28 @@ public final class Group {
     }
 
     /**
-     * Lists the groups GitLab's API description calls shared with this group ({@code GET /groups/{id}/groups/shared}),
-     * ordered by name ascending; unauthenticated requests get only public groups. Which side of the sharing the listed
-     * groups are on is not verified. GitLab lists a summary of each group, so each one is loaded ({@code GET
+     * Lists the groups this group has been invited to ({@code GET /groups/{id}/groups/shared}): the groups this group
+     * was shared with, so this group is the member and the listed ones are the hosts. Per docs.gitlab.com/api/groups
+     * (read for this method), the endpoint lists "groups where the given group has been invited"; the opposite
+     * direction, the groups invited into this group, is {@link #invitedGroups()}. Ordered by name ascending;
+     * unauthenticated requests get only public groups. GitLab lists a summary of each group, so each one is loaded
+     * ({@code GET /groups/{id}}) as the stream reaches it, and one that was deleted in the meantime is skipped. Pages
+     * are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}. The stream is single-use. An earlier version called this method
+     * {@code sharedGroups()}, which on {@link Project} means the opposite relation.
+     *
+     * @return the loaded groups
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Group> invitedToGroups() throws IOException {
+        return sdk.loadedGroups(sdk.gitLab().groups().listShared(id).stream());
+    }
+
+    /**
+     * Lists the groups invited into this group ({@code GET /groups/{id}/invited_groups}): the groups that were shared
+     * with this group, the same relation {@link Project#sharedGroups()} lists for a project. Per
+     * docs.gitlab.com/api/groups (read for this method), the endpoint lists "invited groups in a group"; the opposite
+     * direction is {@link #invitedToGroups()}. GitLab lists a summary of each group, so each one is loaded ({@code GET
      * /groups/{id}}) as the stream reaches it, and one that was deleted in the meantime is skipped. Pages are fetched
      * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}. The
      * stream is single-use.
@@ -406,8 +425,8 @@ public final class Group {
      * @return the loaded groups
      * @throws IOException if the first page cannot be loaded
      */
-    public Stream<Group> sharedGroups() throws IOException {
-        return sdk.loadedGroups(sdk.gitLab().groups().listShared(id).stream());
+    public Stream<Group> invitedGroups() throws IOException {
+        return sdk.loadedGroups(sdk.gitLab().groups().listInvitedGroups(id).stream());
     }
 
     /**
@@ -1087,7 +1106,7 @@ public final class Group {
      * @throws IllegalArgumentException if {@code name} is blank, no scope is given, or the role is not supported
      * @throws IOException if the transport fails
      */
-    public CreatedGroupAccessToken createAccessToken(
+    public GroupCreatedAccessToken createAccessToken(
             final String name,
             final Collection<AccessTokenScope> scopes,
             final @Nullable LocalDate expiresAt,
@@ -1102,7 +1121,7 @@ public final class Group {
                         .accessLevel(GitLabGroupAccessTokensCreateAccessLevel.fromWire(
                                 TokenRequests.requireTokenLevel(level).value()))
                         .expiresAt(expiresAt);
-        return new CreatedGroupAccessToken(
+        return new GroupCreatedAccessToken(
                 this, sdk.gitLab().accesstokens().group().create(id, payload.build()));
     }
 

@@ -522,7 +522,8 @@ public final class MergeRequest {
 
     /**
      * Tells whether GitLab is rebasing the merge request. A rebase runs in the background, so this reads the moment the
-     * merge request was loaded: call {@link #refresh()} after {@link #rebase()} to see it.
+     * merge request was loaded; every load of the SDK asks GitLab for the rebase state
+     * ({@code include_rebase_in_progress=true}), so call {@link #refresh()} after {@link #rebase()} to see it.
      *
      * @return {@code true} when GitLab says a rebase is in progress; {@code false} when it says otherwise or does not
      *     return the flag
@@ -745,20 +746,47 @@ public final class MergeRequest {
      */
     public MergeRequestApprovalRule createApprovalRule(final String name, final int approvalsRequired)
             throws IOException {
-        if (approvalsRequired < 0) {
-            throw new IllegalArgumentException("approvalsRequired must not be negative");
-        }
-        return createApprovalRule(
-                GitLabProjectMergeRequestApprovalsCreateMergeRequestsApprovalRulePayloadBuilder.builder()
-                        .name(requireNotBlank(name, "name"))
-                        .approvalsRequired(approvalsRequired)
-                        .build());
+        return createApprovalRule(name, approvalsRequired, List.of(), List.of());
     }
 
     /**
-     * Creates an approval rule from the core's payload, which also carries the approving users and groups ({@code POST
-     * /projects/{id}/merge_requests/{merge_request_iid}/approval_rules}). Approval rules are a Premium feature: on a
-     * lower tier the core's {@code GitLabTierException} passes through.
+     * Creates an approval rule with its approvers ({@code POST /projects/{id}/merge_requests/{merge_request_iid}/
+     * approval_rules}), as {@code Group.createApprovalRule(name, approvalsRequired, userIds, groupIds)} does for a
+     * group. An empty list sends nothing for that field. Approval rules are a Premium feature: on a lower tier the
+     * core's {@code GitLabTierException} passes through.
+     *
+     * @param name the rule name
+     * @param approvalsRequired the number of approvals the rule needs
+     * @param userIds the numeric ids of the approving users
+     * @param groupIds the numeric ids of the groups whose members approve
+     * @return the created rule
+     * @throws NullPointerException if an argument or an id is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank or {@code approvalsRequired} is negative
+     * @throws IOException if the transport fails
+     */
+    public MergeRequestApprovalRule createApprovalRule(
+            final String name, final int approvalsRequired, final List<Long> userIds, final List<Long> groupIds)
+            throws IOException {
+        if (approvalsRequired < 0) {
+            throw new IllegalArgumentException("approvalsRequired must not be negative");
+        }
+        final GitLabProjectMergeRequestApprovalsCreateMergeRequestsApprovalRulePayloadBuilder builder =
+                GitLabProjectMergeRequestApprovalsCreateMergeRequestsApprovalRulePayloadBuilder.builder()
+                        .name(requireNotBlank(name, "name"))
+                        .approvalsRequired(approvalsRequired);
+        if (!requireNonNull(userIds, "userIds").isEmpty()) {
+            builder.userIds(List.copyOf(userIds));
+        }
+        if (!requireNonNull(groupIds, "groupIds").isEmpty()) {
+            builder.groupIds(List.copyOf(groupIds));
+        }
+        return createApprovalRule(builder.build());
+    }
+
+    /**
+     * Creates an approval rule from the core's payload, which also carries the approving user names and the id of a
+     * project rule to copy ({@code POST /projects/{id}/merge_requests/{merge_request_iid}/approval_rules}). Approval
+     * rules are a Premium feature: on a lower tier the core's {@code GitLabTierException} passes through.
      *
      * @param payload the core payload
      * @return the created rule
@@ -857,8 +885,9 @@ public final class MergeRequest {
     }
 
     /**
-     * Loads the merge request again ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}). This object is not
-     * changed.
+     * Loads the merge request again ({@code GET /projects/{id}/merge_requests/{merge_request_iid}} with
+     * {@code include_rebase_in_progress=true}, because per docs.gitlab.com/api/merge_requests GitLab includes the
+     * rebase state only then). This object is not changed.
      *
      * @return the merge request as GitLab holds it now
      * @throws IllegalStateException if GitLab no longer has the merge request

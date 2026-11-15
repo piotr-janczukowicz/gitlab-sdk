@@ -492,9 +492,9 @@ class IssueTest {
         when(gitLab.issues().project().listClosedBy(ID, IID))
                 .thenReturn(
                         List.of(mergeRequestBasic(1L, null), mergeRequestBasic(2L, null), mergeRequestBasic(3L, 99L)));
-        when(gitLab.mergerequests().project().get(ID, 1L)).thenReturn(Optional.of(mergeRequest(1L)));
-        when(gitLab.mergerequests().project().get(ID, 2L)).thenReturn(Optional.empty());
-        when(gitLab.mergerequests().project().get("99", 3L)).thenReturn(Optional.of(mergeRequest(3L)));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(1L), any())).thenReturn(Optional.of(mergeRequest(1L)));
+        when(gitLab.mergerequests().project().get(eq(ID), eq(2L), any())).thenReturn(Optional.empty());
+        when(gitLab.mergerequests().project().get(eq("99"), eq(3L), any())).thenReturn(Optional.of(mergeRequest(3L)));
 
         final List<MergeRequest> result = sut.closedByMergeRequests().toList();
 
@@ -511,7 +511,7 @@ class IssueTest {
         final Issue inNumeric = new Issue(numeric, response);
         when(gitLab.issues().project().listRelatedMergeRequests("42", IID))
                 .thenReturn(List.of(mergeRequestBasic(5L, 42L)));
-        when(gitLab.mergerequests().project().get("42", 5L)).thenReturn(Optional.of(mergeRequest(5L)));
+        when(gitLab.mergerequests().project().get(eq("42"), eq(5L), any())).thenReturn(Optional.of(mergeRequest(5L)));
 
         final List<MergeRequest> result = inNumeric.relatedMergeRequests().toList();
 
