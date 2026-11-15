@@ -212,7 +212,8 @@ public final class RemoteMirror {
     }
 
     /**
-     * Returns the complete response this object was built from.
+     * Returns the complete response this object was built from. Its {@code toString()} prints the address as the core
+     * decoded it, so it prints any credentials in it (checked by a unit test that failed); keep the record out of logs.
      *
      * @return the response record
      */

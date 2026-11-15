@@ -1147,8 +1147,8 @@ public final class Group {
      * @param userIds the numeric ids of the approving users
      * @param groupIds the numeric ids of the groups whose members approve
      * @return the created rule
-     * @throws NullPointerException if an argument, an id is {@code null}
-     * @throws IllegalArgumentException if {@code name} is blank, {@code approvalsRequired} is negative
+     * @throws NullPointerException if an argument or an id is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank or {@code approvalsRequired} is negative
      * @throws IOException if the transport fails
      */
     public GroupApprovalRule createApprovalRule(
