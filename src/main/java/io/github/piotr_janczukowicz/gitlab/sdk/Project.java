@@ -7,9 +7,14 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.loadedRunners;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabProjectAccessTokensCreateAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabProjectAccessTokensCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabProjectAccessTokensCreateScopes;
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabProjectAccessTokensListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.commits.GitLabProjectCommitsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabBasicBadgeDetails;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommit;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
@@ -50,6 +55,7 @@ import io.github.piotr_janczukowicz.gitlab.api.pipelineschedules.GitLabProjectPi
 import io.github.piotr_janczukowicz.gitlab.api.pipelineschedules.GitLabProjectPipelineSchedulesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.pipelinetriggers.GitLabProjectPipelineTriggersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.pipelinetriggers.GitLabProjectPipelineTriggersCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.projectbadges.GitLabProjectProjectBadgesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectforks.GitLabProjectProjectForksCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProjectProjectLevelVariablesCreatePayload;
@@ -59,6 +65,9 @@ import io.github.piotr_janczukowicz.gitlab.api.projectlevelvariables.GitLabProje
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projectmilestones.GitLabProjectProjectMilestonesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.projectpushrules.GitLabProjectProjectPushRulesCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsCreateApprovalRulePayload;
+import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsCreateApprovalRulePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingPayload;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsHousekeepingTask;
 import io.github.piotr_janczukowicz.gitlab.api.projects.GitLabProjectProjectsShareGroupAccess;
@@ -73,9 +82,13 @@ import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectPr
 import io.github.piotr_janczukowicz.gitlab.api.protectedbranches.GitLabProjectProtectedBranchesCreatePushAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreateAccessLevel;
 import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtectedTagsCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.pullmirroring.GitLabProjectPullMirroringUpdatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.pullmirroring.GitLabProjectPullMirroringUpdatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.remotemirrors.GitLabProjectRemoteMirrorsCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.remotemirrors.GitLabProjectRemoteMirrorsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesGetChangelogFilter;
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesGetCompareFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersCreatePayloadBuilder;
@@ -83,8 +96,12 @@ import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersListF
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsListFilter;
+import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabApiException;
 import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabNotFoundException;
+import io.github.piotr_janczukowicz.gitlab.sdk.approvals.ApprovalConfiguration;
+import io.github.piotr_janczukowicz.gitlab.sdk.approvals.ProjectApprovalRule;
 import io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditEvents;
+import io.github.piotr_janczukowicz.gitlab.sdk.badges.Badge;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
@@ -104,6 +121,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.RepositoryRequests;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.TokenRequests;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Label;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
@@ -111,10 +129,13 @@ import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.Member;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.milestones.Milestone;
+import io.github.piotr_janczukowicz.gitlab.sdk.mirrors.PullMirror;
+import io.github.piotr_janczukowicz.gitlab.sdk.mirrors.RemoteMirror;
 import io.github.piotr_janczukowicz.gitlab.sdk.packages.ProjectPackage;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
+import io.github.piotr_janczukowicz.gitlab.sdk.pushrules.PushRules;
 import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.Comparison;
@@ -125,14 +146,21 @@ import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineSchedule;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineTrigger;
 import io.github.piotr_janczukowicz.gitlab.sdk.snippets.ProjectSnippets;
+import io.github.piotr_janczukowicz.gitlab.sdk.tokens.AccessToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.tokens.AccessTokenScope;
+import io.github.piotr_janczukowicz.gitlab.sdk.tokens.CreatedAccessToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.Variable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.Webhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import io.github.piotr_janczukowicz.gitlab.sdk.wikis.Wiki;
+import io.github.piotr_janczukowicz.http.MultipartFormData;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -153,6 +181,7 @@ public final class Project {
     private static final String KEY = "key";
     private static final String TAG_NAME = "tagName";
     private static final String REF = "ref";
+    private static final int BAD_REQUEST = 400;
 
     static {
         Internals.registerProjectAccess(project -> project.sdk);
@@ -2250,6 +2279,425 @@ public final class Project {
      */
     public AuditEvents auditEvents() {
         return AuditEvents.forProject(this);
+    }
+
+    /**
+     * Lists the badges of the project ({@code GET /projects/{id}/badges}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the badges
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Badge> badges() throws IOException {
+        return sdk.gitLab().projectbadges().list(id).stream().map(listed -> new Badge(this, listed));
+    }
+
+    /**
+     * Loads a badge ({@code GET /projects/{id}/badges/{badge_id}}).
+     *
+     * @param badgeId the id of the badge
+     * @return the badge, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<Badge> badge(final long badgeId) throws IOException {
+        return sdk.gitLab().projectbadges().get(id, badgeId).map(loaded -> new Badge(this, loaded));
+    }
+
+    /**
+     * Adds a badge ({@code POST /projects/{id}/badges}). Both URLs may hold placeholders such as
+     * {@code %{project_path}}.
+     *
+     * @param linkUrl the URL the badge links to
+     * @param imageUrl the URL of the badge image
+     * @return the new badge
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Badge addBadge(final String linkUrl, final String imageUrl) throws IOException {
+        return createBadge(linkUrl, imageUrl, null);
+    }
+
+    /**
+     * Adds a named badge ({@code POST /projects/{id}/badges}).
+     *
+     * @param linkUrl the URL the badge links to
+     * @param imageUrl the URL of the badge image
+     * @param name the name of the badge
+     * @return the new badge
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Badge addBadge(final String linkUrl, final String imageUrl, final String name) throws IOException {
+        return createBadge(linkUrl, imageUrl, requireNotBlank(name, NAME));
+    }
+
+    /**
+     * Shows how a badge would look with its placeholders replaced, without creating it ({@code GET
+     * /projects/{id}/badges/render}). The core's record is returned as it is.
+     *
+     * @param linkUrl the URL the badge would link to
+     * @param imageUrl the URL of the badge image
+     * @return the rendered URLs
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public GitLabBasicBadgeDetails previewBadge(final String linkUrl, final String imageUrl) throws IOException {
+        final String link = requireNotBlank(linkUrl, "linkUrl");
+        final String image = requireNotBlank(imageUrl, "imageUrl");
+        return sdk.gitLab().projectbadges().getRender(id, link, image);
+    }
+
+    /**
+     * Loads the push rules of the project ({@code GET /projects/{id}/push_rule}). Per GitLab's API description, push
+     * rules are a Premium feature: on a lower tier the core's {@code GitLabTierException} passes through. The core
+     * throws for HTTP 404, and the SDK turns that into an empty result. The GitLab API description only says "Not
+     * Found" for this operation, so that a project without push rules is answered with 404 is an assumption, not
+     * verified live; if GitLab answers 200 with a JSON {@code null} instead, the core throws
+     * {@link IllegalStateException}, and the SDK does not catch it.
+     *
+     * @return the push rules, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<PushRules> pushRules() throws IOException {
+        try {
+            return Optional.of(
+                    new PushRules(this, sdk.gitLab().projectpushrules().get(id)));
+        } catch (final GitLabNotFoundException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Creates the push rules of the project from the core's payload ({@code POST /projects/{id}/push_rule}); change
+     * them later with {@link PushRules#update()}. Per GitLab's API description, push rules are a Premium feature: on a
+     * lower tier the core's {@code GitLabTierException} passes through.
+     *
+     * @param payload the request body
+     * @return the new push rules
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public PushRules createPushRules(final GitLabProjectProjectPushRulesCreatePayload payload) throws IOException {
+        final GitLabProjectProjectPushRulesCreatePayload checked = requireNonNull(payload, PAYLOAD);
+        return new PushRules(this, sdk.gitLab().projectpushrules().create(id, checked));
+    }
+
+    /**
+     * Lists the access tokens of the project ({@code GET /projects/{id}/access_tokens}). The core's call returns the
+     * whole list in one request, so the stream is a view of that list. A token with the Planner or the Security Manager
+     * role cannot be decoded by the core's response type; that is a known gap of the core, not checked live.
+     *
+     * @return the access tokens
+     * @throws IOException if the request fails
+     */
+    public Stream<AccessToken> accessTokens() throws IOException {
+        return sdk.gitLab().accesstokens().project().list(id).stream().map(listed -> new AccessToken(this, listed));
+    }
+
+    /**
+     * Lists the access tokens of the project that match a filter ({@code GET /projects/{id}/access_tokens}).
+     *
+     * @param filter the query parameters of the core
+     * @return the access tokens
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the request fails
+     */
+    public Stream<AccessToken> accessTokens(final GitLabProjectAccessTokensListFilter filter) throws IOException {
+        return sdk.gitLab().accesstokens().project().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new AccessToken(this, listed));
+    }
+
+    /**
+     * Loads an access token ({@code GET /projects/{id}/access_tokens/{token_id}}).
+     *
+     * @param tokenId the id of the token
+     * @return the token, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<AccessToken> accessToken(final long tokenId) throws IOException {
+        return sdk.gitLab()
+                .accesstokens()
+                .project()
+                .get(id, String.valueOf(tokenId))
+                .map(loaded -> new AccessToken(this, loaded));
+    }
+
+    /**
+     * Creates an access token ({@code POST /projects/{id}/access_tokens}). The secret of the token is in the answer
+     * only; GitLab never returns it again. The role must be one of {@code GUEST}, {@code REPORTER}, {@code DEVELOPER},
+     * {@code MAINTAINER} or {@code OWNER}: the core's response type has no value for the other roles, so the answer of
+     * such a creation could not be decoded and the secret would be lost, and the SDK refuses them before the request.
+     *
+     * @param name the name of the token
+     * @param scopes what the token may be used for
+     * @param expiresAt the day the token expires, or {@code null} to leave it to GitLab
+     * @param level the role of the token in the project
+     * @return the new token with its secret
+     * @throws NullPointerException if {@code name}, {@code scopes}, a scope or {@code level} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank, no scope is given, or the role is not supported
+     * @throws IOException if the transport fails
+     */
+    public CreatedAccessToken createAccessToken(
+            final String name,
+            final Collection<AccessTokenScope> scopes,
+            final @Nullable LocalDate expiresAt,
+            final AccessLevel level)
+            throws IOException {
+        final GitLabProjectAccessTokensCreatePayloadBuilder payload =
+                GitLabProjectAccessTokensCreatePayloadBuilder.builder()
+                        .name(requireNotBlank(name, NAME))
+                        .scopes(TokenRequests.requireScopes(scopes).stream()
+                                .map(scope -> GitLabProjectAccessTokensCreateScopes.valueOf(scope.name()))
+                                .toList())
+                        .accessLevel(GitLabProjectAccessTokensCreateAccessLevel.fromWire(
+                                TokenRequests.requireTokenLevel(level).value()))
+                        .expiresAt(expiresAt);
+        return new CreatedAccessToken(
+                this, sdk.gitLab().accesstokens().project().create(id, payload.build()));
+    }
+
+    /**
+     * Lists the remote (push) mirrors of the project ({@code GET /projects/{id}/remote_mirrors}). Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the remote mirrors
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<RemoteMirror> remoteMirrors() throws IOException {
+        return sdk.gitLab().remotemirrors().list(id).stream().map(listed -> new RemoteMirror(this, listed));
+    }
+
+    /**
+     * Loads a remote mirror ({@code GET /projects/{id}/remote_mirrors/{mirror_id}}).
+     *
+     * @param mirrorId the id of the mirror
+     * @return the mirror, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<RemoteMirror> remoteMirror(final long mirrorId) throws IOException {
+        return sdk.gitLab()
+                .remotemirrors()
+                .get(id, String.valueOf(mirrorId))
+                .map(loaded -> new RemoteMirror(this, loaded));
+    }
+
+    /**
+     * Creates a remote mirror that pushes to an address ({@code POST /projects/{id}/remote_mirrors}). Only the address
+     * is sent, so GitLab's defaults decide the rest; change them with {@link RemoteMirror#update()}. The address may
+     * carry credentials; the SDK does not print it.
+     *
+     * @param url the address to push to
+     * @return the new mirror
+     * @throws NullPointerException if {@code url} is {@code null}
+     * @throws IllegalArgumentException if {@code url} is blank
+     * @throws IOException if the transport fails
+     */
+    public RemoteMirror createRemoteMirror(final String url) throws IOException {
+        return createRemoteMirror(GitLabProjectRemoteMirrorsCreatePayloadBuilder.builder()
+                .url(requireNotBlank(url, "url"))
+                .build());
+    }
+
+    /**
+     * Creates a remote mirror from the core's payload ({@code POST /projects/{id}/remote_mirrors}), for the fields the
+     * SDK does not wrap, such as the authentication method and the host keys.
+     *
+     * @param payload the request body
+     * @return the new mirror
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public RemoteMirror createRemoteMirror(final GitLabProjectRemoteMirrorsCreatePayload payload) throws IOException {
+        final GitLabProjectRemoteMirrorsCreatePayload checked = requireNonNull(payload, PAYLOAD);
+        return new RemoteMirror(this, sdk.gitLab().remotemirrors().create(id, checked));
+    }
+
+    /**
+     * Loads the pull mirror of the project ({@code GET /projects/{id}/mirror/pull}). Per GitLab's API description, pull
+     * mirroring is a Premium feature, and GitLab answers HTTP 400 when the project is not mirrored. The result is empty
+     * for HTTP 404 and for that HTTP 400; the 400 mapping follows the description and is not verified live. Other
+     * errors, including the core's tier error, pass through.
+     *
+     * @return the pull mirror, or empty when the project has none
+     * @throws IOException if the transport fails
+     */
+    public Optional<PullMirror> pullMirror() throws IOException {
+        try {
+            return Optional.of(new PullMirror(this, sdk.gitLab().pullmirroring().get(id)));
+        } catch (final GitLabNotFoundException e) {
+            return Optional.empty();
+        } catch (final GitLabApiException e) {
+            if (e.statusCode() == BAD_REQUEST) {
+                return Optional.empty();
+            }
+            throw e;
+        }
+    }
+
+    /**
+     * Sets the address the project is pull-mirrored from ({@code PUT /projects/{id}/mirror/pull}). Only the address is
+     * sent; the other settings, such as the credentials, follow with {@link PullMirror#update()}. Per GitLab's API
+     * description, pull mirroring is a Premium feature and this operation is marked experimental there. It is not
+     * verified live. Starting a pull ({@code POST /projects/{id}/mirror/pull}) is not offered.
+     *
+     * @param url the address to pull from
+     * @return the pull mirror as GitLab answers
+     * @throws NullPointerException if {@code url} is {@code null}
+     * @throws IllegalArgumentException if {@code url} is blank
+     * @throws IOException if the transport fails
+     */
+    public PullMirror configurePullMirror(final String url) throws IOException {
+        final GitLabProjectPullMirroringUpdatePayload payload = GitLabProjectPullMirroringUpdatePayloadBuilder.builder()
+                .url(requireNotBlank(url, "url"))
+                .build();
+        return new PullMirror(this, sdk.gitLab().pullmirroring().update(id, payload));
+    }
+
+    /**
+     * Lists the approval rules of the project ({@code GET /projects/{id}/approval_rules}). They are the project-level
+     * rules, not those of a merge request. Per GitLab's API description, approval rules are a Premium feature: on a
+     * lower tier the core's {@code GitLabTierException} passes through. Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the approval rules
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<ProjectApprovalRule> approvalRules() throws IOException {
+        return sdk.gitLab().projects().project().listApprovalRules(id).stream()
+                .map(listed -> new ProjectApprovalRule(this, listed));
+    }
+
+    /**
+     * Loads an approval rule of the project ({@code GET /projects/{id}/approval_rules/{approval_rule_id}}). Premium, as
+     * above.
+     *
+     * @param ruleId the id of the rule
+     * @return the rule, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<ProjectApprovalRule> approvalRule(final long ruleId) throws IOException {
+        return sdk.gitLab()
+                .projects()
+                .project()
+                .getApprovalRule(id, ruleId)
+                .map(loaded -> new ProjectApprovalRule(this, loaded));
+    }
+
+    /**
+     * Creates an approval rule ({@code POST /projects/{id}/approval_rules}). The rule has no approvers yet; use
+     * {@link ProjectApprovalRule#update()} or
+     * {@link #createApprovalRule(GitLabProjectProjectsCreateApprovalRulePayload)} to name them. No rule type is sent,
+     * because GitLab's API description says not to use it. Premium, as above.
+     *
+     * @param name the rule name
+     * @param approvalsRequired the number of approvals the rule needs
+     * @return the created rule
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank or {@code approvalsRequired} is negative
+     * @throws IOException if the transport fails
+     */
+    public ProjectApprovalRule createApprovalRule(final String name, final int approvalsRequired) throws IOException {
+        if (approvalsRequired < 0) {
+            throw new IllegalArgumentException("approvalsRequired must not be negative");
+        }
+        return createApprovalRule(GitLabProjectProjectsCreateApprovalRulePayloadBuilder.builder()
+                .name(requireNotBlank(name, NAME))
+                .approvalsRequired(approvalsRequired)
+                .build());
+    }
+
+    /**
+     * Creates an approval rule from the core's payload, which also carries the approvers, the protected branches and
+     * the report fields ({@code POST /projects/{id}/approval_rules}). The payload record also has {@code users} and
+     * {@code groups}, which GitLab's API description marks as deprecated; use {@code userIds} and {@code groupIds}.
+     * Premium, as above.
+     *
+     * @param payload the core payload
+     * @return the created rule
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public ProjectApprovalRule createApprovalRule(final GitLabProjectProjectsCreateApprovalRulePayload payload)
+            throws IOException {
+        final GitLabProjectProjectsCreateApprovalRulePayload checked = requireNonNull(payload, PAYLOAD);
+        return new ProjectApprovalRule(this, sdk.gitLab().projects().project().createApprovalRule(id, checked));
+    }
+
+    /**
+     * Loads the approval configuration of the project ({@code GET /projects/{id}/approvals}). Per GitLab's API
+     * description, it is a Premium feature: on a lower tier the core's {@code GitLabTierException} passes through. Two
+     * of its settings are deprecated in that description and are not offered by the object; see
+     * {@link ApprovalConfiguration}.
+     *
+     * @return the configuration, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<ApprovalConfiguration> approvalConfiguration() throws IOException {
+        try {
+            return Optional.of(new ApprovalConfiguration(
+                    this, sdk.gitLab().mergerequestapprovals().getApprovals(id)));
+        } catch (final GitLabNotFoundException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Downloads the avatar of the project to a stream ({@code GET /projects/{id}/avatar}). The stream is not closed. A
+     * project without an avatar is answered with an error of the core. Uploading an avatar is not offered.
+     *
+     * @param out where to write the image
+     * @return the number of bytes written
+     * @throws NullPointerException if {@code out} is {@code null}
+     * @throws IOException if the transport fails or writing fails
+     */
+    public long avatar(final OutputStream out) throws IOException {
+        final OutputStream checked = requireNonNull(out, "out");
+        return sdk.gitLab().projects().project().getAvatar(id, checked);
+    }
+
+    /**
+     * Downloads the avatar of the project to a file ({@code GET /projects/{id}/avatar}).
+     *
+     * @param target the file to write
+     * @return the file that was written
+     * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IOException if the transport fails or writing fails
+     */
+    public Path avatar(final Path target) throws IOException {
+        final Path checked = requireNonNull(target, "target");
+        return sdk.gitLab().projects().project().getAvatar(id, checked);
+    }
+
+    /**
+     * Uploads a file to the project ({@code POST /projects/{id}/uploads}) and returns the Markdown that shows or links
+     * it. The whole file is read into memory first, so a file that cannot be read fails before any request. The file is
+     * sent as a multipart form with the content type {@code application/octet-stream}; whether GitLab accepts that for
+     * every file type is not verified live.
+     *
+     * @param file the file to upload
+     * @return the Markdown link GitLab returns
+     * @throws NullPointerException if {@code file} is {@code null}
+     * @throws IOException if the file cannot be read or the transport fails
+     */
+    public String upload(final Path file) throws IOException {
+        final Path name = requireNonNull(file, "file").getFileName();
+        final MultipartFormData form = MultipartFormData.builder()
+                .file("file", String.valueOf(name), "application/octet-stream", Files.readAllBytes(file))
+                .build();
+        return requireNonNull(sdk.gitLab().markdownuploads().create(id, form).markdown(), "markdown");
+    }
+
+    private Badge createBadge(final String linkUrl, final String imageUrl, final @Nullable String name)
+            throws IOException {
+        final GitLabProjectProjectBadgesCreatePayloadBuilder payload =
+                GitLabProjectProjectBadgesCreatePayloadBuilder.builder()
+                        .linkUrl(requireNotBlank(linkUrl, "linkUrl"))
+                        .imageUrl(requireNotBlank(imageUrl, "imageUrl"))
+                        .name(name);
+        return new Badge(this, sdk.gitLab().projectbadges().create(id, payload.build()));
     }
 
     private DeployKey createDeployKey(

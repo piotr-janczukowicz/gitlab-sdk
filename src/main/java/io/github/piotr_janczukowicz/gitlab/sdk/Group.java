@@ -7,9 +7,15 @@ import static io.github.piotr_janczukowicz.gitlab.sdk.OwnerValues.loadedRunners;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabGroupAccessTokensCreateAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabGroupAccessTokensCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabGroupAccessTokensCreateScopes;
+import io.github.piotr_janczukowicz.gitlab.api.accesstokens.GitLabGroupAccessTokensListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabBasicBadgeDetails;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploytokens.GitLabGroupDeployTokensCreateScopes;
+import io.github.piotr_janczukowicz.gitlab.api.groupbadges.GitLabGroupGroupBadgesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.grouplabels.GitLabGroupGroupLabelsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.grouplabels.GitLabGroupGroupLabelsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.grouplabels.GitLabGroupGroupLabelsListFilter;
@@ -21,7 +27,10 @@ import io.github.piotr_janczukowicz.gitlab.api.grouplevelvariables.GitLabGroupGr
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groupmilestones.GitLabGroupGroupMilestonesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.grouppushrules.GitLabGroupGroupPushRulesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupDetail;
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsCreateApprovalRulePayload;
+import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsCreateApprovalRulePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListPackagesFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsListRunnersFilter;
 import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsShareGroupAccess;
@@ -30,34 +39,60 @@ import io.github.piotr_janczukowicz.gitlab.api.groups.GitLabGroupGroupsTransferP
 import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWebhooksCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.groupwebhooks.GitLabGroupGroupWebhooksCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.issues.GitLabGroupIssuesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.ldapgrouplinks.GitLabGroupLDAPGroupLinksCreateGroupAccess;
+import io.github.piotr_janczukowicz.gitlab.api.ldapgrouplinks.GitLabGroupLDAPGroupLinksCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.ldapgrouplinks.GitLabGroupLDAPGroupLinksCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.ldapgrouplinks.GitLabGroupLDAPGroupLinksDeleteFilter;
+import io.github.piotr_janczukowicz.gitlab.api.ldapgrouplinks.GitLabGroupLDAPGroupLinksDeleteFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.members.GitLabGroupMembersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.mergerequests.GitLabGroupMergeRequestsListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.saml.GitLabGroupSAMLCreateAccessLevel;
+import io.github.piotr_janczukowicz.gitlab.api.saml.GitLabGroupSAMLCreatePayload;
+import io.github.piotr_janczukowicz.gitlab.api.saml.GitLabGroupSAMLCreatePayloadBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.saml.GitLabGroupSAMLDeleteFilter;
+import io.github.piotr_janczukowicz.gitlab.api.saml.GitLabGroupSAMLDeleteFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.api.saml.GitLabGroupSAMLGetFilter;
+import io.github.piotr_janczukowicz.gitlab.api.saml.GitLabGroupSAMLGetFilterBuilder;
+import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabNotFoundException;
 import io.github.piotr_janczukowicz.gitlab.pagination.GitLabPageRequest;
+import io.github.piotr_janczukowicz.gitlab.sdk.approvals.GroupApprovalRule;
 import io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditEvents;
+import io.github.piotr_janczukowicz.gitlab.sdk.badges.GroupBadge;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.DeployTokenScope;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupCreatedDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.deploy.GroupDeployToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.TokenRequests;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.GroupLabel;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupAccessRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.GroupMember;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.LdapGroupLink;
+import io.github.piotr_janczukowicz.gitlab.sdk.members.SamlGroupLink;
 import io.github.piotr_janczukowicz.gitlab.sdk.mergerequests.MergeRequest;
 import io.github.piotr_janczukowicz.gitlab.sdk.milestones.GroupMilestone;
 import io.github.piotr_janczukowicz.gitlab.sdk.packages.ProjectPackage;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.GroupProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedAccess;
+import io.github.piotr_janczukowicz.gitlab.sdk.pushrules.GroupPushRules;
 import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.tokens.AccessTokenScope;
+import io.github.piotr_janczukowicz.gitlab.sdk.tokens.CreatedGroupAccessToken;
+import io.github.piotr_janczukowicz.gitlab.sdk.tokens.GroupAccessToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.variables.GroupVariable;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.GroupWebhook;
 import io.github.piotr_janczukowicz.gitlab.sdk.webhooks.WebhookEvent;
 import io.github.piotr_janczukowicz.gitlab.sdk.wikis.Wiki;
 import java.io.IOException;
+import java.io.OutputStream;
+import java.nio.file.Path;
+import java.time.LocalDate;
+import java.util.Collection;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -68,6 +103,10 @@ import org.jspecify.annotations.Nullable;
  * immutable: every operation returns a new group built from GitLab's answer.
  */
 public final class Group {
+
+    private static final String PROVIDER = "provider";
+    private static final String LEVEL = "level";
+    private static final String PAYLOAD = "payload";
 
     static {
         Internals.registerGroupAccess(group -> group.sdk);
@@ -205,7 +244,7 @@ public final class Group {
         final GitLabGroupGroupsSharePayload payload = new GitLabGroupGroupsSharePayload(
                 groupId,
                 GitLabGroupGroupsShareGroupAccess.fromWire(
-                        requireNonNull(level, "level").value()),
+                        requireNonNull(level, LEVEL).value()),
                 null,
                 null);
         return new Group(sdk, id, sdk.gitLab().groups().share(id, payload));
@@ -420,7 +459,7 @@ public final class Group {
      * @throws IOException if the transport fails
      */
     public GroupWebhook createWebhook(final GitLabGroupGroupWebhooksCreatePayload payload) throws IOException {
-        return new GroupWebhook(this, sdk.gitLab().groupwebhooks().create(id, requireNonNull(payload, "payload")));
+        return new GroupWebhook(this, sdk.gitLab().groupwebhooks().create(id, requireNonNull(payload, PAYLOAD)));
     }
 
     /**
@@ -608,7 +647,7 @@ public final class Group {
      * @throws IOException if the transport fails
      */
     public GroupMilestone createMilestone(final GitLabGroupGroupMilestonesCreatePayload payload) throws IOException {
-        return new GroupMilestone(this, sdk.gitLab().groupmilestones().create(id, requireNonNull(payload, "payload")));
+        return new GroupMilestone(this, sdk.gitLab().groupmilestones().create(id, requireNonNull(payload, PAYLOAD)));
     }
 
     /**
@@ -731,8 +770,7 @@ public final class Group {
      * @throws IOException if the transport fails
      */
     public GroupVariable createVariable(final GitLabGroupGroupLevelVariablesCreatePayload payload) throws IOException {
-        return new GroupVariable(
-                this, sdk.gitLab().grouplevelvariables().create(id, requireNonNull(payload, "payload")));
+        return new GroupVariable(this, sdk.gitLab().grouplevelvariables().create(id, requireNonNull(payload, PAYLOAD)));
     }
 
     /**
@@ -892,13 +930,499 @@ public final class Group {
                 sdk.gitLab().mergerequests().group().list(id, requireNonNull(filter, FILTER)).stream());
     }
 
+    /**
+     * Lists the badges of the group ({@code GET /groups/{id}/badges}). Pages are fetched only as the stream is
+     * consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @return the badges
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupBadge> badges() throws IOException {
+        return sdk.gitLab().groupbadges().list(id).stream().map(listed -> new GroupBadge(this, listed));
+    }
+
+    /**
+     * Loads a badge ({@code GET /groups/{id}/badges/{badge_id}}).
+     *
+     * @param badgeId the id of the badge
+     * @return the badge, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupBadge> badge(final long badgeId) throws IOException {
+        return sdk.gitLab().groupbadges().get(id, badgeId).map(loaded -> new GroupBadge(this, loaded));
+    }
+
+    /**
+     * Adds a badge ({@code POST /groups/{id}/badges}). Both URLs may hold placeholders.
+     *
+     * @param linkUrl the URL the badge links to
+     * @param imageUrl the URL of the badge image
+     * @return the new badge
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public GroupBadge addBadge(final String linkUrl, final String imageUrl) throws IOException {
+        return createBadge(linkUrl, imageUrl, null);
+    }
+
+    /**
+     * Adds a named badge ({@code POST /groups/{id}/badges}).
+     *
+     * @param linkUrl the URL the badge links to
+     * @param imageUrl the URL of the badge image
+     * @param name the name of the badge
+     * @return the new badge
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public GroupBadge addBadge(final String linkUrl, final String imageUrl, final String name) throws IOException {
+        return createBadge(linkUrl, imageUrl, requireNotBlank(name, NAME));
+    }
+
+    /**
+     * Shows how a badge would look with its placeholders replaced, without creating it ({@code GET
+     * /groups/{id}/badges/render}). The core's record is returned as it is.
+     *
+     * @param linkUrl the URL the badge would link to
+     * @param imageUrl the URL of the badge image
+     * @return the rendered URLs
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public GitLabBasicBadgeDetails previewBadge(final String linkUrl, final String imageUrl) throws IOException {
+        final String link = requireNotBlank(linkUrl, "linkUrl");
+        final String image = requireNotBlank(imageUrl, "imageUrl");
+        return sdk.gitLab().groupbadges().getRender(id, link, image);
+    }
+
+    /**
+     * Loads the push rules of the group ({@code GET /groups/{id}/push_rule}). Per GitLab's API description, push rules
+     * are a Premium feature: on a lower tier the core's {@code GitLabTierException} passes through. The core throws for
+     * HTTP 404, and the SDK turns that into an empty result. The GitLab API description only says "Not Found" for this
+     * operation, so that a group without push rules is answered with 404 is an assumption, not verified live; if GitLab
+     * answers 200 with a JSON {@code null} instead, the core throws {@link IllegalStateException}, and the SDK does not
+     * catch it.
+     *
+     * @return the push rules, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupPushRules> pushRules() throws IOException {
+        try {
+            return Optional.of(
+                    new GroupPushRules(this, sdk.gitLab().grouppushrules().get(id)));
+        } catch (final GitLabNotFoundException e) {
+            return Optional.empty();
+        }
+    }
+
+    /**
+     * Creates the push rules of the group from the core's payload ({@code POST /groups/{id}/push_rule}); change them
+     * later with {@link GroupPushRules#update()}. Premium, as above.
+     *
+     * @param payload the request body
+     * @return the new push rules
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupPushRules createPushRules(final GitLabGroupGroupPushRulesCreatePayload payload) throws IOException {
+        final GitLabGroupGroupPushRulesCreatePayload checked = requireNonNull(payload, PAYLOAD);
+        return new GroupPushRules(this, sdk.gitLab().grouppushrules().create(id, checked));
+    }
+
+    /**
+     * Lists the access tokens of the group ({@code GET /groups/{id}/access_tokens}). The core's call returns the whole
+     * list in one request, so the stream is a view of that list. A token with the Planner or the Security Manager role
+     * cannot be decoded by the core's response type; that is a known gap of the core, not checked live.
+     *
+     * @return the access tokens
+     * @throws IOException if the request fails
+     */
+    public Stream<GroupAccessToken> accessTokens() throws IOException {
+        return sdk.gitLab().accesstokens().group().list(id).stream().map(listed -> new GroupAccessToken(this, listed));
+    }
+
+    /**
+     * Lists the access tokens of the group that match a filter ({@code GET /groups/{id}/access_tokens}).
+     *
+     * @param filter the query parameters of the core
+     * @return the access tokens
+     * @throws NullPointerException if {@code filter} is {@code null}
+     * @throws IOException if the request fails
+     */
+    public Stream<GroupAccessToken> accessTokens(final GitLabGroupAccessTokensListFilter filter) throws IOException {
+        return sdk.gitLab().accesstokens().group().list(id, requireNonNull(filter, FILTER)).stream()
+                .map(listed -> new GroupAccessToken(this, listed));
+    }
+
+    /**
+     * Loads an access token ({@code GET /groups/{id}/access_tokens/{token_id}}).
+     *
+     * @param tokenId the id of the token
+     * @return the token, or empty when GitLab answers HTTP 404
+     * @throws IOException if the transport fails
+     */
+    public Optional<GroupAccessToken> accessToken(final long tokenId) throws IOException {
+        return sdk.gitLab()
+                .accesstokens()
+                .group()
+                .get(id, String.valueOf(tokenId))
+                .map(loaded -> new GroupAccessToken(this, loaded));
+    }
+
+    /**
+     * Creates an access token ({@code POST /groups/{id}/access_tokens}). The secret of the token is in the answer only;
+     * GitLab never returns it again. The role must be one of {@code GUEST}, {@code REPORTER}, {@code DEVELOPER},
+     * {@code MAINTAINER} or {@code OWNER}: the core's response type has no value for the other roles, so the answer of
+     * such a creation could not be decoded and the secret would be lost, and the SDK refuses them before the request.
+     *
+     * @param name the name of the token
+     * @param scopes what the token may be used for
+     * @param expiresAt the day the token expires, or {@code null} to leave it to GitLab
+     * @param level the role of the token in the group
+     * @return the new token with its secret
+     * @throws NullPointerException if {@code name}, {@code scopes}, a scope or {@code level} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank, no scope is given, or the role is not supported
+     * @throws IOException if the transport fails
+     */
+    public CreatedGroupAccessToken createAccessToken(
+            final String name,
+            final Collection<AccessTokenScope> scopes,
+            final @Nullable LocalDate expiresAt,
+            final AccessLevel level)
+            throws IOException {
+        final GitLabGroupAccessTokensCreatePayloadBuilder payload =
+                GitLabGroupAccessTokensCreatePayloadBuilder.builder()
+                        .name(requireNotBlank(name, NAME))
+                        .scopes(TokenRequests.requireScopes(scopes).stream()
+                                .map(scope -> GitLabGroupAccessTokensCreateScopes.valueOf(scope.name()))
+                                .toList())
+                        .accessLevel(GitLabGroupAccessTokensCreateAccessLevel.fromWire(
+                                TokenRequests.requireTokenLevel(level).value()))
+                        .expiresAt(expiresAt);
+        return new CreatedGroupAccessToken(
+                this, sdk.gitLab().accesstokens().group().create(id, payload.build()));
+    }
+
+    /**
+     * Lists the approval rules of the group ({@code GET /groups/{id}/approval_rules}). Per GitLab's API description,
+     * they are a Premium feature: on a lower tier the core's {@code GitLabTierException} passes through. Pages are
+     * fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}. The installed core types the protected branches of a group rule as one
+     * object where GitLab's API description has a list, so a rule that has any may not decode until the core is
+     * rebuilt; this is not checked live.
+     *
+     * @return the approval rules
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<GroupApprovalRule> approvalRules() throws IOException {
+        return sdk.gitLab().groups().listApprovalRules(id).stream().map(listed -> new GroupApprovalRule(this, listed));
+    }
+
+    /**
+     * Creates an approval rule ({@code POST /groups/{id}/approval_rules}). The rule has no approvers yet; use
+     * {@link GroupApprovalRule#update()} or {@link #createApprovalRule(GitLabGroupGroupsCreateApprovalRulePayload)} to
+     * name them. No rule type is sent, because GitLab's API description says not to use it. Premium, as above.
+     *
+     * @param name the rule name
+     * @param approvalsRequired the number of approvals the rule needs
+     * @return the created rule
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank or {@code approvalsRequired} is negative
+     * @throws IOException if the transport fails
+     */
+    public GroupApprovalRule createApprovalRule(final String name, final int approvalsRequired) throws IOException {
+        if (approvalsRequired < 0) {
+            throw new IllegalArgumentException("approvalsRequired must not be negative");
+        }
+        return createApprovalRule(GitLabGroupGroupsCreateApprovalRulePayloadBuilder.builder()
+                .name(requireNotBlank(name, NAME))
+                .approvalsRequired(approvalsRequired)
+                .build());
+    }
+
+    /**
+     * Creates an approval rule from the core's payload, which also carries the approving users and groups ({@code POST
+     * /groups/{id}/approval_rules}). Premium, as above.
+     *
+     * @param payload the core payload
+     * @return the created rule
+     * @throws NullPointerException if {@code payload} is {@code null}
+     * @throws IOException if the transport fails
+     */
+    public GroupApprovalRule createApprovalRule(final GitLabGroupGroupsCreateApprovalRulePayload payload)
+            throws IOException {
+        final GitLabGroupGroupsCreateApprovalRulePayload checked = requireNonNull(payload, PAYLOAD);
+        return new GroupApprovalRule(this, sdk.gitLab().groups().createApprovalRule(id, checked));
+    }
+
+    /**
+     * Downloads the avatar of the group to a stream ({@code GET /groups/{id}/avatar}). The stream is not closed. A
+     * group without an avatar is answered with an error of the core. Uploading an avatar is not offered.
+     *
+     * @param out where to write the image
+     * @return the number of bytes written
+     * @throws NullPointerException if {@code out} is {@code null}
+     * @throws IOException if the transport fails or writing fails
+     */
+    public long avatar(final OutputStream out) throws IOException {
+        final OutputStream checked = requireNonNull(out, "out");
+        return sdk.gitLab().groups().getAvatar(id, checked);
+    }
+
+    /**
+     * Downloads the avatar of the group to a file ({@code GET /groups/{id}/avatar}).
+     *
+     * @param target the file to write
+     * @return the file that was written
+     * @throws NullPointerException if {@code target} is {@code null}
+     * @throws IOException if the transport fails or writing fails
+     */
+    public Path avatar(final Path target) throws IOException {
+        final Path checked = requireNonNull(target, "target");
+        return sdk.gitLab().groups().getAvatar(id, checked);
+    }
+
+    /**
+     * Lists the LDAP group links of the group ({@code GET /groups/{id}/ldap_group_links}). Per GitLab's API
+     * description, LDAP group links are a Premium feature: on a lower tier the core's {@code GitLabTierException}
+     * passes through. The core's call returns the whole list in one request, so the stream is a view of that list.
+     *
+     * @return the links
+     * @throws IOException if the request fails
+     */
+    public Stream<LdapGroupLink> ldapLinks() throws IOException {
+        return sdk.gitLab().ldapgrouplinks().list(id).stream().map(listed -> new LdapGroupLink(this, listed));
+    }
+
+    /**
+     * Links an LDAP group, named by its CN, to the group ({@code POST /groups/{id}/ldap_group_links}). Premium, as
+     * above. The role can be any {@link AccessLevel}.
+     *
+     * @param provider the name of the LDAP provider, which GitLab requires
+     * @param cn the CN of the LDAP group
+     * @param level the role the members of the LDAP group get
+     * @return the new link
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code provider} or {@code cn} is blank
+     * @throws IOException if the transport fails
+     */
+    public LdapGroupLink addLdapLink(final String provider, final String cn, final AccessLevel level)
+            throws IOException {
+        return createLdapLink(
+                GitLabGroupLDAPGroupLinksCreatePayloadBuilder.builder().cn(requireNotBlank(cn, "cn")), provider, level);
+    }
+
+    /**
+     * Links an LDAP group, selected by an LDAP filter, to the group ({@code POST /groups/{id}/ldap_group_links}).
+     * Premium, as above.
+     *
+     * @param provider the name of the LDAP provider, which GitLab requires
+     * @param filter the LDAP filter
+     * @param level the role the members of the LDAP group get
+     * @return the new link
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code provider} or {@code filter} is blank
+     * @throws IOException if the transport fails
+     */
+    public LdapGroupLink addLdapFilterLink(final String provider, final String filter, final AccessLevel level)
+            throws IOException {
+        return createLdapLink(
+                GitLabGroupLDAPGroupLinksCreatePayloadBuilder.builder().filter(requireNotBlank(filter, "filter")),
+                provider,
+                level);
+    }
+
+    /**
+     * Deletes the link of an LDAP group, named by its CN ({@code DELETE /groups/{id}/ldap_group_links} with the
+     * provider and the CN). The core also has two calls that put the CN in the path; GitLab's API description marks
+     * them deprecated, so the SDK does not use them. Premium, as above.
+     *
+     * @param provider the name of the LDAP provider, which GitLab requires
+     * @param cn the CN of the LDAP group
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public void deleteLdapLink(final String provider, final String cn) throws IOException {
+        final String checkedProvider = requireNotBlank(provider, PROVIDER);
+        final GitLabGroupLDAPGroupLinksDeleteFilter filter = GitLabGroupLDAPGroupLinksDeleteFilterBuilder.builder()
+                .cn(requireNotBlank(cn, "cn"))
+                .build();
+        sdk.gitLab().ldapgrouplinks().delete(id, checkedProvider, filter);
+    }
+
+    /**
+     * Deletes the link of an LDAP group that was selected by a filter ({@code DELETE /groups/{id}/ldap_group_links}
+     * with the provider and the filter). Premium, as above.
+     *
+     * @param provider the name of the LDAP provider, which GitLab requires
+     * @param filter the LDAP filter of the link
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public void deleteLdapFilterLink(final String provider, final String filter) throws IOException {
+        final String checkedProvider = requireNotBlank(provider, PROVIDER);
+        final GitLabGroupLDAPGroupLinksDeleteFilter deleteFilter =
+                GitLabGroupLDAPGroupLinksDeleteFilterBuilder.builder()
+                        .filter(requireNotBlank(filter, "filter"))
+                        .build();
+        sdk.gitLab().ldapgrouplinks().delete(id, checkedProvider, deleteFilter);
+    }
+
+    /**
+     * Lists the SAML group links of the group ({@code GET /groups/{id}/saml_group_links}). Per GitLab's API
+     * description, SAML group links are a Premium feature: on a lower tier the core's {@code GitLabTierException}
+     * passes through. The core's call returns the whole list in one request, so the stream is a view of that list.
+     *
+     * @return the links
+     * @throws IOException if the request fails
+     */
+    public Stream<SamlGroupLink> samlLinks() throws IOException {
+        return sdk.gitLab().saml().list(id).stream().map(listed -> new SamlGroupLink(this, listed));
+    }
+
+    /**
+     * Loads a SAML group link ({@code GET /groups/{id}/saml_group_links/{saml_group_name}}). Premium, as above. When
+     * the group has links of that name for several providers, GitLab answers with an error that asks for the provider;
+     * use {@link #samlLink(String, String)}.
+     *
+     * @param name the name of the SAML group
+     * @return the link, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<SamlGroupLink> samlLink(final String name) throws IOException {
+        final String checkedName = requireNotBlank(name, NAME);
+        return sdk.gitLab().saml().get(id, checkedName).map(loaded -> new SamlGroupLink(this, loaded));
+    }
+
+    /**
+     * Loads the SAML group link of a provider ({@code GET /groups/{id}/saml_group_links/{saml_group_name}} with the
+     * provider). Premium, as above.
+     *
+     * @param name the name of the SAML group
+     * @param provider the name of the SAML provider
+     * @return the link, or empty when GitLab answers HTTP 404
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Optional<SamlGroupLink> samlLink(final String name, final String provider) throws IOException {
+        final String checkedName = requireNotBlank(name, NAME);
+        final GitLabGroupSAMLGetFilter filter = GitLabGroupSAMLGetFilterBuilder.builder()
+                .provider(requireNotBlank(provider, PROVIDER))
+                .build();
+        return sdk.gitLab().saml().get(id, checkedName, filter).map(loaded -> new SamlGroupLink(this, loaded));
+    }
+
+    /**
+     * Links a SAML group to the group ({@code POST /groups/{id}/saml_group_links}). Premium, as above. The role can be
+     * any {@link AccessLevel}.
+     *
+     * @param name the name of the SAML group
+     * @param level the role the members of the SAML group get
+     * @return the new link
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public SamlGroupLink addSamlLink(final String name, final AccessLevel level) throws IOException {
+        return createSamlLink(GitLabGroupSAMLCreatePayloadBuilder.builder(), name, level);
+    }
+
+    /**
+     * Links a SAML group of a provider to the group ({@code POST /groups/{id}/saml_group_links}). Premium, as above.
+     *
+     * @param name the name of the SAML group
+     * @param level the role the members of the SAML group get
+     * @param provider the name of the SAML provider the link applies to
+     * @return the new link
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code name} or {@code provider} is blank
+     * @throws IOException if the transport fails
+     */
+    public SamlGroupLink addSamlLink(final String name, final AccessLevel level, final String provider)
+            throws IOException {
+        return createSamlLink(
+                GitLabGroupSAMLCreatePayloadBuilder.builder().provider(requireNotBlank(provider, PROVIDER)),
+                name,
+                level);
+    }
+
+    /**
+     * Deletes a SAML group link ({@code DELETE /groups/{id}/saml_group_links/{saml_group_name}}). The core answers with
+     * the deleted link, or with nothing when GitLab answers HTTP 404, and the SDK ignores that answer. Premium, as
+     * above.
+     *
+     * @param name the name of the SAML group
+     * @throws NullPointerException if {@code name} is {@code null}
+     * @throws IllegalArgumentException if {@code name} is blank
+     * @throws IOException if the transport fails
+     */
+    public void deleteSamlLink(final String name) throws IOException {
+        final String checkedName = requireNotBlank(name, NAME);
+        sdk.gitLab().saml().delete(id, checkedName);
+    }
+
+    /**
+     * Deletes the SAML group link of a provider ({@code DELETE /groups/{id}/saml_group_links/{saml_group_name}} with
+     * the provider). Premium, as above.
+     *
+     * @param name the name of the SAML group
+     * @param provider the name of the SAML provider
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public void deleteSamlLink(final String name, final String provider) throws IOException {
+        final String checkedName = requireNotBlank(name, NAME);
+        final GitLabGroupSAMLDeleteFilter filter = GitLabGroupSAMLDeleteFilterBuilder.builder()
+                .provider(requireNotBlank(provider, PROVIDER))
+                .build();
+        sdk.gitLab().saml().delete(id, checkedName, filter);
+    }
+
+    private GroupBadge createBadge(final String linkUrl, final String imageUrl, final @Nullable String name)
+            throws IOException {
+        final GitLabGroupGroupBadgesCreatePayloadBuilder payload = GitLabGroupGroupBadgesCreatePayloadBuilder.builder()
+                .linkUrl(requireNotBlank(linkUrl, "linkUrl"))
+                .imageUrl(requireNotBlank(imageUrl, "imageUrl"))
+                .name(name);
+        return new GroupBadge(this, sdk.gitLab().groupbadges().create(id, payload.build()));
+    }
+
+    private LdapGroupLink createLdapLink(
+            final GitLabGroupLDAPGroupLinksCreatePayloadBuilder builder, final String provider, final AccessLevel level)
+            throws IOException {
+        final GitLabGroupLDAPGroupLinksCreatePayload payload = builder.provider(requireNotBlank(provider, PROVIDER))
+                .groupAccess(GitLabGroupLDAPGroupLinksCreateGroupAccess.fromWire(
+                        requireNonNull(level, LEVEL).value()))
+                .build();
+        return new LdapGroupLink(this, sdk.gitLab().ldapgrouplinks().create(id, payload));
+    }
+
+    private SamlGroupLink createSamlLink(
+            final GitLabGroupSAMLCreatePayloadBuilder builder, final String name, final AccessLevel level)
+            throws IOException {
+        final GitLabGroupSAMLCreatePayload payload = builder.samlGroupName(requireNotBlank(name, NAME))
+                .accessLevel(GitLabGroupSAMLCreateAccessLevel.fromWire(
+                        requireNonNull(level, LEVEL).value()))
+                .build();
+        return new SamlGroupLink(this, sdk.gitLab().saml().create(id, payload));
+    }
+
     private GroupMember createMember(
             final @Nullable String userId, final @Nullable String username, final AccessLevel level)
             throws IOException {
         final GitLabGroupMembersCreatePayload payload = GitLabGroupMembersCreatePayloadBuilder.builder()
                 .userId(userId)
                 .username(username)
-                .accessLevel(requireNonNull(level, "level").value())
+                .accessLevel(requireNonNull(level, LEVEL).value())
                 .build();
         return new GroupMember(this, sdk.gitLab().members().group().create(id, payload));
     }

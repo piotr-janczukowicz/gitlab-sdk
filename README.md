@@ -88,6 +88,7 @@ Each area below is an object you reach from `sdk`, from a `Project` or from a `G
 | **Wikis** | list (each page loaded in full), load by slug, create (with an optional typed `WikiFormat`), update (title, content, format), reload and delete the wiki pages of a project or group (Premium); upload an attachment to the wiki repository |
 | **Snippets** | list, load, create (one file, or several through the core payload), read the content of a snippet or of one file, update (title, description, typed `SnippetVisibility`, add, update, delete and move files), reload and delete the snippets of a project and the personal snippets of the signed-in user |
 | **Dependencies** | list the dependencies of a project (Ultimate), all or filtered by package manager, with their advisories and licenses; read only |
+| **Settings of a project or group** | list, load, add, update and delete the badges of a project or group, with a preview of a badge; the push rules, the access tokens (list, load, create, rotate, revoke, with a typed `AccessTokenScope`) and the approval rules of a project or group; the remote mirrors, the pull mirror and the approval configuration of a project; the LDAP and SAML group links of a group; download the avatar and upload a file to a project (Premium for push rules, pull mirror, approval rules, the approval configuration and the group links) |
 | **Audit events** | list the audit events of a project or group (Premium), all or created between two instants, newest first, and load one by id; read only |
 | **Users** | list (with the core's filter), load by id or by username, the profile and the association counts of a user; the SSH keys, email addresses and GPG keys of the signed-in account (list, add, delete) |
 | **Project and group lists** | list all projects (owned, starred or member through the core's filter), the personal and starred projects of a user, all groups, the descendant and shared groups of a group, the users, ancestor and invited groups and events of a project, star and unstar, languages, housekeeping, templates |
@@ -122,7 +123,8 @@ reading a single file out of the artifacts and a job-token parameter on the arti
 endpoints (Maven, npm, NuGet and the others), the package and container registry protection rules, the registry event
 endpoint and the instance-level package and registry lists.
 
-The same goes for every area outside the table, such as badges and the administration of an instance. Use
+The same goes for every area outside the table, such as the list of the uploads of a project and the administration of
+an instance. Use
 `gitlab-rest-client` for these. No area has been run against a real GitLab instance yet; see
 [Live smoke tests](docs/guide/smoke-tests.md).
 
@@ -548,9 +550,9 @@ try (GitLabClient client = GitLabClients.create(
     Project project = sdk.project("my-group/my-project");
     project.createIssue("Found a bug");                                     // an SDK object
 
-    // no SDK object for badges: use the client with the same project id
-    for (GitLabBadge badge : gitLab.projectbadges().list(project.id()).all()) {
-        System.out.println(badge.name());
+    // no SDK object for the list of uploads: use the client with the same project id
+    for (GitLabMarkdownUploadAdmin upload : gitLab.markdownuploads().list(project.id()).all()) {
+        System.out.println(upload.filename());
     }
 }
 ```

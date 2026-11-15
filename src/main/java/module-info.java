@@ -6,7 +6,9 @@ module io.github.piotr_janczukowicz.gitlabsdk {
 
     exports io.github.piotr_janczukowicz.gitlab.sdk;
     exports io.github.piotr_janczukowicz.gitlab.sdk.account;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.approvals;
     exports io.github.piotr_janczukowicz.gitlab.sdk.audit;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.badges;
     exports io.github.piotr_janczukowicz.gitlab.sdk.ci;
     exports io.github.piotr_janczukowicz.gitlab.sdk.code;
     exports io.github.piotr_janczukowicz.gitlab.sdk.dependencies;
@@ -17,8 +19,10 @@ module io.github.piotr_janczukowicz.gitlabsdk {
     exports io.github.piotr_janczukowicz.gitlab.sdk.members;
     exports io.github.piotr_janczukowicz.gitlab.sdk.mergerequests;
     exports io.github.piotr_janczukowicz.gitlab.sdk.milestones;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.mirrors;
     exports io.github.piotr_janczukowicz.gitlab.sdk.packages;
     exports io.github.piotr_janczukowicz.gitlab.sdk.protection;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.pushrules;
     exports io.github.piotr_janczukowicz.gitlab.sdk.reactions;
     exports io.github.piotr_janczukowicz.gitlab.sdk.repository;
     exports io.github.piotr_janczukowicz.gitlab.sdk.registry;
@@ -26,6 +30,7 @@ module io.github.piotr_janczukowicz.gitlabsdk {
     exports io.github.piotr_janczukowicz.gitlab.sdk.runners;
     exports io.github.piotr_janczukowicz.gitlab.sdk.schedules;
     exports io.github.piotr_janczukowicz.gitlab.sdk.snippets;
+    exports io.github.piotr_janczukowicz.gitlab.sdk.tokens;
     exports io.github.piotr_janczukowicz.gitlab.sdk.variables;
     exports io.github.piotr_janczukowicz.gitlab.sdk.webhooks;
     exports io.github.piotr_janczukowicz.gitlab.sdk.wikis;
