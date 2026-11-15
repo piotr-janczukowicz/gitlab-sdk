@@ -9,6 +9,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -95,6 +96,59 @@ class CommitDraftTest {
             softly.assertThat(count(body, ACTION_PART)).isEqualTo(6);
             softly.assertThat(count(body, "name=\"actions[][encoding]\"")).isEqualTo(2);
             softly.assertThat(count(body, "name=\"actions[][content]\"")).isEqualTo(4);
+        });
+    }
+
+    @Test
+    void send_shouldCreateANewCommitEachTime_whenCalledTwice() throws IOException {
+        when(gitLab.commits().createCommits(eq(ID), any(MultipartFormData.class)))
+                .thenReturn(commit("abc123", "Change things"));
+        sut.delete("a.txt");
+
+        sut.send();
+        sut.send();
+
+        final ArgumentCaptor<MultipartFormData> form = ArgumentCaptor.forClass(MultipartFormData.class);
+        verify(gitLab.commits(), times(2)).createCommits(eq(ID), form.capture());
+        assertThat(bodyOf(form.getAllValues().get(0)).replaceAll("----[0-9a-f]+", "B"))
+                .isEqualTo(bodyOf(form.getAllValues().get(1)).replaceAll("----[0-9a-f]+", "B"));
+    }
+
+    @Test
+    void send_shouldGroupFieldsPerAction_whenDraftHasCreateUpdateAndMove() throws IOException {
+        when(gitLab.commits().createCommits(eq(ID), any(MultipartFormData.class)))
+                .thenReturn(commit("abc123", "Change things"));
+
+        sut.create("a.txt", "hello")
+                .update("b.bin", new byte[] {1, 2})
+                .move("c.txt", "d.txt")
+                .send();
+
+        final ArgumentCaptor<MultipartFormData> form = ArgumentCaptor.forClass(MultipartFormData.class);
+        verify(gitLab.commits()).createCommits(eq(ID), form.capture());
+        final String body = bodyOf(form.getValue());
+        final String[] chunks =
+                body.substring(body.indexOf(ACTION_PART)).split(java.util.regex.Pattern.quote(ACTION_PART));
+        assertSoftly(softly -> {
+            softly.assertThat(chunks).hasSize(4);
+            softly.assertThat(chunks[1])
+                    .containsSubsequence("create", "actions[][file_path]", "a.txt", "actions[][content]", "hello")
+                    .doesNotContain("previous_path")
+                    .doesNotContain("encoding");
+            softly.assertThat(chunks[2])
+                    .containsSubsequence(
+                            "update",
+                            "actions[][file_path]",
+                            "b.bin",
+                            "actions[][encoding]",
+                            "base64",
+                            "actions[][content]",
+                            "AQI=")
+                    .doesNotContain("previous_path");
+            softly.assertThat(chunks[3])
+                    .containsSubsequence("move", "actions[][file_path]", "d.txt", "actions[][previous_path]", "c.txt")
+                    .doesNotContain("content")
+                    .doesNotContain("encoding");
         });
     }
 

@@ -122,7 +122,9 @@ public final class CommitDraft {
     }
 
     /**
-     * Creates the commit ({@code POST /projects/{id}/repository/commits}). The draft is not changed.
+     * Creates the commit ({@code POST /projects/{id}/repository/commits}). The draft is not changed, so each call of
+     * {@code send()} creates a new commit from the same actions. The core sends the actions as multipart form fields;
+     * that is covered by unit tests only and has not been verified against a live GitLab.
      *
      * @return the new commit, as GitLab returned it for the creation
      * @throws IllegalStateException if no change was added (no request is made), or GitLab answers without the id of

@@ -146,11 +146,10 @@ public final class Commit {
 
     /**
      * Lists the statuses of the commit ({@code GET /projects/{id}/repository/commits/{sha}/statuses}). No parameter is
-     * sent, so GitLab uses its defaults: per the GitLab docs, the {@code all} parameter is "If true, includes all
-     * statuses instead of only the latest", the {@code ref} "Defaults to the default branch", and the statuses are
-     * sorted by {@code id} in ascending order ("Defaults to asc"; see https://docs.gitlab.com/api/commits/). Pages are
-     * fetched only as the stream is consumed; transport failures during iteration are
-     * {@link java.io.UncheckedIOException}.
+     * sent, so GitLab uses its defaults: per GitLab's API description, the {@code all} parameter is "If true, includes
+     * all statuses instead of only the latest", the {@code ref} "Defaults to the default branch", and the statuses are
+     * sorted by {@code id} in ascending order ("Defaults to asc"). Pages are fetched only as the stream is consumed;
+     * transport failures during iteration are {@link java.io.UncheckedIOException}.
      *
      * @return the statuses
      * @throws IOException if the first page cannot be loaded
@@ -279,9 +278,9 @@ public final class Commit {
      * Lists the merge requests of the project that contain the commit ({@code GET
      * /projects/{id}/repository/commits/{sha}/merge_requests}). GitLab lists a summary of each merge request, so each
      * one is loaded ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}) as the stream reaches it, and one
-     * that is gone by then is skipped. No {@code state} is sent, so per the GitLab docs merge requests of every state
-     * are returned. Pages are fetched only as the stream is consumed; transport failures during iteration are
-     * {@link java.io.UncheckedIOException}.
+     * that is gone by then is skipped. No {@code state} is sent, so per GitLab's API description merge requests of
+     * every state are returned. Pages are fetched only as the stream is consumed; transport failures during iteration
+     * are {@link java.io.UncheckedIOException}.
      *
      * @return the merge requests
      * @throws IOException if the first page cannot be loaded

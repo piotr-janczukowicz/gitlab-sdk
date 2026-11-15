@@ -877,10 +877,10 @@ public final class Project {
 
     /**
      * Lists the commits of the project that match a filter ({@code GET /projects/{id}/repository/commits}), loading
-     * each one as for {@link #commits()}. Per the GitLab docs, {@code ref_name} "Uses the default branch if not given"
-     * and the {@code order} is reverse chronological unless {@code topo} is asked for. Every commit is loaded with
-     * {@code GET /projects/{id}/repository/commits/{sha}}, which includes the commit statistics by default, so the
-     * filter's {@code with_stats} changes only what GitLab lists, not the commits returned.
+     * each one as for {@link #commits()}. Per GitLab's API description, {@code ref_name} "Uses the default branch if
+     * not given" and the {@code order} is reverse chronological unless {@code topo} is asked for. Every commit is
+     * loaded with {@code GET /projects/{id}/repository/commits/{sha}}, which includes the commit statistics by default,
+     * so the filter's {@code with_stats} changes only what GitLab lists, not the commits returned.
      *
      * @param filter the query parameters of the core
      * @return the commits

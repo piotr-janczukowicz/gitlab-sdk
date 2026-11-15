@@ -6,8 +6,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 import io.github.piotr_janczukowicz.gitlab.api.GitLab;
@@ -66,6 +65,6 @@ class ProjectCommitsFilterTest {
         final Throwable thrown = catchThrowable(() -> sut.commits(null));
 
         assertThat(thrown).isInstanceOf(NullPointerException.class);
-        verify(gitLab.commits(), never()).list(ID, GitLabProjectCommitsListFilter.empty());
+        verifyNoInteractions(gitLab.commits());
     }
 }
