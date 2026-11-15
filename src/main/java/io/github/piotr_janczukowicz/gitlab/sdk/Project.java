@@ -67,6 +67,8 @@ import io.github.piotr_janczukowicz.gitlab.api.protectedtags.GitLabProjectProtec
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.releases.GitLabProjectReleasesListFilter;
+import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesGetChangelogFilter;
+import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesGetCompareFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersListFilter;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
@@ -103,6 +105,10 @@ import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedBranch;
 import io.github.piotr_janczukowicz.gitlab.sdk.protection.ProtectedTag;
 import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.Comparison;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.Contributor;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.RepositoryRequests;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.TreeEntry;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
 import io.github.piotr_janczukowicz.gitlab.sdk.schedules.PipelineSchedule;
@@ -875,6 +881,147 @@ public final class Project {
      */
     public Optional<Commit> commit(final String sha) throws IOException {
         return sdk.gitLab().commits().get(id, sha).map(loaded -> new Commit(this, loaded));
+    }
+
+    /**
+     * Lists the root of the repository at the default branch, without nested directories ({@code GET
+     * /projects/{id}/repository/tree}). GitLab's own defaults apply: the default branch, the root, not recursive, and a
+     * page of 20 entries. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the entries
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<TreeEntry> tree() throws IOException {
+        return tree(null, null, false);
+    }
+
+    /**
+     * Lists a directory of the repository ({@code GET /projects/{id}/repository/tree?path=...&ref=...&recursive=...}).
+     * A {@code null} argument is not sent, so GitLab's default applies: the root for {@code path}, the default branch
+     * for {@code ref}. Without {@code recursive} only the direct entries of the directory are listed. Pages are fetched
+     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     *
+     * @param path the directory within the repository, or {@code null} for the root
+     * @param ref the branch, tag or commit, or {@code null} for the default branch
+     * @param recursive whether to list nested directories too
+     * @return the entries
+     * @throws IllegalArgumentException if {@code path} or {@code ref} is blank
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<TreeEntry> tree(final @Nullable String path, final @Nullable String ref, final boolean recursive)
+            throws IOException {
+        return sdk.gitLab().repositories().listTree(id, RepositoryRequests.treeFilter(path, ref, recursive)).stream()
+                .map(TreeEntry::new);
+    }
+
+    /**
+     * Compares two refs ({@code GET /projects/{id}/repository/compare}). Without {@code straight} GitLab compares the
+     * merge base of {@code from} and {@code to} with {@code to}; with it, the two refs directly. The {@code straight}
+     * parameter is always sent.
+     *
+     * @param from the branch, tag or commit to compare from
+     * @param to the branch, tag or commit to compare to
+     * @param straight {@code true} to compare the refs directly instead of from their merge base
+     * @return the comparison
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if an argument is blank
+     * @throws IOException if the transport fails
+     */
+    public Comparison compare(final String from, final String to, final boolean straight) throws IOException {
+        return new Comparison(sdk.gitLab()
+                .repositories()
+                .getCompare(
+                        id,
+                        requireNotBlank(from, "from"),
+                        requireNotBlank(to, "to"),
+                        GitLabProjectRepositoriesGetCompareFilterBuilder.builder()
+                                .straight(straight)
+                                .build()));
+    }
+
+    /**
+     * Lists the contributors of the repository at the default branch ({@code GET
+     * /projects/{id}/repository/contributors}). No order is requested, so the order is GitLab's own; the GitLab docs
+     * describe it as by commit date, which this SDK does not verify. The commit counts do not include merge commits.
+     * Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
+     *
+     * @return the contributors
+     * @throws IOException if the first page cannot be loaded
+     */
+    public Stream<Contributor> contributors() throws IOException {
+        return sdk.gitLab().repositories().listContributors(id).stream().map(Contributor::new);
+    }
+
+    /**
+     * Finds the merge base, the common ancestor, of two or more refs ({@code GET /projects/{id}/repository/merge_base})
+     * and loads it ({@code GET /projects/{id}/repository/commits/{sha}}). GitLab answers HTTP 404 when the refs have no
+     * merge base or a ref is unknown; that is the core's exception, not an empty result.
+     *
+     * @param refs at least two branches, tags or commits
+     * @return the merge base commit
+     * @throws NullPointerException if {@code refs} or an element is {@code null}
+     * @throws IllegalArgumentException if fewer than two refs are given or one is blank
+     * @throws IllegalStateException if GitLab no longer has the commit after finding it
+     * @throws IOException if the transport fails
+     */
+    public Commit mergeBase(final String... refs) throws IOException {
+        final String sha = requireNonNull(
+                sdk.gitLab()
+                        .repositories()
+                        .getMergeBase(id, RepositoryRequests.mergeBaseRefs(refs))
+                        .id(),
+                "id");
+        return commit(sha).orElseThrow(() -> new IllegalStateException("Commit " + sha + IS_GONE));
+    }
+
+    /**
+     * Asks GitLab to delete all branches that are merged into the default branch ({@code DELETE
+     * /projects/{id}/repository/merged_branches}). Protected branches are not deleted. GitLab answers HTTP 202, so the
+     * branches are deleted after this method returns; the answer carries nothing to wait for.
+     *
+     * @throws IOException if the transport fails
+     */
+    public void deleteMergedBranches() throws IOException {
+        sdk.gitLab().branches().deleteMergedBranches(id);
+    }
+
+    /**
+     * Generates the changelog notes of a version from the commits of the repository without committing them ({@code GET
+     * /projects/{id}/repository/changelog}). GitLab's defaults apply: the range starts at the latest stable version tag
+     * before {@code version} and ends at the latest commit of the default branch.
+     *
+     * @param version the version, in semantic versioning format, with or without a {@code v} prefix
+     * @return the notes in Markdown
+     * @throws NullPointerException if {@code version} is {@code null}
+     * @throws IllegalArgumentException if {@code version} is blank
+     * @throws IOException if the transport fails
+     */
+    public String changelog(final String version) throws IOException {
+        return requireNonNull(
+                sdk.gitLab().repositories().getChangelog(id, version).notes(), "notes");
+    }
+
+    /**
+     * Generates the changelog notes of a version without committing them ({@code GET
+     * /projects/{id}/repository/changelog}), with the range, trailer and configuration of a filter.
+     *
+     * @param version the version, in semantic versioning format, with or without a {@code v} prefix
+     * @param filter the core's filter (from, to, date, trailer, config file)
+     * @return the notes in Markdown
+     * @throws NullPointerException if an argument is {@code null}
+     * @throws IllegalArgumentException if {@code version} is blank
+     * @throws IOException if the transport fails
+     */
+    public String changelog(final String version, final GitLabProjectRepositoriesGetChangelogFilter filter)
+            throws IOException {
+        return requireNonNull(
+                sdk.gitLab()
+                        .repositories()
+                        .getChangelog(id, version, requireNonNull(filter, FILTER))
+                        .notes(),
+                "notes");
     }
 
     /**

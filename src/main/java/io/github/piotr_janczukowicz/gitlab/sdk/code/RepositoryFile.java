@@ -8,6 +8,8 @@ import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepo
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.BlameRange;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.RepositoryRequests;
 import io.github.piotr_janczukowicz.http.MultipartFormData;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -17,6 +19,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Optional;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 
 /**
  * A file of a {@link Project}, as GitLab returned it for one ref. The object is immutable: it keeps the data of the
@@ -185,6 +188,44 @@ public final class RepositoryFile {
      */
     public void delete(final String message) throws IOException {
         gitLab().repositoryfiles().delete(project.id(), path(), ref, requireNotBlank(message, "message"));
+    }
+
+    /**
+     * Returns the blame of the whole file at the ref it was read at ({@code GET
+     * /projects/{id}/repository/files/{file_path}/blame?ref=...&range[start]=1&range[end]=...}): runs of consecutive
+     * lines with the commit that last changed them. The core's operation takes a line range, so the range is {@code 1}
+     * to the number of lines counted in the content this object holds; an empty file has no lines and no request is
+     * made. The request is made when this method is called, not when the stream is consumed.
+     *
+     * @return the ranges
+     * @throws IllegalStateException if GitLab returned no content, or as for {@link #bytes()}
+     * @throws IOException if the transport fails
+     */
+    public Stream<BlameRange> blame() throws IOException {
+        final int lines = RepositoryRequests.lineCount(bytes());
+        if (lines == 0) {
+            return Stream.empty();
+        }
+        return blame(1, lines);
+    }
+
+    /**
+     * Returns the blame of a range of lines at the ref the file was read at ({@code GET
+     * /projects/{id}/repository/files/{file_path}/blame?ref=...&range[start]=...&range[end]=...}). The request is made
+     * when this method is called, not when the stream is consumed.
+     *
+     * @param start the first line, counted from 1
+     * @param end the last line, not before {@code start}
+     * @return the ranges
+     * @throws IllegalArgumentException if {@code start} is below 1 or {@code end} is below {@code start}
+     * @throws IOException if the transport fails
+     */
+    public Stream<BlameRange> blame(final int start, final int end) throws IOException {
+        if (start < 1 || end < start) {
+            throw new IllegalArgumentException("The range must start at 1 or later and not end before it starts");
+        }
+        return gitLab().repositoryfiles().listBlame(project.id(), path(), ref, start, end).stream()
+                .map(BlameRange::new);
     }
 
     /**

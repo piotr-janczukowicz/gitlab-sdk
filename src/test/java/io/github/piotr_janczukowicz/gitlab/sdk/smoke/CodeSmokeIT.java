@@ -7,8 +7,12 @@ import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Branch;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.RepositoryFile;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.BlameRange;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.Comparison;
+import io.github.piotr_janczukowicz.gitlab.sdk.repository.TreeEntry;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Tag;
@@ -100,6 +104,43 @@ class CodeSmokeIT {
 
         assertThat(first).isPresent();
         assertThat(loaded).map(Commit::sha).isEqualTo(first.map(Commit::sha));
+    }
+
+    @Test
+    void repository_shouldReadTreeCompareAndBlame_whenABranchHasOneNewFile() throws IOException {
+        final Project project = ENV.sandbox();
+        final String defaultBranch = project.fetch().orElseThrow().response().defaultBranch();
+        final String branchName = ENV.name("repo");
+        final String path = ENV.name("repo-file") + ".txt";
+        final List<TreeEntry> rootTree =
+                SmokeSkips.probe("repository tree", () -> project.tree().toList());
+        project.createBranch(branchName, defaultBranch);
+        SmokeCleanup.run(
+                () -> {
+                    project.createFile(path, branchName, "one\ntwo\n", "smoke: repository");
+                    final List<TreeEntry> recursive =
+                            project.tree(null, branchName, true).toList();
+                    final Comparison comparison = project.compare(defaultBranch, branchName, true);
+                    final RepositoryFile file = project.file(path, branchName).orElseThrow();
+                    final List<BlameRange> blame = file.blame().toList();
+                    final Commit mergeBase = project.mergeBase(defaultBranch, branchName);
+
+                    assertSoftly(softly -> {
+                        softly.assertThat(rootTree).isNotEmpty();
+                        softly.assertThat(recursive).extracting(TreeEntry::path).contains(path);
+                        softly.assertThat(comparison.commits()).hasSize(1);
+                        softly.assertThat(blame)
+                                .flatExtracting(BlameRange::lines)
+                                .containsExactly("one", "two");
+                        softly.assertThat(mergeBase.sha()).isNotBlank();
+                    });
+                },
+                () -> {
+                    final Optional<Branch> branch = project.branch(branchName);
+                    if (branch.isPresent()) {
+                        branch.get().delete();
+                    }
+                });
     }
 
     @Test
