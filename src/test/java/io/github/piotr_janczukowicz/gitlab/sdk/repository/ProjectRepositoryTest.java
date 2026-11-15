@@ -2,6 +2,7 @@ package io.github.piotr_janczukowicz.gitlab.sdk.repository;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.assertj.core.api.Assertions.catchThrowable;
 import static org.assertj.core.api.SoftAssertions.assertSoftly;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
@@ -24,6 +25,8 @@ import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectReposit
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesListTreeFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabTreeObject;
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabTreeObjectBuilder;
+import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabForbiddenException;
+import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabNotFoundException;
 import io.github.piotr_janczukowicz.gitlab.sdk.GitLabSdk;
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.code.Commit;
@@ -181,25 +184,48 @@ class ProjectRepositoryTest {
         when(gitLab.repositories().getMergeBase(ID, List.of("main", "feature"))).thenReturn(listed);
         when(gitLab.commits().get(ID, SHA)).thenReturn(Optional.of(loaded));
 
-        final Commit result = sut.mergeBase("main", "feature");
+        final Optional<Commit> result = sut.mergeBase("main", "feature");
 
-        assertThat(result.response()).isSameAs(loaded);
+        assertThat(result).map(Commit::response).containsSame(loaded);
     }
 
     @Test
-    void mergeBase_shouldThrow_whenCommitIsGoneAfterLookup() throws IOException {
+    void mergeBase_shouldReturnEmpty_whenGitLabAnswers404() throws IOException {
+        when(gitLab.repositories().getMergeBase(ID, List.of("a", "b"))).thenThrow(mock(GitLabNotFoundException.class));
+
+        final Optional<Commit> result = sut.mergeBase("a", "b");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void mergeBase_shouldReturnEmpty_whenCommitIsGoneAfterLookup() throws IOException {
         when(gitLab.repositories().getMergeBase(ID, List.of("a", "b")))
                 .thenReturn(GitLabCommitBuilder.builder().id(SHA).build());
         when(gitLab.commits().get(ID, SHA)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> sut.mergeBase("a", "b"))
-                .isInstanceOf(IllegalStateException.class)
-                .hasMessageContaining(SHA);
+        final Optional<Commit> result = sut.mergeBase("a", "b");
+
+        assertThat(result).isEmpty();
     }
 
     @Test
-    void mergeBase_shouldRefuseOneRef_whenFewerThanTwo() throws IOException {
-        assertThatThrownBy(() -> sut.mergeBase("main")).isInstanceOf(IllegalArgumentException.class);
+    void mergeBase_shouldPassOtherExceptionsThrough_whenGitLabRefuses() throws IOException {
+        final GitLabForbiddenException refused = mock(GitLabForbiddenException.class);
+        when(gitLab.repositories().getMergeBase(ID, List.of("a", "b"))).thenThrow(refused);
+
+        final Throwable thrown = catchThrowable(() -> sut.mergeBase("a", "b"));
+
+        assertThat(thrown).isSameAs(refused);
+    }
+
+    @Test
+    void mergeBase_shouldRefuseBadRefs_whenFewerThanTwoBlankOrNull() throws IOException {
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(() -> sut.mergeBase("main")).isInstanceOf(IllegalArgumentException.class);
+            softly.assertThatThrownBy(() -> sut.mergeBase("main", " ")).isInstanceOf(IllegalArgumentException.class);
+            softly.assertThatThrownBy(() -> sut.mergeBase((String[]) null)).isInstanceOf(NullPointerException.class);
+        });
         verify(gitLab.repositories(), never()).getMergeBase(ID, List.of("main"));
     }
 
@@ -240,5 +266,24 @@ class ProjectRepositoryTest {
                 .thenReturn(GitLabChangelogBuilder.builder().build());
 
         assertThatThrownBy(() -> sut.changelog("1.2.0")).isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    void changelog_shouldRefuseVersion_whenBlankOrNull() throws IOException {
+        final GitLabProjectRepositoriesGetChangelogFilter filter =
+                GitLabProjectRepositoriesGetChangelogFilterBuilder.builder().build();
+
+        assertSoftly(softly -> {
+            softly.assertThatThrownBy(() -> sut.changelog(" ")).isInstanceOf(IllegalArgumentException.class);
+            softly.assertThatThrownBy(() -> sut.changelog(null)).isInstanceOf(NullPointerException.class);
+            softly.assertThatThrownBy(() -> sut.changelog(" ", filter)).isInstanceOf(IllegalArgumentException.class);
+            softly.assertThatThrownBy(() -> sut.changelog(null, filter)).isInstanceOf(NullPointerException.class);
+        });
+        verify(gitLab.repositories(), never()).getChangelog(ID, " ");
+    }
+
+    @Test
+    void changelog_shouldRefuseNullFilter_whenFilterIsNull() {
+        assertThatThrownBy(() -> sut.changelog("1.2.0", null)).isInstanceOf(NullPointerException.class);
     }
 }

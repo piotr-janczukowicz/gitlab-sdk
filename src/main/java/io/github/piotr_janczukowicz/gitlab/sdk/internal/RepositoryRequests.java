@@ -1,11 +1,10 @@
-package io.github.piotr_janczukowicz.gitlab.sdk.repository;
+package io.github.piotr_janczukowicz.gitlab.sdk.internal;
 
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNonNull;
 import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesListTreeFilter;
 import io.github.piotr_janczukowicz.gitlab.api.repositories.GitLabProjectRepositoriesListTreeFilterBuilder;
-import io.github.piotr_janczukowicz.gitlab.sdk.internal.Arguments;
 import java.util.Arrays;
 import java.util.List;
 import org.jspecify.annotations.Nullable;

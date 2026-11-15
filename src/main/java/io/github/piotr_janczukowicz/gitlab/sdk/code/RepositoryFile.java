@@ -8,8 +8,8 @@ import io.github.piotr_janczukowicz.gitlab.api.repositoryfiles.GitLabProjectRepo
 import io.github.piotr_janczukowicz.gitlab.sdk.Project;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.RepositoryRequests;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.BlameRange;
-import io.github.piotr_janczukowicz.gitlab.sdk.repository.RepositoryRequests;
 import io.github.piotr_janczukowicz.http.MultipartFormData;
 import java.io.IOException;
 import java.nio.ByteBuffer;

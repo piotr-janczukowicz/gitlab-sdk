@@ -10,6 +10,7 @@ import static io.github.piotr_janczukowicz.util.ValidationUtils.requireNotBlank;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.branches.GitLabProjectBranchesCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCiPipelineBasic;
+import io.github.piotr_janczukowicz.gitlab.api.common.GitLabCommit;
 import io.github.piotr_janczukowicz.gitlab.api.common.GitLabDeployment;
 import io.github.piotr_janczukowicz.gitlab.api.containerregistry.GitLabProjectContainerRegistryListFilterBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.deploykeys.GitLabProjectDeployKeysCreatePayload;
@@ -74,6 +75,7 @@ import io.github.piotr_janczukowicz.gitlab.api.runners.GitLabProjectRunnersListF
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayload;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsCreatePayloadBuilder;
 import io.github.piotr_janczukowicz.gitlab.api.tags.GitLabProjectTagsListFilter;
+import io.github.piotr_janczukowicz.gitlab.client.exception.GitLabNotFoundException;
 import io.github.piotr_janczukowicz.gitlab.sdk.audit.AuditEvents;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Job;
 import io.github.piotr_janczukowicz.gitlab.sdk.ci.Pipeline;
@@ -92,6 +94,7 @@ import io.github.piotr_janczukowicz.gitlab.sdk.environments.Environment;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.FileForms;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Internals;
 import io.github.piotr_janczukowicz.gitlab.sdk.internal.Lookups;
+import io.github.piotr_janczukowicz.gitlab.sdk.internal.RepositoryRequests;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Issue;
 import io.github.piotr_janczukowicz.gitlab.sdk.issues.Label;
 import io.github.piotr_janczukowicz.gitlab.sdk.members.AccessLevel;
@@ -107,7 +110,6 @@ import io.github.piotr_janczukowicz.gitlab.sdk.registry.RegistryRepository;
 import io.github.piotr_janczukowicz.gitlab.sdk.releases.Release;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.Comparison;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.Contributor;
-import io.github.piotr_janczukowicz.gitlab.sdk.repository.RepositoryRequests;
 import io.github.piotr_janczukowicz.gitlab.sdk.repository.TreeEntry;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.Runner;
 import io.github.piotr_janczukowicz.gitlab.sdk.runners.RunnerToken;
@@ -122,6 +124,7 @@ import java.io.IOException;
 import java.io.OutputStream;
 import java.nio.file.Path;
 import java.time.Instant;
+import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import org.jspecify.annotations.Nullable;
@@ -885,9 +888,10 @@ public final class Project {
 
     /**
      * Lists the root of the repository at the default branch, without nested directories ({@code GET
-     * /projects/{id}/repository/tree}). GitLab's own defaults apply: the default branch, the root, not recursive, and a
-     * page of 20 entries. Pages are fetched only as the stream is consumed; transport failures during iteration are
-     * {@link java.io.UncheckedIOException}.
+     * /projects/{id}/repository/tree?recursive=false}). Only {@code recursive=false} is sent, which is GitLab's
+     * documented default; the {@code ref} default is the default branch of the project (per the GitLab docs, "If not
+     * specified, uses the default branch"), and the path is the root. A page has 20 entries. Pages are fetched only as
+     * the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
      *
      * @return the entries
      * @throws IOException if the first page cannot be loaded
@@ -898,9 +902,10 @@ public final class Project {
 
     /**
      * Lists a directory of the repository ({@code GET /projects/{id}/repository/tree?path=...&ref=...&recursive=...}).
-     * A {@code null} argument is not sent, so GitLab's default applies: the root for {@code path}, the default branch
-     * for {@code ref}. Without {@code recursive} only the direct entries of the directory are listed. Pages are fetched
-     * only as the stream is consumed; transport failures during iteration are {@link java.io.UncheckedIOException}.
+     * A {@code null} {@code path} or {@code ref} is not sent, so GitLab's default applies: the root for {@code path},
+     * the default branch for {@code ref}. {@code recursive} is always sent; {@code false} lists only the direct entries
+     * of the directory. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
      *
      * @param path the directory within the repository, or {@code null} for the root
      * @param ref the branch, tag or commit, or {@code null} for the default branch
@@ -942,10 +947,11 @@ public final class Project {
 
     /**
      * Lists the contributors of the repository at the default branch ({@code GET
-     * /projects/{id}/repository/contributors}). No order is requested, so the order is GitLab's own; the GitLab docs
-     * describe it as by commit date, which this SDK does not verify. The commit counts do not include merge commits.
-     * Pages are fetched only as the stream is consumed; transport failures during iteration are
-     * {@link java.io.UncheckedIOException}.
+     * /projects/{id}/repository/contributors}). No {@code order_by} or {@code sort} is sent. Per the GitLab docs (<a
+     * href="https://docs.gitlab.com/api/repositories/">docs.gitlab.com/api/repositories</a>, "Get contributor list"),
+     * "If not specified, contributors are ordered by commit date" and the sort "Default is {@code asc}"; this is not
+     * verified live. The commit counts do not include merge commits. Pages are fetched only as the stream is consumed;
+     * transport failures during iteration are {@link java.io.UncheckedIOException}.
      *
      * @return the contributors
      * @throws IOException if the first page cannot be loaded
@@ -956,24 +962,25 @@ public final class Project {
 
     /**
      * Finds the merge base, the common ancestor, of two or more refs ({@code GET /projects/{id}/repository/merge_base})
-     * and loads it ({@code GET /projects/{id}/repository/commits/{sha}}). GitLab answers HTTP 404 when the refs have no
-     * merge base or a ref is unknown; that is the core's exception, not an empty result.
+     * and loads it ({@code GET /projects/{id}/repository/commits/{sha}}). The result is empty when GitLab answers HTTP
+     * 404 (no merge base, or an unknown ref), and also when the found commit is gone by the time it is loaded; other
+     * errors are the core's exceptions.
      *
      * @param refs at least two branches, tags or commits
-     * @return the merge base commit
+     * @return the merge base commit, or empty
      * @throws NullPointerException if {@code refs} or an element is {@code null}
      * @throws IllegalArgumentException if fewer than two refs are given or one is blank
-     * @throws IllegalStateException if GitLab no longer has the commit after finding it
      * @throws IOException if the transport fails
      */
-    public Commit mergeBase(final String... refs) throws IOException {
-        final String sha = requireNonNull(
-                sdk.gitLab()
-                        .repositories()
-                        .getMergeBase(id, RepositoryRequests.mergeBaseRefs(refs))
-                        .id(),
-                "id");
-        return commit(sha).orElseThrow(() -> new IllegalStateException("Commit " + sha + IS_GONE));
+    public Optional<Commit> mergeBase(final String... refs) throws IOException {
+        final List<String> checked = RepositoryRequests.mergeBaseRefs(refs);
+        final GitLabCommit found;
+        try {
+            found = sdk.gitLab().repositories().getMergeBase(id, checked);
+        } catch (final GitLabNotFoundException e) {
+            return Optional.empty();
+        }
+        return commit(requireNonNull(found.id(), "id"));
     }
 
     /**
@@ -1000,7 +1007,11 @@ public final class Project {
      */
     public String changelog(final String version) throws IOException {
         return requireNonNull(
-                sdk.gitLab().repositories().getChangelog(id, version).notes(), "notes");
+                sdk.gitLab()
+                        .repositories()
+                        .getChangelog(id, requireNotBlank(version, "version"))
+                        .notes(),
+                "notes");
     }
 
     /**
@@ -1019,7 +1030,7 @@ public final class Project {
         return requireNonNull(
                 sdk.gitLab()
                         .repositories()
-                        .getChangelog(id, version, requireNonNull(filter, FILTER))
+                        .getChangelog(id, requireNotBlank(version, "version"), requireNonNull(filter, FILTER))
                         .notes(),
                 "notes");
     }

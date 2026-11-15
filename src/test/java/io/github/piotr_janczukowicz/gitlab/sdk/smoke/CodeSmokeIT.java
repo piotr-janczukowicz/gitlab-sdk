@@ -123,7 +123,7 @@ class CodeSmokeIT {
                     final Comparison comparison = project.compare(defaultBranch, branchName, true);
                     final RepositoryFile file = project.file(path, branchName).orElseThrow();
                     final List<BlameRange> blame = file.blame().toList();
-                    final Commit mergeBase = project.mergeBase(defaultBranch, branchName);
+                    final Optional<Commit> mergeBase = project.mergeBase(defaultBranch, branchName);
 
                     assertSoftly(softly -> {
                         softly.assertThat(rootTree).isNotEmpty();
@@ -132,7 +132,7 @@ class CodeSmokeIT {
                         softly.assertThat(blame)
                                 .flatExtracting(BlameRange::lines)
                                 .containsExactly("one", "two");
-                        softly.assertThat(mergeBase.sha()).isNotBlank();
+                        softly.assertThat(mergeBase).map(Commit::sha).isPresent();
                     });
                 },
                 () -> {
