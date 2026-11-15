@@ -546,10 +546,11 @@ public final class Project {
     }
 
     /**
-     * Lists the merge requests of the project ({@code GET /projects/{id}/merge_requests}). GitLab lists a summary of
-     * each merge request, so each one is loaded ({@code GET /projects/{id}/merge_requests/{merge_request_iid}}) as the
-     * stream reaches it, and one that is gone by then is skipped. Pages are fetched only as the stream is consumed;
-     * transport failures during iteration are {@link java.io.UncheckedIOException}.
+     * Lists the merge requests of the project ({@code GET /projects/{id}/merge_requests}). GitLab's {@code scope}
+     * defaults to {@code all}. GitLab lists a summary of each merge request, so each one is loaded ({@code GET
+     * /projects/{id}/merge_requests/{merge_request_iid}}) as the stream reaches it, and one that is gone by then is
+     * skipped. Pages are fetched only as the stream is consumed; transport failures during iteration are
+     * {@link java.io.UncheckedIOException}.
      *
      * @return the merge requests
      * @throws IOException if the first page cannot be loaded

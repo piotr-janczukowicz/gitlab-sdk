@@ -833,8 +833,9 @@ public final class Group {
     }
 
     /**
-     * Lists the merge requests of the group and its subgroups ({@code GET /groups/{id}/merge_requests}). GitLab lists a
-     * summary of each merge request, so each one is loaded ({@code GET
+     * Lists the merge requests of the group and its subgroups ({@code GET /groups/{id}/merge_requests}). GitLab's
+     * {@code scope} defaults to {@code all} (see <a href="https://docs.gitlab.com/api/merge_requests/">the GitLab
+     * docs</a>). GitLab lists a summary of each merge request, so each one is loaded ({@code GET
      * /projects/{id}/merge_requests/{merge_request_iid}}) through the project GitLab names for it as the stream reaches
      * it, and one that is gone by then is skipped. Pages are fetched only as the stream is consumed; transport failures
      * during iteration are {@link java.io.UncheckedIOException}.
@@ -848,8 +849,8 @@ public final class Group {
 
     /**
      * Lists the merge requests of the group and its subgroups that match a filter ({@code GET
-     * /groups/{id}/merge_requests}). Each one is loaded as the stream reaches it, and one that is gone by then is
-     * skipped, as for {@link #mergeRequests()}.
+     * /groups/{id}/merge_requests}); GitLab's {@code scope} defaults to {@code all}. Each one is loaded as the stream
+     * reaches it, and one that is gone by then is skipped, as for {@link #mergeRequests()}.
      *
      * @param filter the query parameters of the core
      * @return the merge requests

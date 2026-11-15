@@ -145,14 +145,15 @@ class MergeRequestsSmokeIT {
                                 assertSoftly(softly -> {
                                     softly.assertThat(diffs).isNotEmpty();
                                     softly.assertThat(versions).isNotEmpty();
-                                    softly.assertThat(participants).isNotNull();
+                                    softly.assertThat(participants).doesNotContainNull();
                                     softly.assertThat(estimated.estimate()).isEqualTo(Duration.ofHours(1));
                                     softly.assertThat(spent.totalSpent()).isEqualTo(Duration.ofMinutes(30));
                                     softly.assertThat(loaded).isPresent();
                                     softly.assertThat(spentReset.totalSpent()).isEqualTo(Duration.ZERO);
                                     softly.assertThat(estimateReset.estimate()).isEqualTo(Duration.ZERO);
-                                    softly.assertThat(rebased).isPresent();
-                                    softly.assertThat(listed).isNotNull();
+                                    softly.assertThat(rebased.map(MergeRequest::isRebaseInProgress))
+                                            .isPresent();
+                                    softly.assertThat(listed).doesNotContainNull();
                                 });
                             },
                             merge::delete);
